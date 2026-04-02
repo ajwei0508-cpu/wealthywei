@@ -187,17 +187,26 @@ export default function Home() {
             }
           });
 
-          // 총매출 보정: 총진료비가 있으면 그것을 사용, 없으면 주요 항목 합산
+          // 총매출 보정: 총진료비가 있으면 그것을 사용, 없으면 모든 주요 항목(비급여 포함) 합산
           if (extractedData.totalTreatmentFee) {
             extractedData.totalRevenue = extractedData.totalTreatmentFee;
           } else {
-            extractedData.totalRevenue = (extractedData.patientPay || 0) + (extractedData.insuranceClaim || 0) + (extractedData.autoInsuranceClaim || 0);
+            extractedData.totalRevenue = 
+              (extractedData.patientPay || 0) + 
+              (extractedData.insuranceClaim || 0) + 
+              (extractedData.autoInsuranceClaim || 0) + 
+              (extractedData.nonBenefit || 0);
           }
 
           setMonthlyData(targetMonth, extractedData);
           setMappingResults(successList);
           setFailedHeaders([]);
-          toast.success(`${targetMonth} 매출 데이터를 분석 및 저장했습니다.`, { duration: 5000 });
+          
+          if (successList.length > 0) {
+            toast.success(`${targetMonth} 매출 데이터를 분석 및 저장했습니다.`, { duration: 5000 });
+          } else {
+            toast.error("데이터 추출에 실패했습니다. 키워드가 일치하는지 확인해 주세요.");
+          }
         } else {
           setMappingResults([]);
           setFailedHeaders(Array.from(new Set(foundHeadersInScan))); 
@@ -228,9 +237,10 @@ export default function Home() {
   const totalRevComp = getComparison("totalRevenue");
 
   const formatMonth = (m: string) => {
-    if (!m) return "";
+    if (!m) return "데이터 없음";
     const [year, month] = m.split("-");
-    return `${year?.slice(2)}.${month}월`;
+    const yearSuffix = year ? `${year.slice(2)}.` : "";
+    return `${yearSuffix}${month}월`;
   };
 
   return (
@@ -342,7 +352,7 @@ export default function Home() {
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
               <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
-              {formatNumber(compareData.totalRevenue)}원 ({formatMonth(compareMonth)})
+              {compareMonth ? `${formatNumber(compareData.totalRevenue)}원 (${formatMonth(compareMonth)})` : "비교 대상 없음"}
             </div>
           </div>
 
@@ -377,7 +387,7 @@ export default function Home() {
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
               <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
-              {formatNumber((compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0))}원 ({formatMonth(compareMonth)})
+              {compareMonth ? `${formatNumber((compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0))}원 (${formatMonth(compareMonth)})` : "비교 대상 없음"}
             </div>
           </div>
 
@@ -397,7 +407,7 @@ export default function Home() {
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
               <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
-              {formatNumber(compareData.nonBenefit)}원 ({formatMonth(compareMonth)})
+              {compareMonth ? `${formatNumber(compareData.nonBenefit)}원 (${formatMonth(compareMonth)})` : "비교 대상 없음"}
             </div>
           </div>
         </Card>

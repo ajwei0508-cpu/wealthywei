@@ -67,9 +67,10 @@ export default function DetailsPage() {
   };
 
   const formatMonth = (m: string) => {
-    if (!m) return "";
+    if (!m) return "데이터 없음";
     const [year, month] = m.split("-");
-    return `${year?.slice(2)}.${month}월`;
+    const yearSuffix = year ? `${year.slice(2)}.` : "";
+    return `${yearSuffix}${month}월`;
   };
 
   const getDelta = (current: number, reference: number) => {
@@ -197,7 +198,9 @@ export default function DetailsPage() {
             경영 정밀 리포트
           </h1>
           <p className="text-zinc-500 font-medium">
-            선택하신 {formatMonth(compareMonth)}와 {formatMonth(selectedMonth)}를 비교 분석한 결과입니다.
+            {compareMonth 
+              ? `${formatMonth(compareMonth)}와 ${formatMonth(selectedMonth)}를 비교 분석한 결과입니다.`
+              : `${formatMonth(selectedMonth)}의 상세 분석 결과입니다. (비교 데이터 없음)`}
           </p>
         </div>
 
