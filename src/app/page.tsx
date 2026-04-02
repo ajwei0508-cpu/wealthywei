@@ -82,23 +82,8 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Target Month Input & Normalization
-    const promptValue = window.prompt("데이터를 저장할 월을 입력해 주세요 (예: 2026-02)", selectedMonth);
-    if (!promptValue) {
-      toast.error("등록 월을 입력해야 합니다.");
-      return;
-    }
-
-    // Smart Normalization (e.g., 2026.02 -> 2026-02, 202602 -> 2026-02)
-    let targetMonth = promptValue.trim();
-    const cleanValue = targetMonth.replace(/[^0-9]/g, "");
-    
-    if (cleanValue.length === 6) {
-      targetMonth = `${cleanValue.slice(0, 4)}-${cleanValue.slice(4, 6)}`;
-    } else if (/^\d{4}[\.\/\-]\d{1,2}$/.test(targetMonth)) {
-      const parts = targetMonth.split(/[\.\/\-]/);
-      targetMonth = `${parts[0]}-${parts[1].padStart(2, "0")}`;
-    }
+    // 날짜 상관없이 등록: 프롬프트 제거 및 현재 선택된 월 또는 오늘 날짜 사용
+    let targetMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -118,7 +103,7 @@ export default function Home() {
         
         const KEYWORD_GROUPS = {
           patientPay: { label: "본인부담금", keywords: ["본부금", "본인부담", "수납액", "환자부담"] },
-          insuranceClaim: { label: "보험청구액", keywords: ["청구금", "보험청구", "공단청구", "조합부담", "공단부담"] },
+          insuranceClaim: { label: "보험청구액", keywords: ["청구금", "보험청구", "공단청구", "공단부담", "조합부담"] },
           industrialAccidentClaim: { label: "산재청구액", keywords: ["산재", "산업재해"] },
           autoInsuranceClaim: { label: "자보청구액", keywords: ["자보", "자동차", "자동차보험"] },
           totalTreatmentFee: { label: "총진료비", keywords: ["총매출", "총진료", "합계", "총매출액"] },
@@ -175,20 +160,24 @@ export default function Home() {
             });
           });
 
+          // 필드별 데이터 추출 루틴
           Object.entries(colMap).forEach(([key, colIndex]) => {
-            // 7행(Index 6) 또는 헤더 행의 바로 다음 행을 우선적으로 확인
             let foundValue = 0;
-            const dataRowIndex = trueHeaderRowIndex === 5 ? 6 : trueHeaderRowIndex + 1;
             
-            if (jsonData[dataRowIndex]) {
-              foundValue = parseNumericValue(jsonData[dataRowIndex][colIndex]);
+            // 1순위: '합계' 또는 '소계' 행 탐지
+            for (let r = trueHeaderRowIndex + 1; r < Math.min(jsonData.length, trueHeaderRowIndex + 100); r++) {
+              const firstColValue = normalize(jsonData[r][0]);
+              if (firstColValue.includes("합계") || firstColValue.includes("소계")) {
+                foundValue = parseNumericValue(jsonData[r][colIndex]);
+                break;
+              }
             }
-            
-            // 만약 해당 위치에 값이 없으면 근처 스캔
+
+            // 2순위: 합격 행이 없으면 7행(Index 6) 고정 추출
             if (foundValue === 0) {
-              for (let r = trueHeaderRowIndex + 1; r <= Math.min(trueHeaderRowIndex + 10, jsonData.length - 1); r++) {
-                const val = parseNumericValue(jsonData[r][colIndex]);
-                if (val !== 0) { foundValue = val; break; }
+              const dataRowIndex = trueHeaderRowIndex + 1; // 기본 7행
+              if (jsonData[dataRowIndex]) {
+                foundValue = parseNumericValue(jsonData[dataRowIndex][colIndex]);
               }
             }
             
@@ -198,8 +187,12 @@ export default function Home() {
             }
           });
 
-          if (extractedData.totalTreatmentFee) extractedData.totalRevenue = extractedData.totalTreatmentFee;
-          else extractedData.totalRevenue = (extractedData.patientPay || 0) + (extractedData.insuranceClaim || 0);
+          // 총매출 보정: 총진료비가 있으면 그것을 사용, 없으면 주요 항목 합산
+          if (extractedData.totalTreatmentFee) {
+            extractedData.totalRevenue = extractedData.totalTreatmentFee;
+          } else {
+            extractedData.totalRevenue = (extractedData.patientPay || 0) + (extractedData.insuranceClaim || 0) + (extractedData.autoInsuranceClaim || 0);
+          }
 
           setMonthlyData(targetMonth, extractedData);
           setMappingResults(successList);
@@ -337,7 +330,7 @@ export default function Home() {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase tracking-wider">
-                <TrendingUp size={16} className="text-blue-600" />
+                <TrendingUp size={16} className="text-primary" />
                 총매출
               </div>
               <ComparisonBadge metric="totalRevenue" />
@@ -348,21 +341,21 @@ export default function Home() {
               <span className="text-xs text-zinc-400 font-medium ml-1 whitespace-nowrap">({formatMonth(selectedMonth)})</span>
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
-              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">기준월 A</span>
+              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
               {formatNumber(compareData.totalRevenue)}원 ({formatMonth(compareMonth)})
             </div>
           </div>
 
-          {/* Card 2: 기초 매출 */}
+          {/* Card 2: 보험 매출 (본인부담금 + 보험청구액 + 자보) */}
           <div className="md:pl-8 flex flex-col gap-1">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase tracking-wider">
-                <ShieldCheck size={16} className="text-indigo-600" />
+                <ShieldCheck size={16} className="text-indigo-700" />
                 보험 매출
               </div>
               {(() => {
-                const valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0) + (data.industrialAccidentClaim || 0);
-                const valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0) + (compareData.industrialAccidentClaim || 0);
+                const valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+                const valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
                 const diff = valB - valA;
                 const percent = valA > 0 ? ((diff / valA) * 100).toFixed(1) : null;
                 const isUp = diff >= 0;
@@ -377,14 +370,14 @@ export default function Home() {
             </div>
             <div className="flex items-end gap-1 flex-wrap">
               <span className="text-4xl font-bold text-slate-900 leading-none whitespace-nowrap">
-                {formatNumber((data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0) + (data.industrialAccidentClaim || 0))}
+                {formatNumber((data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0))}
               </span>
               <span className="text-lg font-semibold text-zinc-400 whitespace-nowrap">원</span>
               <span className="text-xs text-zinc-400 font-medium ml-1 whitespace-nowrap">({formatMonth(selectedMonth)})</span>
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
-              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">기준월 A</span>
-              {formatNumber((compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0) + (compareData.industrialAccidentClaim || 0))}원 ({formatMonth(compareMonth)})
+              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
+              {formatNumber((compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0))}원 ({formatMonth(compareMonth)})
             </div>
           </div>
 
@@ -392,7 +385,7 @@ export default function Home() {
           <div className="md:pl-8 flex flex-col gap-1">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase tracking-wider">
-                <Wallet size={16} className="text-rose-600" />
+                <Wallet size={16} className="text-emerald-700" />
                 비급여 매출
               </div>
               <ComparisonBadge metric="nonBenefit" />
@@ -403,7 +396,7 @@ export default function Home() {
               <span className="text-xs text-zinc-400 font-medium ml-1 whitespace-nowrap">({formatMonth(selectedMonth)})</span>
             </div>
             <div className="text-[11px] text-zinc-400 mt-2 font-medium flex items-center gap-1 whitespace-nowrap">
-              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">기준월 A</span>
+              <span className="bg-zinc-100 px-1.5 py-0.5 rounded uppercase font-bold text-[9px]">A: 기준월</span>
               {formatNumber(compareData.nonBenefit)}원 ({formatMonth(compareMonth)})
             </div>
           </div>

@@ -83,6 +83,7 @@ export default function DetailsPage() {
   };
 
   const metrics = [
+    { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
     { key: "patientCount", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
     { key: "newPatientCount", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
     { key: "autoInsuranceCount", label: "자보환자수", unit: "명", icon: Users, color: "text-orange-600", bg: "bg-orange-50" },
@@ -102,10 +103,19 @@ export default function DetailsPage() {
     if (!compareMonth) return null;
     
     const results = metrics.map(m => {
-      const valB = (data as any)[m.key] || 0;
-      const valA = (compareData as any)[m.key] || 0;
+      let valB = 0;
+      let valA = 0;
+
+      if (m.key === "basicRevenue") {
+        valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+        valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+      } else {
+        valB = (data as any)[m.key] || 0;
+        valA = (compareData as any)[m.key] || 0;
+      }
+      
       const delta = getDelta(valB, valA);
-      return { ...m, delta };
+      return { ...m, valB, valA, delta };
     }).filter(r => r.delta !== null);
 
     if (results.length < 2) return null;
@@ -250,19 +260,28 @@ export default function DetailsPage() {
         {/* Grid Layout */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {metrics.map((m, index) => {
-            const valB = (data as any)[m.key] || 0;
-            const valA = (compareData as any)[m.key] || 0;
+            let valB = 0;
+            let valA = 0;
+
+            if (m.key === "basicRevenue") {
+              valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+              valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+            } else {
+              valB = (data as any)[m.key] || 0;
+              valA = (compareData as any)[m.key] || 0;
+            }
+
             const delta = getDelta(valB, valA);
             const ratio = valA > 0 ? (valB / (valA + valB)) * 100 : 100;
 
             return (
               <Card 
                 key={index} 
-                className="flex flex-col justify-between h-64 bg-white border border-zinc-100 overflow-hidden px-6 py-6 toss-shadow"
+                className="flex flex-col justify-between h-64 bg-white border border-zinc-100 overflow-hidden px-6 py-6 toss-shadow group"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2.5">
-                    <div className={`p-2.5 rounded-2xl ${m.bg} ${m.color}`}>
+                    <div className={`p-2.5 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110`}>
                       <m.icon size={18} />
                     </div>
                     <p className="text-zinc-500 text-sm font-bold tracking-tight">{m.label}</p>
@@ -271,13 +290,13 @@ export default function DetailsPage() {
                 
                 <div className="space-y-5">
                   <div className="space-y-0.5">
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-baseline gap-1.5 flex-wrap">
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                         <AnimatedNumber value={valB} />
                       </span>
                       <span className="text-xs font-bold text-zinc-400">{m.unit}</span>
-                      <span className="text-[10px] text-zinc-400 font-semibold ml-1.5 bg-zinc-50 px-1.5 py-0.5 rounded">
-                        {formatMonth(selectedMonth)}
+                      <span className="text-[10px] text-primary font-bold ml-1 px-1.5 py-0.5 bg-primary/5 rounded whitespace-nowrap">
+                        ({formatMonth(selectedMonth)})
                       </span>
                     </div>
                   </div>
@@ -285,8 +304,10 @@ export default function DetailsPage() {
                   <div className="pt-4 border-t border-zinc-100 space-y-2">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-zinc-500">{formatNumber(valA)}{m.unit}</span>
-                        <span className="text-[9px] text-zinc-400 font-medium">({formatMonth(compareMonth)})</span>
+                        <span className="text-xs font-bold text-zinc-400">
+                          <AnimatedNumber value={valA} />{m.unit}
+                        </span>
+                        <span className="text-[9px] text-zinc-300 font-medium">({formatMonth(compareMonth)})</span>
                       </div>
                       <AnimatePresence mode="wait">
                         {delta && (
@@ -303,12 +324,12 @@ export default function DetailsPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-zinc-50 rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(ratio, 100)}%` }}
                         transition={{ duration: 1, ease: "circOut" }}
-                        className={`h-full ${delta?.isUp ? "bg-rose-400" : "bg-blue-400"}`} 
+                        className={`h-full ${delta?.isUp ? "bg-rose-500" : "bg-blue-500"}`} 
                       />
                     </div>
                   </div>
