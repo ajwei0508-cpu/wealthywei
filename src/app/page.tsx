@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Card from "@/components/Card";
 import KakaoLogin from "@/components/KakaoLogin";
@@ -40,6 +41,7 @@ interface MappingResult {
 
 export default function Home() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mappingResults, setMappingResults] = useState<MappingResult[]>([]);
   const [failedHeaders, setFailedHeaders] = useState<string[]>([]);
@@ -269,6 +271,42 @@ export default function Home() {
     const [year, month] = m.split("-");
     return `${year?.slice(2)}.${month}월`;
   };
+
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-zinc-200 rounded-full" />
+          <div className="h-4 bg-zinc-200 rounded-md w-24" />
+        </div>
+      </main>
+    );
+  }
+
+  if (status === "unauthenticated" || !session) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white p-12 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-slate-100/50 text-center space-y-10 animate-in fade-in zoom-in duration-700">
+          <div className="space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-blue-500/20 mb-6">
+              <TrendingUp size={32} strokeWidth={2.5} />
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+              바른 컨설팅
+            </h1>
+            <p className="text-[15px] leading-relaxed text-slate-500 font-medium">
+              최고의 메디컬 매니지먼트 서비스,<br />
+              <strong className="text-slate-700">바른 컨설팅 분석기</strong>를 이용하시려면<br />
+              로그인이 필요합니다.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
+            <KakaoLogin />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen p-6 md:p-12 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
