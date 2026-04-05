@@ -21,9 +21,19 @@ import {
   ArrowRight,
   Trophy,
   AlertTriangle,
-  Calendar,
-  ChevronDown
+  Calendar, 
+  ChevronDown,
+  Play,
+  X,
+  Award,
+  CheckCircle2,
+  Tv,
+  Star,
+  Check,
+  FileSearch
 } from "lucide-react";
+import { useVideoHistory } from "@/context/VideoHistoryContext";
+import toast from "react-hot-toast";
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from "framer-motion";
 
 function AnimatedNumber({ value }: { value: number }) {
@@ -53,6 +63,10 @@ function AnimatedPercent({ value }: { value: string | null }) {
 
   return <motion.span>{rounded}</motion.span>;
 }
+
+// Video management moved to VideoHistoryContext logic
+
+// AI Suggestion logic integrated into the component
 
 export default function DetailsPage() {
   const router = useRouter();
@@ -84,6 +98,7 @@ export default function DetailsPage() {
   };
 
   const metrics = [
+    { key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
     { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
     { key: "patientCount", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
     { key: "newPatientCount", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
@@ -110,6 +125,9 @@ export default function DetailsPage() {
       if (m.key === "basicRevenue") {
         valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
         valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+      } else if (m.key === "arpu") {
+        valB = (data.totalRevenue || 0) / Math.max(data.patientCount || 1, 1);
+        valA = (compareData.totalRevenue || 0) / Math.max(compareData.patientCount || 1, 1);
       } else {
         valB = (data as any)[m.key] || 0;
         valA = (compareData as any)[m.key] || 0;
@@ -128,6 +146,45 @@ export default function DetailsPage() {
       worst: sortedByDelta[sortedByDelta.length - 1],
     };
   }, [data, compareData, compareMonth, metrics]);
+
+  const { watchHistory, addHistory, isWatched, toggleFavorite, isFavorite, convertToWatchUrl } = useVideoHistory();
+  const [aiSuggestions, setAiSuggestions] = React.useState<Record<string, any>>({});
+  const [loadingSuggestions, setLoadingSuggestions] = React.useState<Record<string, boolean>>({});
+
+  const fetchAISuggestion = async (indicator: string, label: string, isUp: boolean) => {
+    const key = `${indicator}-${isUp ? "up" : "down"}`;
+    if (aiSuggestions[key] || loadingSuggestions[key]) return;
+
+    setLoadingSuggestions(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch("/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ indicator, label, isUp })
+      });
+      const data = await res.json();
+      setAiSuggestions(prev => ({ ...prev, [key]: data }));
+    } catch (error) {
+      console.error("AI Suggestion Fetch Fail:", error);
+    } finally {
+      setLoadingSuggestions(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleWatchVideo = (suggestion: any, indicator: string) => {
+    // Open YouTube search results in a new tab
+    const watchUrl = convertToWatchUrl(suggestion);
+    window.open(watchUrl, "_blank");
+    
+    // Immediate save to localStorage history as a search query session
+    addHistory({
+      title: suggestion.title,
+      keyword: suggestion.keyword,
+      desc: suggestion.desc,
+      indicator
+    });
+    toast.success("나중에 다시 볼 솔루션 리스트에 저장되었습니다.");
+  };
 
   return (
     <main className="min-h-screen bg-[#F2F4F6] pb-20">
@@ -269,29 +326,56 @@ export default function DetailsPage() {
             if (m.key === "basicRevenue") {
               valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
               valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+            } else if (m.key === "arpu") {
+              valB = (data.totalRevenue || 0) / Math.max(data.patientCount || 1, 1);
+              valA = (compareData.totalRevenue || 0) / Math.max(compareData.patientCount || 1, 1);
             } else {
               valB = (data as any)[m.key] || 0;
               valA = (compareData as any)[m.key] || 0;
             }
 
+            // Deduplication & Trigger Check
             const delta = getDelta(valB, valA);
-            const ratio = valA > 0 ? (valB / (valA + valB)) * 100 : 100;
+            const statusKey = delta?.isUp ? "up" : "down";
+            const suggestionKey = `${m.key}-${statusKey}`;
+            const activeSolution = aiSuggestions[suggestionKey];
+            const isLoading = loadingSuggestions[suggestionKey];
+
+            // Trigger AI Fetching via useEffect (Simplified for render loop)
+            useEffect(() => {
+              if (delta) {
+                fetchAISuggestion(m.key, m.label, delta.isUp);
+              }
+            }, [selectedMonth, compareMonth]);
 
             return (
               <Card 
                 key={index} 
-                className="flex flex-col justify-between h-64 bg-white border border-zinc-100 overflow-hidden px-6 py-6 toss-shadow group"
+                className="flex flex-col h-auto bg-white border border-zinc-100 overflow-hidden toss-shadow group relative"
               >
-                <div className="flex justify-between items-start">
+                {/* Favorite Star at corner */}
+                {activeSolution && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(activeSolution.keyword);
+                    }}
+                    className={`absolute top-4 right-4 z-20 p-2.5 rounded-2xl transition-all duration-300 ${isFavorite(activeSolution.keyword) ? "text-amber-400 bg-amber-50 shadow-[0_0_15px_-3px_rgba(251,191,36,0.3)] scale-110" : "text-zinc-200 hover:text-amber-300 hover:bg-zinc-50"}`}
+                  >
+                    <Star size={20} fill={isFavorite(activeSolution.keyword) ? "currentColor" : "none"} />
+                  </button>
+                )}
+                
+                <div className="flex justify-between items-start pt-6 px-6">
                   <div className="flex items-center gap-2.5">
-                    <div className={`p-2.5 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110`}>
+                    <div className={`p-2.5 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110 shadow-sm shadow-black/5`}>
                       <m.icon size={18} />
                     </div>
                     <p className="text-zinc-500 text-sm font-bold tracking-tight">{m.label}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-5">
+                <div className="space-y-5 px-6 pb-6 mt-4">
                   <div className="space-y-0.5">
                     <div className="flex items-baseline gap-1.5 flex-wrap">
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
@@ -327,20 +411,119 @@ export default function DetailsPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                    <div className="h-1.5 w-full bg-zinc-50 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(ratio, 100)}%` }}
-                        transition={{ duration: 1, ease: "circOut" }}
-                        className={`h-full ${delta?.isUp ? "bg-rose-500" : "bg-blue-500"}`} 
-                      />
-                    </div>
+                    
+                    {/* Warning Message for ARPU */}
+                    {m.key === "arpu" && delta && !delta.isUp && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 bg-rose-50 p-2 rounded-xl border border-rose-100 mt-1">
+                        <AlertCircle size={12} />
+                        환자당 수익성이 낮아지고 있습니다.
+                      </div>
+                    )}
+
+                    {/* YouTube Solution / AI Praise Section */}
+                    {delta && ["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key) && (
+                      <div className={`mt-4 p-4 rounded-2xl border transition-all ${delta.isUp ? "bg-emerald-50/50 border-emerald-100" : "bg-primary/5 border-primary/10"}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-tight ${delta.isUp ? "text-emerald-700" : "text-primary"}`}>
+                            {delta.isUp ? <Award size={14} /> : <Play size={14} />}
+                            {delta.isUp ? "AI SUCCESS TIP" : "AI SOLUTION"}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {activeSolution && isWatched(activeSolution.keyword) && (
+                              <span className="flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                <Check size={10} /> 시청함
+                              </span>
+                            )}
+                            <button 
+                              disabled={isLoading || !activeSolution}
+                              onClick={() => handleWatchVideo(activeSolution, m.label)}
+                              className={`text-[9px] font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 ${delta.isUp ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200" : "bg-primary text-white hover:bg-slate-800 hover:shadow-slate-200"}`}
+                            >
+                              {isLoading ? "분석 중..." : activeSolution ? "전문가 찾기" : "준비 중"} <ArrowRight size={10} />
+                            </button>
+                          </div>
+                        </div>
+                        {isLoading ? (
+                          <div className="space-y-2 animate-pulse">
+                            <div className="h-3 bg-zinc-200 rounded w-3/4"></div>
+                            <div className="h-2 bg-zinc-100 rounded w-1/2"></div>
+                          </div>
+                        ) : activeSolution ? (
+                          <>
+                            <p className={`text-[11px] font-bold mb-1 ${delta.isUp ? "text-emerald-800" : "text-slate-800"}`}>
+                              {activeSolution.title}
+                            </p>
+                            <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 leading-relaxed">
+                              {activeSolution.desc}
+                            </p>
+                            <div className="mt-2 text-[9px] font-bold text-zinc-400 italic">
+                              키워드: {activeSolution.keyword?.replace("#", "")}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-[10px] text-zinc-400 italic">AI가 지표에 맞는 최적의 검색어를 생성합니다.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
             );
           })}
         </div>
+
+        {/* Watch History List */}
+        {watchHistory.length > 0 && (
+          <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-lg ring-4 ring-slate-900/5">
+                  <Tv size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">나중에 다시 볼 경영 솔루션</h3>
+                  <p className="text-xs text-zinc-400 font-medium mt-0.5">클릭했던 전문가들의 맞춤형 경영 가이드입니다.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {watchHistory.map((session, idx) => (
+                <Card 
+                  key={idx} 
+                  className="bg-white p-4 border-zinc-100 toss-shadow flex items-center gap-4 group cursor-pointer relative" 
+                  onClick={() => window.open(convertToWatchUrl(session), "_blank")}
+                >
+                  <div className="relative w-28 h-20 rounded-2xl overflow-hidden bg-slate-900 flex-shrink-0 shadow-sm flex items-center justify-center">
+                    <div className="text-white flex flex-col items-center gap-1 group-hover:scale-110 transition-transform">
+                      <FileSearch size={24} />
+                      <span className="text-[8px] font-bold opacity-50 uppercase">Analysis</span>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Play size={20} className="text-white fill-white" />
+                    </div>
+                  </div>
+                  <div className="overflow-hidden pr-6">
+                    <p className="text-[10px] font-bold text-primary mb-0.5 flex items-center gap-1">
+                      {session.indicator}
+                    </p>
+                    <h4 className="text-[13px] font-bold text-slate-900 line-clamp-1 group-hover:text-primary transition-colors leading-tight">{session.title}</h4>
+                    <p className="text-[9px] text-zinc-400 mt-1 font-medium truncate">키워드: {session.keyword?.replace("#", "")}</p>
+                    <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">{new Date(session.date!).toLocaleDateString()} 시청</p>
+                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(session.keyword || "");
+                    }}
+                    className={`absolute top-2 right-2 p-1.5 rounded-full transition-all ${isFavorite(session.keyword || "") ? "text-amber-400" : "text-zinc-200 hover:text-amber-300"}`}
+                  >
+                    <Star size={16} fill={isFavorite(session.keyword || "") ? "currentColor" : "none"} />
+                  </button>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Footer */}
         <Card className="bg-slate-900 text-white border-none p-8 shadow-2xl relative overflow-hidden group">
@@ -357,6 +540,8 @@ export default function DetailsPage() {
           </div>
         </Card>
       </div>
+
+      {/* YouTube Modal Removed for Direct Link approach */}
     </main>
   );
 }

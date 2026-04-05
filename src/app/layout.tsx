@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "@fontsource/pretendard/index.css";
 import { RevenueProvider } from "@/context/RevenueContext";
+import { VideoHistoryProvider } from "@/context/VideoHistoryContext";
+import AuthProvider from "@/components/AuthProvider";
 import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
@@ -17,10 +19,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased font-pretendard">
-        <RevenueProvider>
-          {children}
-          <Toaster position="top-center" />
-        </RevenueProvider>
+        <AuthProvider>
+          <VideoHistoryProvider>
+            <RevenueProvider>
+              {children}
+              <Toaster position="top-center" />
+            </RevenueProvider>
+          </VideoHistoryProvider>
+        </AuthProvider>
       </body>
     </html>
   );
