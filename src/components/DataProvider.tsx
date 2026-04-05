@@ -2,13 +2,10 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-export interface RevenueData {
-  // Core Dashboard
+export interface DataMetrics {
   totalRevenue: number;
   patientPay: number;
   insuranceClaim: number;
-  
-  // Detailed Analysis
   patientCount: number;             // 내원환자수
   newPatientCount: number;          // 신규환자수
   autoInsuranceCount: number;       // 자보환자수
@@ -23,7 +20,7 @@ export interface RevenueData {
   cardCollection: number;           // 카드수납
 }
 
-export const initialData: RevenueData = {
+export const initialDataMetrics: DataMetrics = {
   totalRevenue: 0,
   patientPay: 0,
   insuranceClaim: 0,
@@ -41,31 +38,31 @@ export const initialData: RevenueData = {
   cardCollection: 0,
 };
 
-interface RevenueContextType {
-  data: RevenueData; // Currently selected month's data (Month B / Comparison)
-  compareData: RevenueData; // Base month's data (Month A / Reference)
-  monthlyData: Record<string, RevenueData>;
+interface DataContextType {
+  data: DataMetrics; // Selected month's data
+  compareData: DataMetrics; // Base month's data
+  monthlyData: Record<string, DataMetrics>;
   selectedMonth: string;
   compareMonth: string;
+  targetRevenue: number; // Auto generated +10% goal based on compareMonth
   setSelectedMonth: (month: string) => void;
   setCompareMonth: (month: string) => void;
-  setMonthlyData: (month: string, newData: Partial<RevenueData>) => void;
+  setMonthlyData: (month: string, newData: Partial<DataMetrics>) => void;
   resetData: () => void;
 }
 
-const RevenueContext = createContext<RevenueContextType | undefined>(undefined);
+const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export const RevenueProvider = ({ children }: { children: ReactNode }) => {
-  const [monthlyData, setStateMonthlyData] = useState<Record<string, RevenueData>>({});
+export const DataProvider = ({ children }: { children: ReactNode }) => {
+  const [monthlyData, setStateMonthlyData] = useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [compareMonth, setCompareMonth] = useState<string>("");
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem("barun_revenue_data");
+    const saved = localStorage.getItem("barun_data_metrics_v2");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -73,72 +70,73 @@ export const RevenueProvider = ({ children }: { children: ReactNode }) => {
         
         const months = Object.keys(parsed).sort();
         if (months.length > 0) {
-          // Default: Comparison (B) = Latest, Reference (A) = 2nd Latest
           const latest = months[months.length - 1];
           const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
-          
           setSelectedMonth(latest);
           setCompareMonth(secondLatest);
         }
       } catch (e) {
-        console.error("Failed to load revenue data", e);
+        console.error("Failed to load metrics data", e);
       }
     }
   }, []);
 
-  // Save to localStorage on change
   useEffect(() => {
     if (Object.keys(monthlyData).length > 0) {
-      localStorage.setItem("barun_revenue_data", JSON.stringify(monthlyData));
+      localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
     }
   }, [monthlyData]);
 
-  const setMonthlyData = (month: string, newData: Partial<RevenueData>) => {
+  const setMonthlyData = (month: string, newData: Partial<DataMetrics>) => {
     setStateMonthlyData((prev) => {
       const updated = {
         ...prev,
         [month]: {
-          ...(prev[month] || initialData),
+          ...(prev[month] || initialDataMetrics),
           ...newData,
         },
       };
       return updated;
     });
     
-    // When new data is uploaded, set it as Comparison (B) and move previous B to A
+    // Automatically shift comparison window forward
     setCompareMonth(selectedMonth);
     setSelectedMonth(month);
   };
 
   const resetData = () => {
     setStateMonthlyData({});
-    localStorage.removeItem("barun_revenue_data");
+    localStorage.removeItem("barun_data_metrics_v2");
   };
 
-  const data = monthlyData[selectedMonth] || initialData;
-  const compareData = monthlyData[compareMonth] || initialData;
+  const data = monthlyData[selectedMonth] || initialDataMetrics;
+  const compareData = monthlyData[compareMonth] || initialDataMetrics;
+  
+  // Rule: Target is strictly 10% more than compareMonth
+  const targetRevenue = compareData.totalRevenue > 0 ? compareData.totalRevenue * 1.1 : data.totalRevenue * 1.1;
 
   return (
-    <RevenueContext.Provider value={{ 
+    <DataContext.Provider value={{ 
       data, 
       compareData,
       monthlyData, 
       selectedMonth, 
       compareMonth,
+      targetRevenue,
       setSelectedMonth, 
       setCompareMonth,
       setMonthlyData, 
       resetData 
     }}>
       {children}
-    </RevenueContext.Provider>
+    </DataContext.Provider>
   );
 };
 
-export const useRevenue = () => {
-  const context = useContext(RevenueContext);
+export const useData = () => {
+  const context = useContext(DataContext);
   if (context === undefined) {
-    throw new Error("useRevenue must be used within a RevenueProvider");
+    throw new Error("useData must be used within a DataProvider");
   }
   return context;
 };

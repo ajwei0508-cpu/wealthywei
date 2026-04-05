@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@fontsource/pretendard/index.css";
-import { RevenueProvider } from "@/context/RevenueContext";
+import { DataProvider } from "@/components/DataProvider";
 import { VideoHistoryProvider } from "@/context/VideoHistoryContext";
 import AuthProvider from "@/components/AuthProvider";
 import { Toaster } from "react-hot-toast";
@@ -21,10 +21,10 @@ export default function RootLayout({
       <body className="antialiased font-pretendard">
         <AuthProvider>
           <VideoHistoryProvider>
-            <RevenueProvider>
+            <DataProvider>
               {children}
               <Toaster position="top-center" />
-            </RevenueProvider>
+            </DataProvider>
           </VideoHistoryProvider>
         </AuthProvider>
       </body>

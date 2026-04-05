@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useRevenue } from "@/context/RevenueContext";
+import { useData } from "@/components/DataProvider";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 
@@ -70,7 +70,7 @@ function AnimatedPercent({ value }: { value: string | null }) {
 
 export default function DetailsPage() {
   const router = useRouter();
-  const { data, compareData, monthlyData, selectedMonth, compareMonth, setSelectedMonth, setCompareMonth } = useRevenue();
+  const { data, compareData, monthlyData, selectedMonth, compareMonth, setSelectedMonth, setCompareMonth } = useData();
 
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData).sort().reverse();
@@ -150,6 +150,8 @@ export default function DetailsPage() {
   const { watchHistory, addHistory, isWatched, toggleFavorite, isFavorite, convertToWatchUrl } = useVideoHistory();
   const [aiSuggestions, setAiSuggestions] = React.useState<Record<string, any>>({});
   const [loadingSuggestions, setLoadingSuggestions] = React.useState<Record<string, boolean>>({});
+  const [youtubeResults, setYoutubeResults] = React.useState<Record<string, any[]>>({});
+  const [youtubeLoading, setYoutubeLoading] = React.useState<Record<string, boolean>>({});
 
   const fetchAISuggestion = async (indicator: string, label: string, isUp: boolean) => {
     const key = `${indicator}-${isUp ? "up" : "down"}`;
@@ -171,11 +173,7 @@ export default function DetailsPage() {
     }
   };
 
-  const handleWatchVideo = (suggestion: any, indicator: string) => {
-    // Open YouTube search results in a new tab
-    const watchUrl = convertToWatchUrl(suggestion);
-    window.open(watchUrl, "_blank");
-    
+  const handleWatchVideo = async (suggestion: any, indicator: string) => {
     // Immediate save to localStorage history as a search query session
     addHistory({
       title: suggestion.title,
@@ -184,6 +182,47 @@ export default function DetailsPage() {
       indicator
     });
     toast.success("나중에 다시 볼 솔루션 리스트에 저장되었습니다.");
+
+    const keyword = suggestion.keyword.replace(/#/g, "").trim();
+    const searchKey = `${indicator}-${keyword}`;
+    
+    // Toggle close if already open
+    if (youtubeResults[searchKey]) {
+      setYoutubeResults(prev => {
+        const next = { ...prev };
+        delete next[searchKey];
+        return next;
+      });
+      return;
+    }
+
+    // Checking SessionStorage Cache
+    const cacheKey = `yt_cache_${keyword}`;
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData);
+        setYoutubeResults(prev => ({ ...prev, [searchKey]: parsed }));
+        return;
+      } catch (e) {
+        console.error("Cache parsing error", e);
+      }
+    }
+
+    setYoutubeLoading(prev => ({ ...prev, [searchKey]: true }));
+    try {
+      const res = await fetch(`/api/youtube?q=${encodeURIComponent(keyword)}`);
+      const data = await res.json();
+      const items = data.items || [];
+      setYoutubeResults(prev => ({ ...prev, [searchKey]: items }));
+      
+      // Save successfully fetched data to session scope cache
+      sessionStorage.setItem(cacheKey, JSON.stringify(items));
+    } catch (e) {
+      console.error("Failed to load Youtube results", e);
+    } finally {
+      setYoutubeLoading(prev => ({ ...prev, [searchKey]: false }));
+    }
   };
 
   return (
@@ -439,7 +478,7 @@ export default function DetailsPage() {
                               onClick={() => handleWatchVideo(activeSolution, m.label)}
                               className={`text-[9px] font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 ${delta.isUp ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200" : "bg-primary text-white hover:bg-slate-800 hover:shadow-slate-200"}`}
                             >
-                              {isLoading ? "분석 중..." : activeSolution ? "전문가 찾기" : "준비 중"} <ArrowRight size={10} />
+                              {isLoading ? "분석 중..." : activeSolution ? (youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] ? "목록 닫기" : "전문가 영상검색") : "준비 중"} <ArrowRight size={10} />
                             </button>
                           </div>
                         </div>
@@ -462,6 +501,23 @@ export default function DetailsPage() {
                           </>
                         ) : (
                           <p className="text-[10px] text-zinc-400 italic">AI가 지표에 맞는 최적의 검색어를 생성합니다.</p>
+                        )}
+
+                        {youtubeLoading[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] && (
+                           <div className="mt-4 text-[11px] font-bold text-zinc-400 text-center animate-pulse py-2">유튜브에서 추천 영상을 검색 중입니다...</div>
+                        )}
+                        {youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] && (
+                           <div className="mt-4 space-y-2 border-t border-zinc-100/50 pt-3 opacity-0 animate-in fade-in slide-in-from-top-2">
+                             {youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`].map((vid: any, idx: number) => (
+                               <div key={idx} className="flex gap-3 p-2 bg-white rounded-xl border border-zinc-100 hover:border-primary/30 cursor-pointer transition-all hover:shadow-sm" onClick={() => window.open(`https://youtube.com/watch?v=${vid.id?.videoId}`, "_blank")}>
+                                  <img src={vid.snippet?.thumbnails?.default?.url} className="w-24 h-16 object-cover rounded-md flex-shrink-0" alt="thumbnail" />
+                                  <div className="flex flex-col flex-1 min-w-0 justify-center">
+                                     <p className="text-[11px] font-bold text-slate-900 truncate leading-tight">{vid.snippet?.title}</p>
+                                     <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{vid.snippet?.description}</p>
+                                  </div>
+                               </div>
+                             ))}
+                           </div>
                         )}
                       </div>
                     )}

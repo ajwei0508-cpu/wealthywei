@@ -21,7 +21,7 @@ import {
   Wallet
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { useRevenue, RevenueData } from "@/context/RevenueContext";
+import { useData, DataMetrics } from "@/components/DataProvider";
 import toast from "react-hot-toast";
 import { 
   BarChart, 
@@ -51,10 +51,11 @@ export default function Home() {
     monthlyData, 
     selectedMonth, 
     compareMonth, 
+    targetRevenue,
     setSelectedMonth, 
     setCompareMonth, 
     setMonthlyData 
-  } = useRevenue();
+  } = useData();
 
   // 1. Month List for Selector
   const availableMonths = useMemo(() => {
@@ -62,7 +63,7 @@ export default function Home() {
   }, [monthlyData]);
 
   // 2. Comparison Logic (Current B vs Reference A)
-  const getComparison = (key: keyof RevenueData) => {
+  const getComparison = (key: keyof DataMetrics) => {
     const prevValue = compareData[key];
     const currentValue = data[key];
 
@@ -253,7 +254,7 @@ export default function Home() {
 
   const formatNumber = (num: number) => new Intl.NumberFormat("ko-KR").format(num);
 
-  const ComparisonBadge = ({ metric }: { metric: keyof RevenueData }) => {
+  const ComparisonBadge = ({ metric }: { metric: keyof DataMetrics }) => {
     const comp = getComparison(metric);
     if (!comp) return null;
     return (
@@ -387,7 +388,7 @@ export default function Home() {
       )}
 
       <div onClick={() => router.push("/details")} className="cursor-pointer group">
-        <Card className="grid grid-cols-1 md:grid-cols-3 gap-8 md:divide-x md:divide-zinc-100 bg-white px-6 py-8 toss-shadow transition-all hover:translate-y-[-2px]">
+        <Card className="grid grid-cols-1 md:grid-cols-4 gap-8 md:divide-x md:divide-zinc-100 bg-white px-6 py-8 toss-shadow transition-all hover:translate-y-[-2px]">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
@@ -425,6 +426,23 @@ export default function Home() {
             <div className="flex items-baseline gap-1">
               <span className="text-4xl font-bold text-slate-900">{formatNumber(data.nonBenefit)}</span>
               <span className="text-lg font-bold text-zinc-400">원</span>
+            </div>
+          </div>
+
+          <div className="md:pl-8 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
+                <TrendingUp size={16} className="text-primary" /> 목표 달성률
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 mt-1">
+              <div className="flex justify-between items-end">
+                <span className="text-3xl font-bold text-slate-900">{Math.min(100, Math.round(((data.totalRevenue || 0) / (targetRevenue || 1)) * 100))}%</span>
+                <span className="text-[10px] text-zinc-400">목표 {formatNumber(targetRevenue || 0)}</span>
+              </div>
+              <div className="w-full bg-zinc-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.round(((data.totalRevenue || 0) / (targetRevenue || 1)) * 100))}%` }}></div>
+              </div>
             </div>
           </div>
         </Card>
