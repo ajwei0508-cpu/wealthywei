@@ -76,19 +76,37 @@ function AnimatedPercent({ value }: { value: string | null }) {
 function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: { keyword: string, mLabel: string, isUp: boolean, activeSolution: any }) {
   const [video, setVideo] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const { addHistory, isWatched } = useVideoHistory();
 
   useEffect(() => {
     async function fetchVideo() {
       try {
         setLoading(true);
+        setErrorMsg(null);
+        // 키워드 검증
+        if (!keyword) {
+          setErrorMsg("검색 키워드가 없습니다.");
+          return;
+        }
+
         const res = await fetch(`/api/youtube?q=${encodeURIComponent(keyword)}`);
         const data = await res.json();
+        
+        if (!res.ok) {
+          console.error("YouTube API Error:", data);
+          setErrorMsg("영상을 불러올 수 없습니다 (API 오류/한도초과)");
+          return;
+        }
+
         if (data.items && data.items.length > 0) {
           setVideo(data.items[0]);
+        } else {
+          setErrorMsg("관련 영상을 찾을 수 없습니다.");
         }
       } catch (err) {
         console.error("Failed to fetch youtube", err);
+        setErrorMsg("영상을 불러올 수 없습니다 (네트워크 오류)");
       } finally {
         setLoading(false);
       }
@@ -97,30 +115,34 @@ function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: { keyword: 
   }, [keyword]);
 
   if (loading) {
-    return <div className="animate-pulse h-16 bg-white/50 border border-zinc-100 rounded-xl w-full"></div>;
+    return <div className="animate-pulse h-16 bg-white/50 border border-zinc-100 rounded-xl w-full flex items-center justify-center text-[10px] text-zinc-400 font-bold">영상 검색 중...</div>;
   }
 
-  if (!video || !video.id?.videoId) {
+  if (errorMsg || !video || !video.id?.videoId) {
     return (
-      <a 
-        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => {
-          addHistory({
-            title: activeSolution.title || `${keyword} 검색`,
-            keyword: keyword,
-            desc: activeSolution.desc,
-            indicator: mLabel
-          });
-          toast.success("나의 경영 학습 기록에 저장되었습니다.");
-        }}
-        className={`text-[10px] font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 hover:-translate-y-[1px] w-fit ${isUp ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200" : "bg-primary text-white hover:bg-slate-800 hover:shadow-slate-200"}`}
-      >
-        <Play size={10} className="fill-white/80" />
-        [{keyword}]
-        {isWatched(keyword) && <Check size={10} className="text-white/80 ml-1" />}
-      </a>
+      <div className={`p-3 rounded-xl border transition-all flex flex-col gap-1.5 shadow-sm w-full ${isUp ? "bg-emerald-50/50 border-emerald-100" : "bg-rose-50/50 border-rose-100"}`}>
+        <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+          <AlertCircle size={12} className="text-rose-500" />
+          {errorMsg || "영상을 불러올 수 없습니다"}
+        </p>
+        <a 
+          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            addHistory({
+              title: activeSolution.title || `${keyword} 검색`,
+              keyword: keyword,
+              desc: activeSolution.desc,
+              indicator: mLabel
+            });
+            toast.success("경영 학습 기록에 저장되었습니다.");
+          }}
+          className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline underline-offset-2 flex items-center gap-1 w-fit"
+        >
+          직접 유튜브에서 "{keyword}" 검색하기 <ArrowRight size={10} />
+        </a>
+      </div>
     );
   }
 
@@ -138,7 +160,7 @@ function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: { keyword: 
           indicator: mLabel,
           id: videoId
         });
-        toast.success("나의 경영 학습 기록에 저장되었습니다.");
+        toast.success("경영 학습 기록에 저장되었습니다.");
       }}
       className={`relative overflow-hidden group flex items-center gap-3 p-2 rounded-xl border transition-all hover:-translate-y-[1px] shadow-sm ${isUp ? "bg-white border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-100" : "bg-white border-zinc-200 hover:border-primary/40 hover:shadow-slate-200"}`}
     >
@@ -150,7 +172,7 @@ function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: { keyword: 
       </div>
       <div className="flex-1 overflow-hidden pr-2 flex flex-col justify-center">
         <p className={`text-[10px] font-bold mb-1 truncate flex items-center gap-1 ${isUp ? "text-emerald-600" : "text-primary"}`}>
-          <Tv size={10} /> AI 추천 영상: [{keyword}]
+          <Tv size={10} /> 추천 영상: [{keyword}]
           {isWatched(keyword) && <Check size={10} className="ml-1" />}
         </p>
         <h4 className="text-[11px] sm:text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-primary transition-colors leading-snug" dangerouslySetInnerHTML={{ __html: video.snippet.title }}></h4>
@@ -562,7 +584,7 @@ export default function DetailsPage() {
                             <div className="h-3 bg-zinc-200 rounded w-3/4"></div>
                             <div className="h-2 bg-zinc-100 rounded w-1/2"></div>
                           </div>
-                        ) : activeSolution ? (
+                        ) : activeSolution && !activeSolution.error ? (
                           <>
                             <div className="mb-3 p-3 bg-white/70 rounded-xl border border-white/50">
                               <p className="text-xs font-bold text-slate-900 leading-relaxed">
@@ -575,11 +597,11 @@ export default function DetailsPage() {
                             </div>
                             
                             <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 leading-relaxed mb-4">
-                              {activeSolution.desc}
+                              {activeSolution.desc || `${m.label} 지표에 대한 구체적인 솔루션 영상을 확인해보세요.`}
                             </p>
 
                             <div className="flex flex-col gap-2.5">
-                              {(activeSolution.keywords || [activeSolution.keyword].filter(Boolean)).map((kw: string, idx: number) => {
+                              {(activeSolution.keywords?.length > 0 ? activeSolution.keywords : (activeSolution.keyword ? [activeSolution.keyword] : [`${m.label} ${delta.isUp ? '상승 비결' : '개선 전략'}`])).map((kw: string, idx: number) => {
                                 const cleanKw = kw.replace(/#/g, "").trim();
                                 return (
                                   <YoutubeVideoLink 
@@ -594,7 +616,16 @@ export default function DetailsPage() {
                             </div>
                           </>
                         ) : (
-                          <p className="text-[10px] text-zinc-400 italic">AI가 지표에 맞는 최적의 검색어를 생성합니다.</p>
+                          <div className="flex flex-col gap-3">
+                            <p className="text-[10px] text-zinc-400 italic">AI 추천 키워드를 불러오지 못했습니다. 핵심 키워드로 직접 검색합니다.</p>
+                            <YoutubeVideoLink 
+                              key="fallback"
+                              keyword={`${m.label} ${delta.isUp ? '상승 마케팅' : '개선법'}`}
+                              mLabel={m.label}
+                              isUp={delta.isUp}
+                              activeSolution={{ desc: "기본 추천 영상" }}
+                            />
+                          </div>
                         )}
                       </div>
                     )}
