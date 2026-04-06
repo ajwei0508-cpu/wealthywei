@@ -64,6 +64,92 @@ function AnimatedPercent({ value }: { value: string | null }) {
   return <motion.span>{rounded}</motion.span>;
 }
 
+function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: { keyword: string, mLabel: string, isUp: boolean, activeSolution: any }) {
+  const [video, setVideo] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const { addHistory, isWatched } = useVideoHistory();
+
+  useEffect(() => {
+    async function fetchVideo() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/youtube?q=${encodeURIComponent(keyword)}`);
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          setVideo(data.items[0]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch youtube", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchVideo();
+  }, [keyword]);
+
+  if (loading) {
+    return <div className="animate-pulse h-16 bg-white/50 border border-zinc-100 rounded-xl w-full"></div>;
+  }
+
+  if (!video || !video.id?.videoId) {
+    return (
+      <a 
+        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => {
+          addHistory({
+            title: activeSolution.title || `${keyword} 검색`,
+            keyword: keyword,
+            desc: activeSolution.desc,
+            indicator: mLabel
+          });
+          toast.success("나의 경영 학습 기록에 저장되었습니다.");
+        }}
+        className={`text-[10px] font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 hover:-translate-y-[1px] w-fit ${isUp ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200" : "bg-primary text-white hover:bg-slate-800 hover:shadow-slate-200"}`}
+      >
+        <Play size={10} className="fill-white/80" />
+        [{keyword}]
+        {isWatched(keyword) && <Check size={10} className="text-white/80 ml-1" />}
+      </a>
+    );
+  }
+
+  const videoId = video.id.videoId;
+  return (
+    <a 
+      href={`https://www.youtube.com/watch?v=${videoId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => {
+        addHistory({
+          title: video.snippet.title,
+          keyword: keyword,
+          desc: activeSolution.desc,
+          indicator: mLabel,
+          id: videoId
+        });
+        toast.success("나의 경영 학습 기록에 저장되었습니다.");
+      }}
+      className={`relative overflow-hidden group flex items-center gap-3 p-2 rounded-xl border transition-all hover:-translate-y-[1px] shadow-sm ${isUp ? "bg-white border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-100" : "bg-white border-zinc-200 hover:border-primary/40 hover:shadow-slate-200"}`}
+    >
+      <div className="relative w-24 h-16 bg-slate-900 rounded-lg overflow-hidden flex-shrink-0">
+        <img src={video.snippet.thumbnails?.default?.url || video.snippet.thumbnails?.medium?.url} alt="thumbnail" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors">
+          <Play size={20} className="text-white fill-white shadow-sm" />
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden pr-2 flex flex-col justify-center">
+        <p className={`text-[10px] font-bold mb-1 truncate flex items-center gap-1 ${isUp ? "text-emerald-600" : "text-primary"}`}>
+          <Tv size={10} /> AI 추천 영상: [{keyword}]
+          {isWatched(keyword) && <Check size={10} className="ml-1" />}
+        </p>
+        <h4 className="text-[11px] sm:text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-primary transition-colors leading-snug" dangerouslySetInnerHTML={{ __html: video.snippet.title }}></h4>
+      </div>
+    </a>
+  );
+}
+
 // Video management moved to VideoHistoryContext logic
 
 // AI Suggestion logic integrated into the component
@@ -173,57 +259,46 @@ export default function DetailsPage() {
     }
   };
 
-  const handleWatchVideo = async (suggestion: any, indicator: string) => {
+  const handleWatchVideo = (keyword: string, suggestion: any, indicator: string) => {
+    const cleanKeyword = keyword.replace(/#/g, "").trim();
     // Immediate save to localStorage history as a search query session
     addHistory({
       title: suggestion.title,
-      keyword: suggestion.keyword,
+      keyword: cleanKeyword,
       desc: suggestion.desc,
       indicator
     });
-    toast.success("나중에 다시 볼 솔루션 리스트에 저장되었습니다.");
+    toast.success("나의 경영 학습 기록에 저장되었습니다.");
 
-    const keyword = suggestion.keyword.replace(/#/g, "").trim();
-    const searchKey = `${indicator}-${keyword}`;
-    
-    // Toggle close if already open
-    if (youtubeResults[searchKey]) {
-      setYoutubeResults(prev => {
-        const next = { ...prev };
-        delete next[searchKey];
-        return next;
-      });
-      return;
-    }
-
-    // Checking SessionStorage Cache
-    const cacheKey = `yt_cache_${keyword}`;
-    const cachedData = sessionStorage.getItem(cacheKey);
-    if (cachedData) {
-      try {
-        const parsed = JSON.parse(cachedData);
-        setYoutubeResults(prev => ({ ...prev, [searchKey]: parsed }));
-        return;
-      } catch (e) {
-        console.error("Cache parsing error", e);
-      }
-    }
-
-    setYoutubeLoading(prev => ({ ...prev, [searchKey]: true }));
-    try {
-      const res = await fetch(`/api/youtube?q=${encodeURIComponent(keyword)}`);
-      const data = await res.json();
-      const items = data.items || [];
-      setYoutubeResults(prev => ({ ...prev, [searchKey]: items }));
-      
-      // Save successfully fetched data to session scope cache
-      sessionStorage.setItem(cacheKey, JSON.stringify(items));
-    } catch (e) {
-      console.error("Failed to load Youtube results", e);
-    } finally {
-      setYoutubeLoading(prev => ({ ...prev, [searchKey]: false }));
-    }
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanKeyword)}`;
+    window.open(url, "_blank");
   };
+
+  // Fetch AI Recommendations for the target metrics once data changes
+  useEffect(() => {
+    if (!compareMonth) return;
+
+    metrics.forEach(m => {
+      if (!["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key)) return;
+
+      let valB = 0;
+      let valA = 0;
+
+      if (m.key === "basicRevenue") {
+        valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+        valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+      } else {
+        valB = (data as any)[m.key] || 0;
+        valA = (compareData as any)[m.key] || 0;
+      }
+
+      const delta = getDelta(valB, valA);
+      if (delta) {
+        fetchAISuggestion(m.key, m.label, delta.isUp);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth, compareMonth, data, compareData]);
 
   return (
     <main className="min-h-screen bg-[#F2F4F6] pb-20">
@@ -308,7 +383,7 @@ export default function DetailsPage() {
                 <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 transition-all group-hover:w-2"></div>
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
-                    <Trophy size={20} />
+                     <Trophy size={20} />
                   </div>
                   <h3 className="font-bold text-zinc-900">최고 상승 지표</h3>
                 </div>
@@ -380,13 +455,6 @@ export default function DetailsPage() {
             const activeSolution = aiSuggestions[suggestionKey];
             const isLoading = loadingSuggestions[suggestionKey];
 
-            // Trigger AI Fetching via useEffect (Simplified for render loop)
-            useEffect(() => {
-              if (delta) {
-                fetchAISuggestion(m.key, m.label, delta.isUp);
-              }
-            }, [selectedMonth, compareMonth]);
-
             return (
               <Card 
                 key={index} 
@@ -397,11 +465,11 @@ export default function DetailsPage() {
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleFavorite(activeSolution.keyword);
+                      toggleFavorite(activeSolution.keyword || activeSolution.keywords?.[0]);
                     }}
-                    className={`absolute top-4 right-4 z-20 p-2.5 rounded-2xl transition-all duration-300 ${isFavorite(activeSolution.keyword) ? "text-amber-400 bg-amber-50 shadow-[0_0_15px_-3px_rgba(251,191,36,0.3)] scale-110" : "text-zinc-200 hover:text-amber-300 hover:bg-zinc-50"}`}
+                    className={`absolute top-4 right-4 z-20 p-2.5 rounded-2xl transition-all duration-300 ${isFavorite(activeSolution.keyword || activeSolution.keywords?.[0]) ? "text-amber-400 bg-amber-50 shadow-[0_0_15px_-3px_rgba(251,191,36,0.3)] scale-110" : "text-zinc-200 hover:text-amber-300 hover:bg-zinc-50"}`}
                   >
-                    <Star size={20} fill={isFavorite(activeSolution.keyword) ? "currentColor" : "none"} />
+                    <Star size={20} fill={isFavorite(activeSolution.keyword || activeSolution.keywords?.[0]) ? "currentColor" : "none"} />
                   </button>
                 )}
                 
@@ -462,26 +530,13 @@ export default function DetailsPage() {
                     {/* YouTube Solution / AI Praise Section */}
                     {delta && ["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key) && (
                       <div className={`mt-4 p-4 rounded-2xl border transition-all ${delta.isUp ? "bg-emerald-50/50 border-emerald-100" : "bg-primary/5 border-primary/10"}`}>
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-3">
                           <div className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-tight ${delta.isUp ? "text-emerald-700" : "text-primary"}`}>
                             {delta.isUp ? <Award size={14} /> : <Play size={14} />}
                             {delta.isUp ? "AI SUCCESS TIP" : "AI SOLUTION"}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {activeSolution && isWatched(activeSolution.keyword) && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                                <Check size={10} /> 시청함
-                              </span>
-                            )}
-                            <button 
-                              disabled={isLoading || !activeSolution}
-                              onClick={() => handleWatchVideo(activeSolution, m.label)}
-                              className={`text-[9px] font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 ${delta.isUp ? "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-emerald-200" : "bg-primary text-white hover:bg-slate-800 hover:shadow-slate-200"}`}
-                            >
-                              {isLoading ? "분석 중..." : activeSolution ? (youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] ? "목록 닫기" : "전문가 영상검색") : "준비 중"} <ArrowRight size={10} />
-                            </button>
-                          </div>
                         </div>
+
                         {isLoading ? (
                           <div className="space-y-2 animate-pulse">
                             <div className="h-3 bg-zinc-200 rounded w-3/4"></div>
@@ -489,35 +544,37 @@ export default function DetailsPage() {
                           </div>
                         ) : activeSolution ? (
                           <>
-                            <p className={`text-[11px] font-bold mb-1 ${delta.isUp ? "text-emerald-800" : "text-slate-800"}`}>
-                              {activeSolution.title}
-                            </p>
-                            <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 leading-relaxed">
+                            <div className="mb-3 p-3 bg-white/70 rounded-xl border border-white/50">
+                              <p className="text-xs font-bold text-slate-900 leading-relaxed">
+                                {delta.isUp ? (
+                                  <>원장님, 현재 <span className="text-emerald-600 font-extrabold">[{m.label}]</span> 성과가 훌륭합니다! 전문가들의 노하우를 바탕으로 기세를 더욱 올려보세요.</>
+                                ) : (
+                                  <>원장님, 현재 <span className="text-primary font-extrabold">[{m.label}]</span> 관리가 시급합니다. 전문가들의 실전 노하우를 확인해보세요.</>
+                                )}
+                              </p>
+                            </div>
+                            
+                            <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 leading-relaxed mb-4">
                               {activeSolution.desc}
                             </p>
-                            <div className="mt-2 text-[9px] font-bold text-zinc-400 italic">
-                              키워드: {activeSolution.keyword?.replace("#", "")}
+
+                            <div className="flex flex-col gap-2.5">
+                              {(activeSolution.keywords || [activeSolution.keyword].filter(Boolean)).map((kw: string, idx: number) => {
+                                const cleanKw = kw.replace(/#/g, "").trim();
+                                return (
+                                  <YoutubeVideoLink 
+                                    key={idx}
+                                    keyword={cleanKw}
+                                    mLabel={m.label}
+                                    isUp={delta.isUp}
+                                    activeSolution={activeSolution}
+                                  />
+                                );
+                              })}
                             </div>
                           </>
                         ) : (
                           <p className="text-[10px] text-zinc-400 italic">AI가 지표에 맞는 최적의 검색어를 생성합니다.</p>
-                        )}
-
-                        {youtubeLoading[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] && (
-                           <div className="mt-4 text-[11px] font-bold text-zinc-400 text-center animate-pulse py-2">유튜브에서 추천 영상을 검색 중입니다...</div>
-                        )}
-                        {youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`] && (
-                           <div className="mt-4 space-y-2 border-t border-zinc-100/50 pt-3 opacity-0 animate-in fade-in slide-in-from-top-2">
-                             {youtubeResults[`${m.label}-${activeSolution?.keyword?.replace(/#/g, "").trim()}`].map((vid: any, idx: number) => (
-                               <div key={idx} className="flex gap-3 p-2 bg-white rounded-xl border border-zinc-100 hover:border-primary/30 cursor-pointer transition-all hover:shadow-sm" onClick={() => window.open(`https://youtube.com/watch?v=${vid.id?.videoId}`, "_blank")}>
-                                  <img src={vid.snippet?.thumbnails?.default?.url} className="w-24 h-16 object-cover rounded-md flex-shrink-0" alt="thumbnail" />
-                                  <div className="flex flex-col flex-1 min-w-0 justify-center">
-                                     <p className="text-[11px] font-bold text-slate-900 truncate leading-tight">{vid.snippet?.title}</p>
-                                     <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{vid.snippet?.description}</p>
-                                  </div>
-                               </div>
-                             ))}
-                           </div>
                         )}
                       </div>
                     )}
@@ -537,8 +594,8 @@ export default function DetailsPage() {
                   <Tv size={20} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">나중에 다시 볼 경영 솔루션</h3>
-                  <p className="text-xs text-zinc-400 font-medium mt-0.5">클릭했던 전문가들의 맞춤형 경영 가이드입니다.</p>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">나의 경영 학습 기록</h3>
+                  <p className="text-xs text-zinc-400 font-medium mt-0.5">최근 클릭했던 핵심 키워드와 분석 내용이 기록됩니다.</p>
                 </div>
               </div>
             </div>
