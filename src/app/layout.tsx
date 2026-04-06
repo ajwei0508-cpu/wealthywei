@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@fontsource/pretendard/index.css";
-import { DataProvider } from "@/components/DataProvider";
+import { DataProvider } from "@/context/DataContext";
 import { VideoHistoryProvider } from "@/context/VideoHistoryContext";
 import AuthProvider from "@/components/AuthProvider";
 import { Toaster } from "react-hot-toast";

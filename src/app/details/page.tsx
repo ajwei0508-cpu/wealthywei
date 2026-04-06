@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useData } from "@/components/DataProvider";
+import { useData } from "@/context/DataContext";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 

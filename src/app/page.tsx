@@ -21,7 +21,7 @@ import {
   Wallet
 } from "lucide-react";
 import * as XLSX from "xlsx";
-import { useData, DataMetrics } from "@/components/DataProvider";
+import { useData, DataMetrics } from "@/context/DataContext";
 import toast from "react-hot-toast";
 import { 
   BarChart, 
