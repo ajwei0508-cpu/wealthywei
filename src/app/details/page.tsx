@@ -35,7 +35,16 @@ import {
 import { useVideoHistory } from "@/context/VideoHistoryContext";
 import toast from "react-hot-toast";
 import { motion, useMotionValue, useTransform, animate, AnimatePresence } from "framer-motion";
-
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer,
+  Cell
+} from "recharts";
 function AnimatedNumber({ value }: { value: number }) {
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => {
@@ -238,6 +247,17 @@ export default function DetailsPage() {
   const [loadingSuggestions, setLoadingSuggestions] = React.useState<Record<string, boolean>>({});
   const [youtubeResults, setYoutubeResults] = React.useState<Record<string, any[]>>({});
   const [youtubeLoading, setYoutubeLoading] = React.useState<Record<string, boolean>>({});
+
+  const trendChartData = useMemo(() => {
+    return Object.keys(monthlyData)
+      .sort()
+      .slice(-6)
+      .map(month => ({
+        name: month.split("-")[1] + "월",
+        "총매출": monthlyData[month].totalRevenue || 0,
+        rawMonth: month
+      }));
+  }, [monthlyData]);
 
   const fetchAISuggestion = async (indicator: string, label: string, isUp: boolean) => {
     const key = `${indicator}-${isUp ? "up" : "down"}`;
@@ -635,6 +655,33 @@ export default function DetailsPage() {
                 </Card>
               ))}
             </div>
+          </section>
+        )}
+
+        {/* Comparison Chart */}
+        {trendChartData.length > 0 && (
+          <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <Card className="h-96 p-6 md:p-8 bg-white toss-shadow border-none">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">전체 매출 성장 추이</h3>
+                  <p className="text-xs text-zinc-500 font-medium mt-1">최근 6개월간의 메인 매출 데이터를 기반으로 한 비교 차트입니다.</p>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height="80%">
+                <BarChart data={trendChartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                  <YAxis hide />
+                  <RechartsTooltip cursor={{ fill: "#f8fafc" }} formatter={(value: any) => new Intl.NumberFormat('ko-KR').format(value || 0) + "원"} />
+                  <Bar dataKey="총매출" radius={[6, 6, 0, 0]} barSize={32}>
+                    {trendChartData.map((entry) => (
+                      <Cell key={entry.rawMonth} fill={entry.rawMonth === selectedMonth ? "#3182f6" : (entry.rawMonth === compareMonth ? "#94a3b8" : "#e2e8f0")} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
           </section>
         )}
 

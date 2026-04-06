@@ -54,6 +54,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [monthlyData, setStateMonthlyData] = useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
@@ -79,6 +80,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         console.error("Failed to load metrics data", e);
       }
     }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -114,6 +116,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   
   // Rule: Target is strictly 10% more than compareMonth
   const targetRevenue = compareData.totalRevenue > 0 ? compareData.totalRevenue * 1.1 : data.totalRevenue * 1.1;
+
+  if (!isLoaded) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+  }
 
   return (
     <DataContext.Provider value={{ 
