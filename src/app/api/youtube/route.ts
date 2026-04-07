@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const youtubeUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(q)}&type=video&key=${YOUTUBE_API_KEY}`;
+    const youtubeUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=${encodeURIComponent(q)}&type=video&order=viewCount&key=${YOUTUBE_API_KEY}`;
     
     const res = await fetch(youtubeUrl, {
       method: "GET",
@@ -25,7 +25,11 @@ export async function GET(req: Request) {
     if (!res.ok) {
        const errorBody = await res.json();
        console.error("YouTube API failure:", errorBody);
-       return NextResponse.json({ error: "YouTube API Request Failed", details: errorBody }, { status: res.status });
+       const isQuotaExceeded = errorBody.error?.errors?.some((e: any) => e.reason === "quotaExceeded");
+       return NextResponse.json({ 
+         error: isQuotaExceeded ? "YouTube_Quota_Exceeded" : "YouTube API Request Failed", 
+         details: errorBody 
+       }, { status: res.status });
     }
 
     const data = await res.json();

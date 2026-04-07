@@ -235,12 +235,70 @@ export default function Home() {
           }
 
           if (successList.length > 0) {
+            // Step 4: Fallback for totalRevenue if not found by keywords
+            if (!extractedData.totalRevenue || extractedData.totalRevenue === 0) {
+              // Try to find a row that mentions "Total" or "합계" and has a large number
+              for (let r = 0; r < Math.min(jsonData.length, 500); r++) {
+                const row = jsonData[r];
+                if (!row) continue;
+                const rowString = JSON.stringify(row);
+                if (rowString.includes("합계") || rowString.includes("총계") || rowString.includes("총매출")) {
+                  // Find the maximum number in this row
+                  let maxVal = 0;
+                  row.forEach(cell => {
+                    const num = parseNumericValue(cell);
+                    if (num > maxVal) maxVal = num;
+                  });
+                  if (maxVal > 1000) { // Likely a revenue value
+                    extractedData.totalRevenue = maxVal;
+                    break;
+                  }
+                }
+              }
+            }
+
+            // Calculation Logic
+            if (extractedData.totalTreatmentFee && (!extractedData.totalRevenue || extractedData.totalRevenue === 0)) {
+              extractedData.totalRevenue = extractedData.totalTreatmentFee;
+            } else if (!extractedData.totalRevenue || extractedData.totalRevenue === 0) {
+              extractedData.totalRevenue = 
+                (extractedData.patientPay || 0) + 
+                (extractedData.insuranceClaim || 0) + 
+                (extractedData.autoInsuranceClaim || 0) + 
+                (extractedData.nonBenefit || 0);
+            }
+
             setMonthlyData(targetMonth, extractedData);
             setMappingResults(successList);
             setFailedHeaders([]);
             toast.success(`${targetMonth} 매출 데이터를 분석 및 저장했습니다.`, { duration: 5000 });
           } else {
-            toast.error("데이터 추출 실패");
+            // Step 5: Last Resort - Look for ANY row with meaningful numbers
+            let foundSomething = false;
+            for (let r = 0; r < Math.min(jsonData.length, 100); r++) {
+              const row = jsonData[r];
+              if (!row) continue;
+              const rowStr = JSON.stringify(row);
+              if (rowStr.includes("합계") || rowStr.includes("총계")) {
+                let maxVal = 0;
+                row.forEach(cell => {
+                  const num = parseNumericValue(cell);
+                  if (num > maxVal) maxVal = num;
+                });
+                if (maxVal > 0) {
+                  extractedData.totalRevenue = maxVal;
+                  foundSomething = true;
+                  break;
+                }
+              }
+            }
+
+            if (foundSomething) {
+              setMonthlyData(targetMonth, extractedData);
+              toast.success(`${targetMonth} 데이터(총매출 중심)를 추출했습니다.`);
+            } else {
+              toast.error("데이터 추출에 실패했습니다. 필드 이름을 확인하거나 '합계' 행을 포함해 주세요.");
+            }
           }
         } else {
           toast.error("헤더 발견 실패");
