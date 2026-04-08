@@ -128,10 +128,8 @@ export default function DetailsPage() {
   }, [data, compareData, compareMonth, metrics]);
 
   const { watchHistory, addHistory, isWatched, toggleFavorite, isFavorite, convertToWatchUrl } = useVideoHistory();
-  const [aiSuggestions, setAiSuggestions] = React.useState<Record<string, any>>({});
-  const [loadingSuggestions, setLoadingSuggestions] = React.useState<Record<string, boolean>>({});
-  const [youtubeResults, setYoutubeResults] = React.useState<Record<string, any[]>>({});
-  const [youtubeLoading, setYoutubeLoading] = React.useState<Record<string, boolean>>({});
+  const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
 
   const trendChartData = useMemo(() => {
     return Object.keys(monthlyData)
@@ -144,71 +142,51 @@ export default function DetailsPage() {
       }));
   }, [monthlyData]);
 
-  const fetchAISuggestion = async (indicator: string, label: string, isUp: boolean) => {
-    const key = `${indicator}-${isUp ? "up" : "down"}`;
-    if (aiSuggestions[key] || loadingSuggestions[key]) return;
-
-    setLoadingSuggestions(prev => ({ ...prev, [key]: true }));
-    try {
-      const res = await fetch("/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ indicator, label, isUp })
-      });
-      const data = await res.json();
-      setAiSuggestions(prev => ({ ...prev, [key]: data }));
-    } catch (error) {
-      console.error("AI Suggestion Fetch Fail:", error);
-    } finally {
-      setLoadingSuggestions(prev => ({ ...prev, [key]: false }));
-    }
-  };
-
-  const handleWatchVideo = (keyword: string, suggestion: any, indicator: string) => {
-    const cleanKeyword = keyword.replace(/#/g, "").trim();
-    // Immediate save to localStorage history as a search query session
-    addHistory({
-      title: suggestion.title,
-      keyword: cleanKeyword,
-      desc: suggestion.desc,
-      indicator
-    });
-    toast.success("나의 경영 학습 기록에 저장되었습니다.");
-
-    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanKeyword)}`;
-    window.open(url, "_blank");
-  };
-
-  // Fetch AI Recommendations for the target metrics once data changes
+  // Fetch AI Recommendations Batch
   useEffect(() => {
     if (!compareMonth) return;
 
-    metrics.forEach(m => {
-      if (!["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key)) return;
+    const fetchAnalysis = async () => {
+      setLoadingAnalysis(true);
+      try {
+        const targetMetrics = metrics
+          .filter(m => ["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key))
+          .map(m => {
+            let valB = 0;
+            let valA = 0;
+            if (m.key === "basicRevenue") {
+              valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+              valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+            } else {
+              valB = (data as any)[m.key] || 0;
+              valA = (compareData as any)[m.key] || 0;
+            }
+            const delta = getDelta(valB, valA);
+            return { id: m.key, label: m.label, isUp: delta ? delta.isUp : true };
+          });
 
-      let valB = 0;
-      let valA = 0;
-
-      if (m.key === "basicRevenue") {
-        valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
-        valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
-      } else {
-        valB = (data as any)[m.key] || 0;
-        valA = (compareData as any)[m.key] || 0;
+        const res = await fetch("/api/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metrics: targetMetrics })
+        });
+        const result = await res.json();
+        setAiAnalysis(result);
+      } catch (error) {
+        console.error("AI Analysis Fetch Fail:", error);
+      } finally {
+        setLoadingAnalysis(false);
       }
+    };
 
-      const delta = getDelta(valB, valA);
-      if (delta) {
-        fetchAISuggestion(m.key, m.label, delta.isUp);
-      }
-    });
+    fetchAnalysis();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, compareMonth, data, compareData]);
+  }, [selectedMonth, compareMonth]);
 
   return (
     <main className="min-h-screen bg-[#F2F4F6] pb-20">
       {/* Sticky Header with Selectors */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-zinc-200 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl border-b border-white/20 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
@@ -236,9 +214,9 @@ export default function DetailsPage() {
                 {compareMonth || "선택"}
                 <ChevronDown size={14} className="text-zinc-300" />
               </button>
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[140px]">
+              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[140px]">
                 {availableMonths.map(m => (
-                  <button key={m} onClick={() => setCompareMonth(m)} className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100 text-zinc-900" : "hover:bg-zinc-50 text-zinc-600"}`}>
+                  <button key={m} onClick={() => setCompareMonth(m)} className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100/50 text-zinc-900" : "hover:bg-zinc-50/50 text-zinc-600"}`}>
                     {m}
                   </button>
                 ))}
@@ -255,9 +233,9 @@ export default function DetailsPage() {
                 {selectedMonth}
                 <ChevronDown size={14} className="text-primary/30" />
               </button>
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[140px]">
+              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[140px]">
                 {availableMonths.map(m => (
-                  <button key={m} onClick={() => setSelectedMonth(m)} className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-zinc-50 text-zinc-600"}`}>
+                  <button key={m} onClick={() => setSelectedMonth(m)} className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-zinc-50/50 text-zinc-600"}`}>
                     {m}
                   </button>
                 ))}
@@ -268,71 +246,91 @@ export default function DetailsPage() {
       </header>
 
       <div className="max-w-7xl mx-auto p-6 md:p-12 space-y-12">
-        {/* Page Title */}
-        <div className="space-y-1">
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-            경영 정밀 리포트
-          </h1>
-          <p className="text-zinc-500 font-medium">
-            {compareMonth 
-              ? `${formatMonth(compareMonth)}와 ${formatMonth(selectedMonth)}를 비교 분석한 결과입니다.`
-              : `${formatMonth(selectedMonth)}의 상세 분석 결과입니다. (비교 데이터 없음)`}
-          </p>
-        </div>
-
-        {/* Intelligent Summary */}
-        <section className="animate-in fade-in slide-in-from-top-4 duration-500">
-          {insights ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-white border-none toss-shadow p-6 flex flex-col gap-4 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 transition-all group-hover:w-2"></div>
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
-                     <Trophy size={20} />
-                  </div>
-                  <h3 className="font-bold text-zinc-900">최고 상승 지표</h3>
+        {/* AI Consulting Summary Card */}
+        <section className="animate-in fade-in slide-in-from-top-4 duration-700">
+          <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-none p-8 md:p-10 shadow-2xl relative overflow-hidden group rounded-[32px]">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[100px] -mr-32 -mt-32 rounded-full group-hover:bg-primary/30 transition-colors duration-1000"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 blur-[80px] -ml-24 -mb-24 rounded-full"></div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-8">
+              <div className="p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/10 shadow-inner">
+                <BarChart3 size={40} className="text-primary" />
+              </div>
+              <div className="space-y-4 flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/20 border border-primary/30 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary-light">AI 실시간 경영 경영진단</span>
                 </div>
-                <div className="space-y-1">
+                <h3 className="font-extrabold text-2xl md:text-3xl tracking-tight leading-tight">
+                  원장님, {formatMonth(selectedMonth)}를 위한 <br className="hidden sm:block" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400">맞춤 전략 리포트</span>가 생성되었습니다.
+                </h3>
+                
+                {loadingAnalysis ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="h-4 bg-white/10 rounded-full w-full animate-pulse"></div>
+                    <div className="h-4 bg-white/10 rounded-full w-2/3 animate-pulse"></div>
+                  </div>
+                ) : aiAnalysis?.summary ? (
+                  <p className="text-slate-300 text-base md:text-lg leading-relaxed font-medium max-w-3xl">
+                    {aiAnalysis.summary}
+                  </p>
+                ) : (
+                  <p className="text-slate-400 text-sm italic">지표 분석 정보를 불러오는 중입니다...</p>
+                )}
+              </div>
+            </div>
+          </Card>
+        </section>
+
+        {/* Intelligent Summary Cards (Best/Worst) */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {insights ? (
+            <>
+            <Card className="glass-card p-8 flex flex-col gap-6 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-rose-500/80"></div>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+                     <Trophy size={24} />
+                  </div>
+                  <h3 className="font-bold text-zinc-900 text-lg">최고 상승 지표</h3>
+                </div>
+                <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-rose-600">{insights.best.label}</span>
-                    <span className="text-base font-bold text-rose-500">
+                    <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{insights.best.label}</span>
+                    <span className="text-xl font-bold text-rose-500">
                       ▲<AnimatedPercent value={insights.best.delta?.percent || null} />%
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-500 leading-relaxed font-medium">
-                    {insights.best.label} 지표가 지난달 대비 가장 큰 폭으로 상승했습니다.
+                  <p className="text-zinc-500 leading-relaxed font-medium">
+                    지난달 대비 효율이 가장 좋았던 핵심 지표입니다.
                   </p>
                 </div>
               </Card>
 
-              <Card className="bg-white border-none toss-shadow p-6 flex flex-col gap-4 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 transition-all group-hover:w-2"></div>
+              <Card className="glass-card p-8 flex flex-col gap-6 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/80"></div>
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                    <AlertTriangle size={20} />
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                    <AlertTriangle size={24} />
                   </div>
-                  <h3 className="font-bold text-zinc-900">최하 하락 지표</h3>
+                  <h3 className="font-bold text-zinc-900 text-lg">집중 개선 지표</h3>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-blue-600">{insights.worst.label}</span>
-                    <span className="text-base font-bold text-blue-500">
+                    <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{insights.worst.label}</span>
+                    <span className="text-xl font-bold text-blue-500">
                       ▼<AnimatedPercent value={Math.abs(parseFloat(insights.worst.delta?.percent || "0")).toString()} />%
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-500 leading-relaxed font-medium">
-                    {insights.worst.label} 지표가 현재 가장 큰 하락세를 보이고 있습니다.
+                  <p className="text-zinc-500 leading-relaxed font-medium">
+                    현재 가장 큰 하락세를 보이며 관리가 시급합니다.
                   </p>
                 </div>
               </Card>
-            </div>
+            </>
           ) : (
-            <Card className="p-12 text-center bg-white border-none toss-shadow space-y-2">
-              <h4 className="font-bold text-zinc-900 text-lg">데이터 분석 중...</h4>
-              <p className="text-zinc-500 text-sm">
-                비교 대상월(A)의 데이터를 추가로 등록해 보세요.
-              </p>
-            </Card>
+            <div className="col-span-full py-12 text-center text-zinc-400 font-bold">비교 데이터를 분석하고 있습니다...</div>
           )}
         </section>
 
@@ -353,69 +351,59 @@ export default function DetailsPage() {
               valA = (compareData as any)[m.key] || 0;
             }
 
-            // Deduplication & Trigger Check
             const delta = getDelta(valB, valA);
-            const statusKey = delta?.isUp ? "up" : "down";
-            const suggestionKey = `${m.key}-${statusKey}`;
-            const activeSolution = aiSuggestions[suggestionKey];
-            const isLoading = loadingSuggestions[suggestionKey];
+            const activeSolution = aiAnalysis?.results?.[m.key];
 
             return (
               <Card 
                 key={index} 
-                className="flex flex-col h-auto bg-white border border-zinc-100 overflow-hidden toss-shadow group relative"
+                className="glass-card flex flex-col h-auto overflow-hidden group relative hover:bg-white/60"
               >
-                {/* Favorite Star at corner */}
                 {activeSolution && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleFavorite(activeSolution.keyword || activeSolution.keywords?.[0]);
+                      toggleFavorite(activeSolution.keywords?.[0] || "");
                     }}
-                    className={`absolute top-4 right-4 z-20 p-2.5 rounded-2xl transition-all duration-300 ${isFavorite(activeSolution.keyword || activeSolution.keywords?.[0]) ? "text-amber-400 bg-amber-50 shadow-[0_0_15px_-3px_rgba(251,191,36,0.3)] scale-110" : "text-zinc-200 hover:text-amber-300 hover:bg-zinc-50"}`}
+                    className={`absolute top-5 right-5 z-20 p-2.5 rounded-2xl transition-all duration-300 ${isFavorite(activeSolution.keywords?.[0] || "") ? "text-amber-400 bg-amber-50/50 shadow-inner" : "text-zinc-200 hover:text-amber-300 hover:bg-white/50"}`}
                   >
-                    <Star size={20} fill={isFavorite(activeSolution.keyword || activeSolution.keywords?.[0]) ? "currentColor" : "none"} />
+                    <Star size={20} fill={isFavorite(activeSolution.keywords?.[0] || "") ? "currentColor" : "none"} />
                   </button>
                 )}
                 
-                <div className="flex justify-between items-start pt-6 px-6">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`p-2.5 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110 shadow-sm shadow-black/5`}>
-                      <m.icon size={18} />
+                <div className="flex justify-between items-start pt-7 px-7">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-3 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110 shadow-sm`}>
+                      <m.icon size={20} />
                     </div>
                     <p className="text-zinc-500 text-sm font-bold tracking-tight">{m.label}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-5 px-6 pb-6 mt-4">
-                  <div className="space-y-0.5">
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                <div className="space-y-6 px-7 pb-7 mt-5">
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2 flex-wrap">
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                         <AnimatedNumber value={valB} />
                       </span>
                       <span className="text-xs font-bold text-zinc-400">{m.unit}</span>
-                      <span className="text-[10px] text-primary font-bold ml-1 px-1.5 py-0.5 bg-primary/5 rounded whitespace-nowrap">
-                        ({formatMonth(selectedMonth)})
-                      </span>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-zinc-100 space-y-2">
+                  <div className="pt-5 border-t border-zinc-100/50 space-y-3">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-zinc-400">
-                          <AnimatedNumber value={valA} />{m.unit}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-zinc-400">
+                          전월 <AnimatedNumber value={valA} />{m.unit}
                         </span>
-                        <span className="text-[9px] text-zinc-300 font-medium">({formatMonth(compareMonth)})</span>
                       </div>
                       <AnimatePresence mode="wait">
                         {delta && (
                           <motion.div 
                             key={`${selectedMonth}-${compareMonth}-${m.key}`}
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            className={`flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${delta.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}
+                            initial={{ opacity: 0, x: 5 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className={`flex items-center gap-0.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${delta.isUp ? "bg-rose-50/80 text-rose-600" : "bg-blue-50/80 text-blue-600"}`}
                           >
                             {delta.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                             <AnimatedPercent value={delta.percent} />%
@@ -423,87 +411,47 @@ export default function DetailsPage() {
                         )}
                       </AnimatePresence>
                     </div>
-                    
-                    {/* Warning Message for ARPU */}
-                    {m.key === "arpu" && delta && !delta.isUp && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-500 bg-rose-50 p-2 rounded-xl border border-rose-100 mt-1">
-                        <AlertCircle size={12} />
-                        환자당 수익성이 낮아지고 있습니다.
-                      </div>
-                    )}
 
-                    {/* YouTube Solution / AI Praise Section */}
+                    {/* YouTube Solution UI */}
                     {delta && ["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key) && (
-                      <div className={`mt-4 p-4 rounded-2xl border transition-all ${delta.isUp ? "bg-emerald-50/50 border-emerald-100" : "bg-primary/5 border-primary/10"}`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-tight ${delta.isUp ? "text-emerald-700" : "text-primary"}`}>
+                      <div className={`mt-4 p-5 rounded-3xl border border-white/20 shadow-sm transition-all ${delta.isUp ? "bg-emerald-50/40" : "bg-primary/5"}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest ${delta.isUp ? "text-emerald-700" : "text-primary"}`}>
                             {delta.isUp ? <Award size={14} /> : <Play size={14} />}
                             {delta.isUp ? "AI SUCCESS TIP" : "AI SOLUTION"}
                           </div>
                         </div>
 
-                        {isLoading ? (
-                          <div className="space-y-2 animate-pulse">
-                            <div className="h-3 bg-zinc-200 rounded w-3/4"></div>
-                            <div className="h-2 bg-zinc-100 rounded w-1/2"></div>
+                        {loadingAnalysis ? (
+                          <div className="space-y-3">
+                            <div className="h-4 bg-white/50 rounded-full w-full animate-pulse"></div>
+                            <div className="h-16 bg-white/50 rounded-2xl w-full animate-pulse"></div>
                           </div>
-                        ) : activeSolution && !activeSolution.error ? (
+                        ) : activeSolution ? (
                           <>
-                            <div className="mb-3 p-3 bg-white/70 rounded-xl border border-white/50">
-                              <p className="text-xs font-bold text-slate-900 leading-relaxed">
-                                {delta.isUp ? (
-                                  <>원장님, 현재 <span className="text-emerald-600 font-extrabold">[{m.label}]</span> 성과가 훌륭합니다! 전문가들의 노하우를 바탕으로 기세를 더욱 올려보세요.</>
-                                ) : (
-                                  <>원장님, 현재 <span className="text-primary font-extrabold">[{m.label}]</span> 관리가 시급합니다. 전문가들의 실전 노하우를 확인해보세요.</>
-                                )}
+                            <div className="mb-4">
+                              <p className="text-[13px] font-extrabold text-slate-900 leading-snug mb-2">
+                                {activeSolution.title}
+                              </p>
+                              <p className="text-[11px] text-zinc-500 font-medium leading-relaxed line-clamp-2">
+                                {activeSolution.desc}
                               </p>
                             </div>
                             
-                            <p className="text-[10px] text-zinc-500 font-medium line-clamp-2 leading-relaxed mb-4">
-                              {activeSolution.desc || `${m.label} 지표에 대한 구체적인 솔루션 영상을 확인해보세요.`}
-                            </p>
-
                             <div className="flex flex-col gap-2.5">
-                              {(activeSolution.keywords?.length > 0 ? activeSolution.keywords : (activeSolution.keyword ? [activeSolution.keyword] : 
-                                (m.key === "nonBenefit" ? ["1등 상담 화법", "클로징 성공 기술", "고객 심리 공략"] :
-                                 m.key === "newPatientCount" ? ["고객 유입 마케팅 공식", "입소문 마케팅 비결", "브랜딩 차별화 전략"] :
-                                 m.key === "basicRevenue" ? ["친절한 응대 말투", "병원 리더의 대화법", "성공 사업가 마인드셋"] :
-                                 [`${m.label} ${delta.isUp ? '상승 비결' : '개선 전략'}`])
-                              )).map((kw: string, idx: number) => {
-                                const cleanKw = kw.replace(/#/g, "").trim();
-                                return (
-                                  <YoutubeVideoLink 
-                                    key={idx}
-                                    keyword={cleanKw}
-                                    mLabel={m.label}
-                                    isUp={delta.isUp}
-                                    activeSolution={activeSolution}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col gap-3">
-                            <p className="text-[10px] text-zinc-400 font-bold italic leading-relaxed">
-                              AI 추천이 지연되고 있습니다. 원장님이 설정하신 핵심 키워드로 즉시 검색합니다.
-                            </p>
-                            <div className="flex flex-col gap-2.5">
-                              {(m.key === "nonBenefit" ? ["1등 상담 화법", "클로징 성공 기술", "고객 심리 공략"] :
-                                 m.key === "newPatientCount" ? ["고객 유입 마케팅 공식", "입소문 마케팅 비결", "브랜딩 차별화 전략"] :
-                                 m.key === "basicRevenue" ? ["친절한 응대 말투", "병원 리더의 대화법", "성공 사업가 마인드셋"] :
-                                 [`${m.label} ${delta.isUp ? '상승 마케팅' : '개선법'}`]
-                              ).map((kw, idx) => (
+                              {activeSolution.keywords?.map((kw: string, idx: number) => (
                                 <YoutubeVideoLink 
                                   key={idx}
                                   keyword={kw}
                                   mLabel={m.label}
                                   isUp={delta.isUp}
-                                  activeSolution={{ desc: "핵심 경영 키워드 추천 영상" }}
+                                  activeSolution={activeSolution}
                                 />
                               ))}
                             </div>
-                          </div>
+                          </>
+                        ) : (
+                          <div className="text-[10px] text-zinc-400 italic">분석 중입니다...</div>
                         )}
                       </div>
                     )}
@@ -516,51 +464,40 @@ export default function DetailsPage() {
 
         {/* Watch History List */}
         {watchHistory.length > 0 && (
-          <section className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-slate-900 text-white rounded-2xl shadow-lg ring-4 ring-slate-900/5">
-                  <Tv size={20} />
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-slate-900 text-white rounded-[20px] shadow-xl">
+                  <Tv size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">나의 경영 학습 기록</h3>
-                  <p className="text-xs text-zinc-400 font-medium mt-0.5">최근 클릭했던 핵심 키워드와 분석 내용이 기록됩니다.</p>
+                  <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">나의 경영 학습 기록</h3>
+                  <p className="text-sm text-zinc-500 font-medium">원장님이 주목하셨던 핵심 경영 컨텐츠입니다.</p>
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {watchHistory.map((session, idx) => (
                 <Card 
                   key={idx} 
-                  className="bg-white p-4 border-zinc-100 toss-shadow flex items-center gap-4 group cursor-pointer relative" 
+                  className="glass-card p-5 flex items-center gap-5 group cursor-pointer relative" 
                   onClick={() => window.open(convertToWatchUrl(session), "_blank")}
                 >
-                  <div className="relative w-28 h-20 rounded-2xl overflow-hidden bg-slate-900 flex-shrink-0 shadow-sm flex items-center justify-center">
-                    <div className="text-white flex flex-col items-center gap-1 group-hover:scale-110 transition-transform">
-                      <FileSearch size={24} />
-                      <span className="text-[8px] font-bold opacity-50 uppercase">Analysis</span>
+                  <div className="relative w-32 h-24 rounded-2xl overflow-hidden bg-slate-900 flex-shrink-0 shadow-lg">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white/20 group-hover:text-white/40 transition-colors">
+                      <FileSearch size={32} />
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Play size={20} className="text-white fill-white" />
+                      <Play size={24} className="text-white fill-white" />
                     </div>
                   </div>
-                  <div className="overflow-hidden pr-6">
-                    <p className="text-[10px] font-bold text-primary mb-0.5 flex items-center gap-1">
-                      {session.indicator}
-                    </p>
-                    <h4 className="text-[13px] font-bold text-slate-900 line-clamp-1 group-hover:text-primary transition-colors leading-tight">{session.title}</h4>
-                    <p className="text-[9px] text-zinc-400 mt-1 font-medium truncate">키워드: {session.keyword?.replace("#", "")}</p>
-                    <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">{new Date(session.date!).toLocaleDateString()} 시청</p>
+                  <div className="flex-1 overflow-hidden pr-6">
+                    <span className="inline-block px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-md mb-2">
+                       {session.indicator}
+                    </span>
+                    <h4 className="text-[14px] font-bold text-slate-900 line-clamp-1 group-hover:text-primary transition-colors">{session.title}</h4>
+                    <p className="text-[10px] text-zinc-400 mt-2 font-medium">{new Date(session.date!).toLocaleDateString()} 학습</p>
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(session.keyword || "");
-                    }}
-                    className={`absolute top-2 right-2 p-1.5 rounded-full transition-all ${isFavorite(session.keyword || "") ? "text-amber-400" : "text-zinc-200 hover:text-amber-300"}`}
-                  >
-                    <Star size={16} fill={isFavorite(session.keyword || "") ? "currentColor" : "none"} />
-                  </button>
                 </Card>
               ))}
             </div>
@@ -570,22 +507,22 @@ export default function DetailsPage() {
         {/* Comparison Chart */}
         {trendChartData.length > 0 && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Card className="h-96 p-6 md:p-8 bg-white toss-shadow border-none">
+            <Card className="glass-card h-96 p-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">전체 매출 성장 추이</h3>
-                  <p className="text-xs text-zinc-500 font-medium mt-1">최근 6개월간의 메인 매출 데이터를 기반으로 한 비교 차트입니다.</p>
+                  <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">전체 매출 성장 추이</h3>
+                  <p className="text-sm text-zinc-500 font-medium mt-1">최근 6개월간의 매출 변화를 분석한 트렌드 그래프입니다.</p>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height="80%">
                 <BarChart data={trendChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: "#94a3b8", fontWeight: 600 }} />
                   <YAxis hide />
-                  <RechartsTooltip cursor={{ fill: "#f8fafc" }} formatter={(value: any) => new Intl.NumberFormat('ko-KR').format(value || 0) + "원"} />
-                  <Bar dataKey="총매출" radius={[6, 6, 0, 0]} barSize={32}>
+                  <RechartsTooltip cursor={{ fill: "rgba(0,0,0,0.02)" }} formatter={(value: any) => new Intl.NumberFormat('ko-KR').format(value || 0) + "원"} />
+                  <Bar dataKey="총매출" radius={[8, 8, 0, 0]} barSize={40}>
                     {trendChartData.map((entry) => (
-                      <Cell key={entry.rawMonth} fill={entry.rawMonth === selectedMonth ? "#3182f6" : (entry.rawMonth === compareMonth ? "#94a3b8" : "#e2e8f0")} />
+                      <Cell key={entry.rawMonth} fill={entry.rawMonth === selectedMonth ? "#3182f6" : (entry.rawMonth === compareMonth ? "#94a3b8" : "#edf2f7")} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -593,24 +530,7 @@ export default function DetailsPage() {
             </Card>
           </section>
         )}
-
-        {/* Footer */}
-        <Card className="bg-slate-900 text-white border-none p-8 shadow-2xl relative overflow-hidden group">
-          <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
-            <div className="p-4 bg-white/10 rounded-3xl backdrop-blur-sm">
-              <BarChart3 size={32} className="text-blue-300" />
-            </div>
-            <div className="text-center md:text-left">
-              <h3 className="font-bold text-xl leading-tight mb-2">성과 정밀 통합 분석</h3>
-              <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
-                분석 결과, {formatMonth(selectedMonth)}의 총 매출은 {data.totalRevenue > (compareData.totalRevenue || 0) ? "상승" : "하락"} 추세에 있습니다.
-              </p>
-            </div>
-          </div>
-        </Card>
       </div>
-
-      {/* YouTube Modal Removed for Direct Link approach */}
     </main>
   );
 }

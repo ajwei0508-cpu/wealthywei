@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Tv, Play, TrendingUp, Check, ArrowRight } from "lucide-react";
 import { useVideoHistory } from "@/context/VideoHistoryContext";
 import toast from "react-hot-toast";
+import { YoutubeSkeleton } from "./Skeleton";
 
 interface YoutubeVideoLinkProps {
   keyword: string;
@@ -29,7 +30,6 @@ export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: Yout
           return;
         }
 
-        // 1. 캐시 확인 (24시간 유효)
         const CACHE_KEY = `yt_cache_${keyword}`;
         const cached = localStorage.getItem(CACHE_KEY);
         if (cached) {
@@ -42,7 +42,6 @@ export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: Yout
           }
         }
 
-        // 2. 캐시 없거나 만료된 경우 API 호출
         const res = await fetch(`/api/youtube?q=${encodeURIComponent(keyword)}`);
         const result = await res.json();
         
@@ -57,7 +56,6 @@ export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: Yout
 
         if (result.items && result.items.length > 0) {
           setVideo(result.items[0]);
-          // 결과 캐싱
           localStorage.setItem(CACHE_KEY, JSON.stringify({
             data: result,
             timestamp: Date.now()
@@ -76,7 +74,7 @@ export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: Yout
   }, [keyword]);
 
   if (loading) {
-    return <div className="animate-pulse h-16 bg-white/50 border border-zinc-100 rounded-xl w-full flex items-center justify-center text-[10px] text-zinc-400 font-bold">영상 검색 중...</div>;
+    return <YoutubeSkeleton />;
   }
 
   if (errorMsg || !video || !video.id?.videoId) {

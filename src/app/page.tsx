@@ -309,7 +309,7 @@ export default function Home() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
-        <Card className="h-80">
+        <Card className="h-80 bg-white p-6">
           <h3 className="font-bold text-lg mb-6">매출 성장 추이</h3>
           <ResponsiveContainer width="100%" height="80%">
             <BarChart data={chartData}>

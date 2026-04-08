@@ -11,7 +11,11 @@
 }
 
 @utility toss-card {
-  @apply bg-white rounded-[32px] p-8 toss-shadow transition-all duration-300;
+  @apply rounded-[32px] toss-shadow transition-all duration-300;
+}
+
+@utility glass-card {
+  @apply bg-white/40 backdrop-blur-md border border-white/30 rounded-[32px] toss-shadow transition-all duration-300;
 }
 
 :root {
