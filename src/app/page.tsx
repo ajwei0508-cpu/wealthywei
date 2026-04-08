@@ -176,17 +176,22 @@ export default function Home() {
           <div>
             <h2 className="text-zinc-500 text-sm font-medium mb-1">바른컨설팅 분석 모드</h2>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">안녕하세요, 원장님.</h1>
-          <div className="flex flex-col md:flex-row items-center gap-3">
-            <KakaoLogin />
-            {session?.user?.email === "wei0508@naver.com" && (
+          <div className="flex flex-col md:flex-row items-center gap-3 mt-4">
+            {session?.user?.email?.toLowerCase() === "wei0508@naver.com" && (
               <button 
                 onClick={() => router.push("/master")}
-                className="w-full md:w-auto bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                className="w-full md:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group"
               >
-                <ShieldCheck size={18} className="text-amber-400" />
-                마스터 관리망
+                <ShieldCheck size={20} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                마스터 관리망 접속
               </button>
             )}
+            <div className="flex flex-col items-start px-2">
+              <span className="text-[10px] text-zinc-400 font-bold uppercase">Auth Status</span>
+              <span className="text-[9px] text-zinc-300 font-medium truncate max-w-[150px]">
+                {session?.user?.email || "Email Not Found"}
+              </span>
+            </div>
           </div>
           </div>
           
