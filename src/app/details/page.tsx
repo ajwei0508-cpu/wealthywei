@@ -142,6 +142,34 @@ export default function DetailsPage() {
       }));
   }, [monthlyData]);
 
+  // Calculate Representative Worst Metric among the Top 3 (보험, 비급여, 신규환자)
+  const representativeMetric = useMemo(() => {
+    if (!compareMonth) return null;
+    
+    const keyTargets = ["basicRevenue", "newPatientCount", "nonBenefit"];
+    const results = metrics
+      .filter(m => keyTargets.includes(m.key))
+      .map(m => {
+        let valB = 0;
+        let valA = 0;
+        if (m.key === "basicRevenue") {
+          valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
+          valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
+        } else {
+          valB = (data as any)[m.key] || 0;
+          valA = (compareData as any)[m.key] || 0;
+        }
+        const delta = getDelta(valB, valA);
+        return { ...m, delta };
+      })
+      .filter(r => r.delta !== null);
+
+    if (results.length === 0) return null;
+    
+    // Sort by growth rate (percent), ASC (lowest first)
+    return results.sort((a, b) => parseFloat(a.delta!.percent) - parseFloat(b.delta!.percent))[0];
+  }, [data, compareData, compareMonth, metrics]);
+
   // Fetch AI Recommendations Batch
   useEffect(() => {
     if (!compareMonth) return;
@@ -272,9 +300,45 @@ export default function DetailsPage() {
                     <div className="h-4 bg-white/10 rounded-full w-2/3 animate-pulse"></div>
                   </div>
                 ) : aiAnalysis?.summary ? (
-                  <p className="text-slate-300 text-base md:text-lg leading-relaxed font-medium max-w-3xl">
-                    {aiAnalysis.summary}
-                  </p>
+                  <div className="space-y-6">
+                    <p className="text-slate-300 text-base md:text-lg leading-relaxed font-medium max-w-3xl">
+                      {aiAnalysis.summary}
+                    </p>
+                    
+                    {/* Representative One Solution Section */}
+                    {representativeMetric && aiAnalysis?.results?.[representativeMetric.key] && (
+                      <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 bg-white/5 border border-white/10 rounded-[32px] backdrop-blur-sm animate-in fade-in zoom-in duration-500 hover:bg-white/10 transition-colors">
+                        <div className="flex-1 space-y-4">
+                          <div className="flex items-center gap-2">
+                             <div className={`p-2 rounded-xl scale-75 ${representativeMetric.bg} ${representativeMetric.color} shadow-sm`}>
+                               <representativeMetric.icon size={16} />
+                             </div>
+                             <span className="text-sm font-bold text-white/90">집중 관찰 지표: {representativeMetric.label}</span>
+                             <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded-full border border-rose-500/30 font-bold uppercase tracking-wider">Solution Needed</span>
+                          </div>
+                          <h4 className="text-xl font-extrabold text-white leading-tight">
+                            {aiAnalysis.results[representativeMetric.key].title}
+                          </h4>
+                          <p className="text-sm text-slate-400 font-medium leading-relaxed max-w-xl">
+                            {aiAnalysis.results[representativeMetric.key].desc}
+                          </p>
+                        </div>
+                        
+                        <div className="w-full sm:w-[320px] flex-shrink-0">
+                          {aiAnalysis.results[representativeMetric.key].keywords?.slice(0, 1).map((kw: string, idx: number) => (
+                            <div key={idx} className="scale-105 sm:scale-100 origin-center">
+                              <YoutubeVideoLink 
+                                keyword={kw}
+                                mLabel={representativeMetric.label}
+                                isUp={false}
+                                activeSolution={aiAnalysis.results[representativeMetric.key]}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-slate-400 text-sm italic">지표 분석 정보를 불러오는 중입니다...</p>
                 )}
@@ -412,49 +476,6 @@ export default function DetailsPage() {
                       </AnimatePresence>
                     </div>
 
-                    {/* YouTube Solution UI */}
-                    {delta && ["basicRevenue", "newPatientCount", "nonBenefit"].includes(m.key) && (
-                      <div className={`mt-4 p-5 rounded-3xl border border-white/20 shadow-sm transition-all ${delta.isUp ? "bg-emerald-50/40" : "bg-primary/5"}`}>
-                        <div className="flex items-center justify-between mb-4">
-                          <div className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest ${delta.isUp ? "text-emerald-700" : "text-primary"}`}>
-                            {delta.isUp ? <Award size={14} /> : <Play size={14} />}
-                            {delta.isUp ? "AI SUCCESS TIP" : "AI SOLUTION"}
-                          </div>
-                        </div>
-
-                        {loadingAnalysis ? (
-                          <div className="space-y-3">
-                            <div className="h-4 bg-white/50 rounded-full w-full animate-pulse"></div>
-                            <div className="h-16 bg-white/50 rounded-2xl w-full animate-pulse"></div>
-                          </div>
-                        ) : activeSolution ? (
-                          <>
-                            <div className="mb-4">
-                              <p className="text-[13px] font-extrabold text-slate-900 leading-snug mb-2">
-                                {activeSolution.title}
-                              </p>
-                              <p className="text-[11px] text-zinc-500 font-medium leading-relaxed line-clamp-2">
-                                {activeSolution.desc}
-                              </p>
-                            </div>
-                            
-                            <div className="flex flex-col gap-2.5">
-                              {activeSolution.keywords?.map((kw: string, idx: number) => (
-                                <YoutubeVideoLink 
-                                  key={idx}
-                                  keyword={kw}
-                                  mLabel={m.label}
-                                  isUp={delta.isUp}
-                                  activeSolution={activeSolution}
-                                />
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-[10px] text-zinc-400 italic">분석 중입니다...</div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
               </Card>
