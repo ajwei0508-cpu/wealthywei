@@ -305,36 +305,41 @@ export default function DetailsPage() {
                       {aiAnalysis.summary}
                     </p>
                     
-                    {/* Representative One Solution Section */}
+                    {/* Representative One Solution Section (Lightweight) */}
                     {representativeMetric && aiAnalysis?.results?.[representativeMetric.key] && (
-                      <div className="flex flex-col sm:flex-row items-center gap-6 p-6 md:p-8 bg-white/5 border border-white/10 rounded-[32px] backdrop-blur-sm animate-in fade-in zoom-in duration-500 hover:bg-white/10 transition-colors">
-                        <div className="flex-1 space-y-4">
+                      <div className="flex flex-col gap-6 p-6 md:p-8 bg-white/5 border border-white/10 rounded-[32px] backdrop-blur-sm animate-in fade-in zoom-in duration-500">
+                        <div className="space-y-4">
                           <div className="flex items-center gap-2">
                              <div className={`p-2 rounded-xl scale-75 ${representativeMetric.bg} ${representativeMetric.color} shadow-sm`}>
                                <representativeMetric.icon size={16} />
                              </div>
-                             <span className="text-sm font-bold text-white/90">집중 관찰 지표: {representativeMetric.label}</span>
-                             <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded-full border border-rose-500/30 font-bold uppercase tracking-wider">Solution Needed</span>
+                             <span className="text-sm font-bold text-white/90">위기 진단: {representativeMetric.label} 지표 하락</span>
                           </div>
-                          <h4 className="text-xl font-extrabold text-white leading-tight">
-                            {aiAnalysis.results[representativeMetric.key].title}
-                          </h4>
-                          <p className="text-sm text-slate-400 font-medium leading-relaxed max-w-xl">
-                            {aiAnalysis.results[representativeMetric.key].desc}
-                          </p>
-                        </div>
-                        
-                        <div className="w-full sm:w-[320px] flex-shrink-0">
-                          {aiAnalysis.results[representativeMetric.key].keywords?.slice(0, 1).map((kw: string, idx: number) => (
-                            <div key={idx} className="scale-105 sm:scale-100 origin-center">
-                              <YoutubeVideoLink 
-                                keyword={kw}
-                                mLabel={representativeMetric.label}
-                                isUp={false}
-                                activeSolution={aiAnalysis.results[representativeMetric.key]}
-                              />
+                          
+                          <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl">
+                            <p className="text-sm text-rose-200 font-bold leading-relaxed">
+                              "매출 분석 결과 [{representativeMetric.label}] 지표가 전월 대비 {Math.abs(parseFloat(representativeMetric.delta?.percent || "0"))}% 하락하며 병원 성장의 병목 현상이 발생하고 있습니다. {aiAnalysis.results[representativeMetric.key].title} 전략을 통한 즉각적인 개선이 필요합니다."
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row items-center gap-4">
+                            <div className="flex-1">
+                              <p className="text-sm text-slate-400 font-medium leading-relaxed">
+                                {aiAnalysis.results[representativeMetric.key].desc}
+                              </p>
                             </div>
-                          ))}
+                            
+                            <a 
+                              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(aiAnalysis.results[representativeMetric.key].keywords?.[0] || representativeMetric.label + " 경영 개선")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-6 py-4 rounded-2xl font-extrabold transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              <Play size={18} fill="currentColor" />
+                              유튜브에서 솔루션 찾기
+                              <ArrowRight size={18} />
+                            </a>
+                          </div>
                         </div>
                       </div>
                     )}
