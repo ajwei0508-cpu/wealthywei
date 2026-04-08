@@ -85,7 +85,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (Object.keys(monthlyData).length > 0) {
-      localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
+      try {
+        localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
+      } catch (e) {
+        console.warn("Failed to stringify/save metrics data", e);
+      }
     }
   }, [monthlyData]);
 
@@ -108,7 +112,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const resetData = () => {
     setStateMonthlyData({});
-    localStorage.removeItem("barun_data_metrics_v2");
+    try {
+      localStorage.removeItem("barun_data_metrics_v2");
+    } catch (e) {
+        console.warn("Failed to clear data metrics from local storage", e);
+    }
   };
 
   const data = monthlyData[selectedMonth] || initialDataMetrics;

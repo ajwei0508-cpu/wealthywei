@@ -30,10 +30,15 @@ export const VideoHistoryProvider = ({ children }: { children: React.ReactNode }
   const [favoriteVideos, setFavoriteVideos] = useState<string[]>([]);
 
   useEffect(() => {
-    const savedWatched = localStorage.getItem("watchHistory");
-    const savedFavs = localStorage.getItem("favoriteVideos");
-    if (savedWatched) setWatchHistory(JSON.parse(savedWatched));
-    if (savedFavs) setFavoriteVideos(JSON.parse(savedFavs));
+    try {
+      const savedWatched = localStorage.getItem("watchHistory");
+      if (savedWatched) setWatchHistory(JSON.parse(savedWatched));
+    } catch(e) { console.warn("Failed to load watchHistory", e); }
+    
+    try {
+      const savedFavs = localStorage.getItem("favoriteVideos");
+      if (savedFavs) setFavoriteVideos(JSON.parse(savedFavs));
+    } catch(e) { console.warn("Failed to load favoriteVideos", e); }
   }, []);
 
   const addHistory = (video: VideoItem) => {
@@ -42,7 +47,9 @@ export const VideoHistoryProvider = ({ children }: { children: React.ReactNode }
       ...watchHistory.filter((v) => v.id !== video.id),
     ].slice(0, 50);
     setWatchHistory(newHistory);
-    localStorage.setItem("watchHistory", JSON.stringify(newHistory));
+    try {
+      localStorage.setItem("watchHistory", JSON.stringify(newHistory));
+    } catch(e) { console.warn("Failed to save watchHistory", e); }
   };
 
   const toggleFavorite = (videoId: string) => {
@@ -50,7 +57,9 @@ export const VideoHistoryProvider = ({ children }: { children: React.ReactNode }
       ? favoriteVideos.filter((id) => id !== videoId)
       : [...favoriteVideos, videoId];
     setFavoriteVideos(newFavs);
-    localStorage.setItem("favoriteVideos", JSON.stringify(newFavs));
+    try {
+      localStorage.setItem("favoriteVideos", JSON.stringify(newFavs));
+    } catch(e) { console.warn("Failed to save favoriteVideos", e); }
   };
 
   const isWatched = (id: string) => watchHistory.some((v) => (v.id === id || v.keyword === id));
