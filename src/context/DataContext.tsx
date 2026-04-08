@@ -1,6 +1,6 @@
-"use client";
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { supabase } from "@/lib/supabase";
 
 export interface DataMetrics {
   totalRevenue: number;
@@ -54,6 +54,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
+  const { data: session } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
   const [monthlyData, setStateMonthlyData] = useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
@@ -62,52 +63,97 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   });
   const [compareMonth, setCompareMonth] = useState<string>("");
 
+  // Load Initial Data (Supabase & LocalStorage Fallback)
   useEffect(() => {
-    const saved = localStorage.getItem("barun_data_metrics_v2");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setStateMonthlyData(parsed);
-        
-        const months = Object.keys(parsed).sort();
-        if (months.length > 0) {
-          const latest = months[months.length - 1];
-          const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
-          setSelectedMonth(latest);
-          setCompareMonth(secondLatest);
-        }
-      } catch (e) {
-        console.error("Failed to load metrics data", e);
-      }
-    }
-    setIsLoaded(true);
-  }, []);
+    const loadData = async () => {
+      // 1. Try Supabase first if logged in
+      if (session?.user?.email) {
+        try {
+          const { data: dbData, error } = await supabase
+            .from('clinic_metrics')
+            .select('month, metrics')
+            .eq('user_id', session.user.email); // Using email as user_id for matching
 
+          if (dbData && dbData.length > 0) {
+            const transformed: Record<string, DataMetrics> = {};
+            dbData.forEach((row: { month: string; metrics: DataMetrics }) => {
+              transformed[row.month] = row.metrics;
+            });
+            setStateMonthlyData(transformed);
+            updateSelectedMonths(transformed);
+            setIsLoaded(true);
+            return;
+          }
+        } catch (e) {
+          console.error("Supabase load error:", e);
+        }
+      }
+
+      // 2. Fallback to LocalStorage
+      const saved = localStorage.getItem("barun_data_metrics_v2");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setStateMonthlyData(parsed);
+          updateSelectedMonths(parsed);
+        } catch (e) {
+          console.error("Failed to load metrics data from local storage", e);
+        }
+      }
+      setIsLoaded(true);
+    };
+
+    loadData();
+  }, [session]);
+
+  const updateSelectedMonths = (dataMap: Record<string, DataMetrics>) => {
+    const months = Object.keys(dataMap).sort();
+    if (months.length > 0) {
+      const latest = months[months.length - 1];
+      const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
+      setSelectedMonth(latest);
+      setCompareMonth(secondLatest);
+    }
+  };
+
+  // Sync to LocalStorage (as backup)
   useEffect(() => {
     if (Object.keys(monthlyData).length > 0) {
-      try {
-        localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
-      } catch (e) {
-        console.warn("Failed to stringify/save metrics data", e);
-      }
+      localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
     }
   }, [monthlyData]);
 
-  const setMonthlyData = (month: string, newData: Partial<DataMetrics>) => {
-    setStateMonthlyData((prev) => {
-      const updated = {
-        ...prev,
-        [month]: {
-          ...(prev[month] || initialDataMetrics),
-          ...newData,
-        },
-      };
-      return updated;
-    });
+  const setMonthlyData = async (month: string, newData: Partial<DataMetrics>) => {
+    const updatedMetrics = {
+      ...(monthlyData[month] || initialDataMetrics),
+      ...newData,
+    };
+
+    setStateMonthlyData((prev) => ({
+      ...prev,
+      [month]: updatedMetrics,
+    }));
     
     // Automatically shift comparison window forward
     setCompareMonth(selectedMonth);
     setSelectedMonth(month);
+
+    // Sync to Supabase if logged in
+    if (session?.user?.email) {
+      try {
+        await supabase
+          .from('clinic_metrics')
+          .upsert({ 
+            user_id: session.user.email,
+            user_email: session.user.email,
+            user_name: session.user.name || '',
+            month: month,
+            metrics: updatedMetrics 
+          }, { onConflict: 'user_id,month' });
+      } catch (e) {
+        console.error("Supabase save error:", e);
+      }
+    }
   };
 
   const resetData = () => {

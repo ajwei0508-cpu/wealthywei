@@ -176,9 +176,18 @@ export default function Home() {
           <div>
             <h2 className="text-zinc-500 text-sm font-medium mb-1">바른컨설팅 분석 모드</h2>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">안녕하세요, 원장님.</h1>
-            <div className="mt-6">
-              <KakaoLogin />
-            </div>
+          <div className="flex flex-col md:flex-row items-center gap-3">
+            <KakaoLogin />
+            {session?.user?.email === "wei0508@naver.com" && (
+              <button 
+                onClick={() => router.push("/master")}
+                className="w-full md:w-auto bg-slate-900 text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+              >
+                <ShieldCheck size={18} className="text-amber-400" />
+                마스터 관리망
+              </button>
+            )}
+          </div>
           </div>
           
           <div className="flex items-center gap-2 pt-2">
