@@ -405,7 +405,10 @@ export default function MasterUserDetailsPage() {
                         <div className="space-y-4">
                           <div className="flex items-center gap-2">
                              <div className={`p-2 rounded-xl scale-75 ${representativeMetric.bg} ${representativeMetric.color} shadow-sm`}>
-                               <representativeMetric.icon size={16} />
+                               {(() => {
+                                 const Icon = representativeMetric.icon;
+                                 return <Icon size={16} />;
+                               })()}
                              </div>
                              <span className="text-sm font-bold text-white/90">위기 진단: {representativeMetric.label} 지표 하락</span>
                           </div>
@@ -540,7 +543,10 @@ export default function MasterUserDetailsPage() {
                 <div className="flex justify-between items-start pt-7 px-7">
                   <div className="flex items-center gap-3">
                     <div className={`p-3 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110 shadow-sm`}>
-                      <m.icon size={20} />
+                      {(() => {
+                        const Icon = m.icon;
+                        return <Icon size={20} />;
+                      })()}
                     </div>
                     <p className="text-zinc-500 text-sm font-bold tracking-tight">{m.label}</p>
                   </div>
