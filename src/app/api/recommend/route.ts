@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyDummyKeyForBuildBypass123456789");
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyBDoCxqd5c2QrU-L-to9FOt9wpb8ppKx54");
 const model = genAI.getGenerativeModel({ 
   model: "gemini-1.5-flash",
   generationConfig: { responseMimeType: "application/json" }

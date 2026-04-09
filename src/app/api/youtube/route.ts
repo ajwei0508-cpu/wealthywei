@@ -8,10 +8,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing query parameter 'q'" }, { status: 400 });
   }
 
-  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+  const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "AIzaSyCjIPSBUn1N2HgMIsSM_J9EWCG7tW84a4M";
   if (!YOUTUBE_API_KEY) {
     console.error("YOUTUBE_API_KEY missing from environment variables.");
-    return NextResponse.json({ error: "Server Configuration Error: YOUTUBE_API_KEY is missing." }, { status: 500 });
   }
 
   try {
