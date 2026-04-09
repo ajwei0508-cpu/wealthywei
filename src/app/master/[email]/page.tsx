@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useData, DataMetrics, initialDataMetrics } from "@/context/DataContext";
 import { supabase } from "@/lib/supabase";
@@ -50,10 +50,11 @@ import {
   Cell
 } from "recharts";
 
-export default function MasterUserDetailsPage({ params }: { params: { email: string } }) {
+export default function MasterUserDetailsPage() {
   const router = useRouter();
+  const params = useParams();
   const { data: session, status } = useSession();
-  const decodedEmail = decodeURIComponent(params.email);
+  const decodedEmail = decodeURIComponent(params.email as string);
   const [monthlyData, setMonthlyData] = React.useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = React.useState<string>("");
   const [compareMonth, setCompareMonth] = React.useState<string>("");
