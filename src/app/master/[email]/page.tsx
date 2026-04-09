@@ -53,7 +53,7 @@ export default function MasterUserDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const { data: session, status } = useSession();
-  const decodedEmail = decodeURIComponent(params.email as string);
+  const decodedEmail = params?.email ? decodeURIComponent(params.email as string) : "";
   const [monthlyData, setMonthlyData] = React.useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = React.useState<string>("");
   const [compareMonth, setCompareMonth] = React.useState<string>("");
@@ -135,7 +135,7 @@ export default function MasterUserDetailsPage() {
     };
   };
 
-  const metrics = [
+  const metrics = useMemo(() => [
     { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
     { key: "nonBenefit", label: "비급여", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
     { key: "newPatientCount", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
@@ -150,7 +150,7 @@ export default function MasterUserDetailsPage() {
     { key: "accountsReceivable", label: "미수금", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
     { key: "cashCollection", label: "현금수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
     { key: "cardCollection", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
-  ];
+  ], []);
 
   // Analysis Insights Logic (Best/Worst)
   const insights = useMemo(() => {

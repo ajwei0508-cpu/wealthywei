@@ -77,11 +77,11 @@ export default function MasterDashboard() {
       const latestRecord = g.records[0];
       return {
         ...g,
-        latestRevenue: latestRecord.metrics.totalRevenue,
-        latestNonBenefit: latestRecord.metrics.nonBenefit,
-        latestMonth: latestRecord.month,
+        latestRevenue: latestRecord?.metrics?.totalRevenue || 0,
+        latestNonBenefit: latestRecord?.metrics?.nonBenefit || 0,
+        latestMonth: latestRecord?.month || "N/A",
         uploadCount: g.records.length,
-        lastUpload: latestRecord.created_at
+        lastUpload: latestRecord?.created_at || new Date().toISOString()
       };
     }).sort((a, b) => new Date(b.lastUpload).getTime() - new Date(a.lastUpload).getTime());
   }, [filteredData]);
