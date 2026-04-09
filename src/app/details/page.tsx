@@ -369,12 +369,12 @@ export default function DetailsPage() {
                             
                             <div className="w-full sm:w-auto mt-4 sm:mt-0 max-w-sm">
                               <YoutubeVideoLink 
-                                keyword={
-                                  representativeMetric.key === "basicRevenue" ? "한의원 보험매출 증대" :
-                                  representativeMetric.key === "nonBenefit" ? "병원 비급여 상담" :
-                                  representativeMetric.key === "newPatientCount" ? "한의원 신규환자 마케팅" :
-                                  `${representativeMetric.label} 경영 개선`
-                                }
+                                keyword={(() => {
+                                  if (representativeMetric.key === "nonBenefit") return ["1등 상담 화법", "클로징 성공 기술", "고객 심리 공략"][Math.floor(Date.now() / 1000 / 60 / 60) % 3];
+                                  if (representativeMetric.key === "newPatientCount") return ["고객 유입 마케팅 공식", "입소문 마케팅 비결", "브랜딩 차별화 전략"][Math.floor(Date.now() / 1000 / 60 / 60) % 3];
+                                  if (representativeMetric.key === "basicRevenue") return ["친절한 고객 응대 말투", "리더의 조직 관리 대화법", "성공 사업가 마인드셋"][Math.floor(Date.now() / 1000 / 60 / 60) % 3];
+                                  return `${representativeMetric.label} 노하우`;
+                                })()}
                                 mLabel={representativeMetric.label}
                                 isUp={false}
                                 activeSolution={aiAnalysis.results[representativeMetric.key]}
