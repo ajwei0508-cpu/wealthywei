@@ -24,11 +24,13 @@ export async function GET(req: Request) {
     if (!res.ok) {
        const errorBody = await res.json();
        console.error("YouTube API failure:", errorBody);
-       const isQuotaExceeded = errorBody.error?.errors?.some((e: any) => e.reason === "quotaExceeded");
-       return NextResponse.json({ 
-         error: isQuotaExceeded ? "YouTube_Quota_Exceeded" : "YouTube API Request Failed", 
-         details: errorBody 
-       }, { status: res.status });
+        const isQuotaExceeded = errorBody.error?.errors?.some((e: any) => e.reason === "quotaExceeded");
+        const isKeyRestricted = errorBody.error?.errors?.some((e: any) => e.reason === "keyInvalid" || e.reason === "forbidden");
+        
+        return NextResponse.json({ 
+          error: isQuotaExceeded ? "YouTube_Quota_Exceeded" : (isKeyRestricted ? "YouTube_Key_Restricted" : "YouTube API Request Failed"), 
+          details: errorBody 
+        }, { status: res.status });
     }
 
     const data = await res.json();

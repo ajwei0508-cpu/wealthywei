@@ -50,6 +50,7 @@ interface DataContextType {
   setSelectedMonth: (month: string) => void;
   setCompareMonth: (month: string) => void;
   setMonthlyData: (month: string, newData: Partial<DataMetrics>) => void;
+  deleteMonthlyData: (month: string) => Promise<void>;
   resetData: () => void;
 }
 
@@ -74,7 +75,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const { data: dbData, error } = await supabase
             .from('clinic_metrics')
             .select('month, metrics')
-            .eq('user_id', session.user.email); // Using email as user_id for matching
+            .eq('user_id', session.user.email.toLowerCase()); // Using email as user_id for matching
 
           if (dbData && dbData.length > 0) {
             const transformed: Record<string, DataMetrics> = {};
@@ -146,14 +147,48 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         await supabase
           .from('clinic_metrics')
           .upsert({
-            user_id: session.user.email,
-            user_email: session.user.email,
+            user_id: session.user.email.toLowerCase(),
+            user_email: session.user.email.toLowerCase(),
             user_name: session.user.name || '',
             month: month,
             metrics: updatedMetrics
           }, { onConflict: 'user_id,month' });
       } catch (e) {
         console.error("Supabase save error:", e);
+      }
+    }
+  };
+
+  const deleteMonthlyData = async (month: string) => {
+    // 1. Update Local State
+    const updated = { ...monthlyData };
+    delete updated[month];
+    setStateMonthlyData(updated);
+
+    // 2. Adjust selection if needed
+    if (selectedMonth === month || compareMonth === month) {
+      updateSelectedMonths(updated);
+    }
+
+    // 3. Sync to Supabase via API
+    if (session?.user?.email) {
+      try {
+        const res = await fetch("/api/delete-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: session.user.email.toLowerCase(),
+            month: month
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "삭제 실패");
+        }
+      } catch (e) {
+        console.error("Supabase delete error:", e);
+        throw e;
       }
     }
   };
@@ -188,6 +223,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       setSelectedMonth,
       setCompareMonth,
       setMonthlyData,
+      deleteMonthlyData,
       resetData
     }}>
       {children}

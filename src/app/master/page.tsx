@@ -62,7 +62,7 @@ export default function MasterDashboard() {
   const groupedData = React.useMemo(() => {
     const groups: Record<string, any> = {};
     filteredData.forEach(record => {
-      const email = record.user_email;
+      const email = record.user_email?.toLowerCase() || record.user_id?.toLowerCase() || "unknown";
       if (!groups[email]) {
         groups[email] = {
           user_email: email,

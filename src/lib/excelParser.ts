@@ -21,14 +21,14 @@ export const extractDateFromFilename = (filename: string): string | null => {
 
   const fullYearMatch = filename.match(/(\d{4})[^\d]?(\d{1,2})/);
   if (fullYearMatch) return `${fullYearMatch[1]}-${fullYearMatch[2].padStart(2, "0")}`;
-  
+
   const shortYearMatch = filename.match(/(\d{2})[^\d]?(\d{1,2})/);
   if (shortYearMatch) return `20${shortYearMatch[1]}-${shortYearMatch[2].padStart(2, "0")}`;
-  
+
   return null;
 };
 
-const normalize = (text: unknown): string => 
+const normalize = (text: unknown): string =>
   String(text || "").replace(/[\n\r\s\(\)\[\]\{\}]/g, "").replace(/[^\w\uAC00-\uD7AF]+/g, "").trim();
 
 const parseNumericValue = (val: unknown): number => {
@@ -59,7 +59,7 @@ const KEYWORD_GROUPS: Record<KeywordGroupKey, { label: string; keywords: string[
 };
 
 export const parseExcelFile = (
-  file: File, 
+  file: File,
   defaultMonth: string
 ): Promise<ParseExcelResult> => {
   return new Promise((resolve, reject) => {
@@ -86,7 +86,7 @@ export const parseExcelFile = (
         for (let i = 0; i < Math.min(jsonData.length, 50); i++) {
           const row = jsonData[i];
           if (!row || row.length < 2) continue;
-          
+
           let matchCount = 0;
           row.forEach(cell => {
             const norm = normalize(cell);
@@ -103,12 +103,12 @@ export const parseExcelFile = (
         }
 
         if (trueHeaderRowIndex === -1) {
-           return reject(new Error("헤더 발견 실패"));
+          return reject(new Error("헤더 발견 실패"));
         }
 
         const activeHeaderRow = jsonData[trueHeaderRowIndex];
         const colMap: Partial<Record<KeywordGroupKey, number>> = {};
-        
+
         activeHeaderRow.forEach((cell, colIndex) => {
           const norm = normalize(cell);
           if (!norm) return;
@@ -142,7 +142,7 @@ export const parseExcelFile = (
               }
             }
           }
-          
+
           if (foundValue !== 0) {
             extractedData[key] = foundValue;
             successList.push({ original: String(activeHeaderRow[colIndex]).trim(), standard: KEYWORD_GROUPS[key].label });
@@ -153,10 +153,10 @@ export const parseExcelFile = (
         if (extractedData.totalTreatmentFee) {
           extractedData.totalRevenue = extractedData.totalTreatmentFee;
         } else {
-          extractedData.totalRevenue = 
-            (extractedData.patientPay || 0) + 
-            (extractedData.insuranceClaim || 0) + 
-            (extractedData.autoInsuranceClaim || 0) + 
+          extractedData.totalRevenue =
+            (extractedData.patientPay || 0) +
+            (extractedData.insuranceClaim || 0) +
+            (extractedData.autoInsuranceClaim || 0) +
             (extractedData.nonBenefit || 0);
         }
 
@@ -183,10 +183,10 @@ export const parseExcelFile = (
           if (extractedData.totalTreatmentFee && (!extractedData.totalRevenue || extractedData.totalRevenue === 0)) {
             extractedData.totalRevenue = extractedData.totalTreatmentFee;
           } else if (!extractedData.totalRevenue || extractedData.totalRevenue === 0) {
-            extractedData.totalRevenue = 
-              (extractedData.patientPay || 0) + 
-              (extractedData.insuranceClaim || 0) + 
-              (extractedData.autoInsuranceClaim || 0) + 
+            extractedData.totalRevenue =
+              (extractedData.patientPay || 0) +
+              (extractedData.insuranceClaim || 0) +
+              (extractedData.autoInsuranceClaim || 0) +
               (extractedData.nonBenefit || 0);
           }
 

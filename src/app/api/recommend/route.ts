@@ -1,48 +1,66 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "AIzaSyBDoCxqd5c2QrU-L-to9FOt9wpb8ppKx54");
+// .env.local에서 API 키를 가져옵니다.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || "");
+
+// 최신 표준 모델인 gemini-1.5-flash로 설정
 const model = genAI.getGenerativeModel({ 
-  model: "gemini-1.5-flash",
-  generationConfig: { responseMimeType: "application/json" }
+  model: "gemini-1.5-flash" 
 });
 
 export async function POST(req: Request) {
+  let rawResponseText = "";
   try {
-    const { metrics, userInfo, targetMonth, compareMonth } = await req.json();
+    const { metrics, userInfo, targetMonth, compareMonth, expertKeywords } = await req.json();
 
     if (!metrics || !Array.isArray(metrics)) {
       return NextResponse.json({ error: "Invalid metrics array" }, { status: 400 });
     }
 
-    const userName = userInfo?.name || "원천";
+    const userName = userInfo?.name || "원장님";
     
+    // 원장님이 설정한 전문가 키워드 가이드 구성
+    let expertKeywordsGuidance = "";
+    if (expertKeywords) {
+      expertKeywordsGuidance = `
+      [유튜브 키워드 제약 조건]
+      반드시 아래 제공된 지표별 키워드 리스트 중 '하나'만 선택하여 "keywords" 필드에 넣으세요. 새로운 키워드를 생성하지 마세요.
+      ${Object.entries(expertKeywords).map(([key, words]: [string, any]) => `- ${key}: [${words.join(", ")}]`).join("\n")}
+      `;
+    }
+
     const prompt = `
       당신은 대한민국 최고 수준의 병의원 경영 전문 AI 컨설턴트입니다. 
-      아래 제공되는 '${userName} 원장님'의 병원 실데이터를 바탕으로 가장 중요한 경영 솔루션을 제안해 주세요.
+      아래 제공되는 '${userName}'의 병원 실데이터를 바탕으로 전략 리포트와 유튜브 추천 키워드를 제안해 주세요.
       
       [분석 정보]
       - 분석 대상 기간: ${compareMonth} 대비 ${targetMonth}의 성과
-      - 대상 병원/원장: ${userName} 원장님
       
       [세부 지표 변화]
-      ${metrics.map((m: any) => `- ${m.label}: ${new Intl.NumberFormat("ko-KR").format(m.valA)}원 -> ${new Intl.NumberFormat("ko-KR").format(m.valB)}원 (${m.isUp ? "+" : ""}${m.percent}%)`).join("\n")}
+      ${metrics.map((m: any) => `- ${m.label}: ${m.percent}% 변화`).join("\n")}
       
-      [컨설팅 가이드라인]
-      1. 모든 수치적 변화를 종합하여 "종합 경영 제언(summary)"을 정중하고 카리스마 있는 말투로 작성하세요. (예: "~원장님, 이번 달 비급여 매출이 ~% 하락한 점이 가장 큰 병목입니다. 따라서...")
-      2. 분석된 지표 중 하락폭이 가장 크거나 성장이 부진한 핵심 지표를 골라 원장님께서 유튜브에서 직접 공부할 수 있도록 "실무/경영/마케팅" 중심의 고관여 검색 키워드 3개를 도출해 주세요. 유튜브 키워드는 구체적이어야 합니다. (예: "치과 비급여 상담 스크립트", "한의원 자보 재진율 상승", "병원 데스크 친절 교육")
-      3. 전문적이고 통찰력 있는 분석 코멘트를 각 지표 단위로 덧붙여 주세요. 
-      4. 특수 기호(#, * 등)를 절대 사용하지 마세요. (Markdown 문법 사용 금지)
-      5. JSON 형식으로만 응답해야 하며, 그 외 텍스트는 포함하지 마세요.
+      ${expertKeywordsGuidance}
 
-      응답 JSON 구조 예시:
+      [컨설팅 가이드라인]
+      1. strategicReport를 작성하세요 (risks, improvements, solutions 항목 포함).
+      2. 하락폭이 크거나 관리가 필요한 핵심 지표를 하나 골라 솔루션을 제안하세요.
+      3. 중요: "keywords"는 반드시 위에 제공된 리스트에 있는 단어 중 하나여야 하며, '치과'라는 단어는 절대 포함하지 마세요.
+      4. 오직 JSON 형식으로만 응답하세요.
+
+      응답 JSON 구조:
       {
-        "summary": "전체 수치를 아우르는 전문적인 통합 제언 (2~3문장)",
+        "strategicReport": {
+          "risks": ["..."],
+          "improvements": ["..."],
+          "solutions": ["..."]
+        },
         "results": {
-          "지표ID(예: basicRevenue)": {
-            "title": "솔루션 제목 (예: 보험 매출 누수 방지 전략)",
-            "keywords": ["초진 환자 객단가 높이는 법", "진료실 상담 기법", "우리 병원 리뷰 관리"],
-            "desc": "구체적이고 논리적인 원인 분석 코멘트"
+          "지표ID": {
+            "title": "솔루션 제목",
+            "keywords": ["리스트에서 선택된 단일 키워드"],
+            "desc": "분석 코멘트"
           }
         }
       }
@@ -50,17 +68,28 @@ export async function POST(req: Request) {
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const text = response.text();
+    rawResponseText = response.text();
     
-    // Clean up potential markdown code blocks
-    const cleanedText = text.replace(/```json|```/g, "").trim();
-    const data = JSON.parse(cleanedText);
+    console.log("=== Raw Gemini Response ===");
+    console.log(rawResponseText);
+
+    let data;
+    const jsonMatch = rawResponseText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      data = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error("No JSON object found in response");
+    }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Gemini Batch Suggestion Error:", error);
+    console.error("Gemini API Error:", error);
     return NextResponse.json(
-      { error: "Failed to generate suggestions" },
+      { 
+        error: "Failed to generate suggestions", 
+        details: error instanceof Error ? error.message : "Unknown error",
+        fallback: true
+      },
       { status: 500 }
     );
   }

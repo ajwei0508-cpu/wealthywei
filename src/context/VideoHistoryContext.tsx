@@ -21,6 +21,7 @@ interface VideoHistoryContextType {
   isFavorite: (id: string) => boolean;
   convertToEmbedUrl: (url: string) => string;
   convertToWatchUrl: (idOrVideo: string | VideoItem) => string;
+  removeFromHistory: (videoId: string, title?: string) => void;
 }
 
 const VideoHistoryContext = createContext<VideoHistoryContextType | undefined>(undefined);
@@ -44,8 +45,24 @@ export const VideoHistoryProvider = ({ children }: { children: React.ReactNode }
   const addHistory = (video: VideoItem) => {
     const newHistory = [
       { ...video, date: new Date().toISOString() },
-      ...watchHistory.filter((v) => v.id !== video.id),
+      ...watchHistory.filter((v) => {
+        if (video.id && v.id === video.id) return false;
+        if (video.title && v.title === video.title) return false;
+        return true;
+      }),
     ].slice(0, 50);
+    setWatchHistory(newHistory);
+    try {
+      localStorage.setItem("watchHistory", JSON.stringify(newHistory));
+    } catch(e) { console.warn("Failed to save watchHistory", e); }
+  };
+
+  const removeFromHistory = (videoId: string, title?: string) => {
+    const newHistory = watchHistory.filter((v) => {
+      if (videoId && v.id === videoId) return false;
+      if (title && v.title === title) return false;
+      return true;
+    });
     setWatchHistory(newHistory);
     try {
       localStorage.setItem("watchHistory", JSON.stringify(newHistory));
@@ -99,6 +116,7 @@ export const VideoHistoryProvider = ({ children }: { children: React.ReactNode }
         isFavorite,
         convertToEmbedUrl,
         convertToWatchUrl,
+        removeFromHistory,
       }}
     >
       {children}

@@ -6,19 +6,19 @@ import { useRouter } from "next/navigation";
 import Card from "@/components/Card";
 import KakaoLogin from "@/components/KakaoLogin";
 import { 
-  TrendingUp, 
-  Users, 
-  ShieldCheck, 
-  FileSpreadsheet, 
-  Plus, 
-  ArrowRight, 
-  CheckCircle2, 
-  FileSearch, 
-  Info, 
-  ChevronDown,
+  TrendingUp,
   TrendingDown,
+  Users,
+  ShieldCheck,
+  FileSpreadsheet,
+  Plus,
+  ArrowRight,
+  CheckCircle2,
+  FileSearch,
   Calendar,
-  Wallet
+  Wallet,
+  Trash2,
+  ChevronDown
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { parseExcelFile, MappingResult } from "@/lib/excelParser";
@@ -52,7 +52,8 @@ export default function Home() {
     targetRevenue,
     setSelectedMonth, 
     setCompareMonth, 
-    setMonthlyData 
+    setMonthlyData,
+    deleteMonthlyData
   } = useData();
 
   // 1. Month List for Selector
@@ -90,26 +91,37 @@ export default function Home() {
   }, [monthlyData]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
+    const count = files.length;
+    toast.loading(`${count}개의 파일을 분석 중입니다...`, { id: "excel-parse" });
+
+    let successCount = 0;
     const defaultMonth = selectedMonth || new Date().toISOString().slice(0, 7);
-    toast.loading("엑셀 데이터를 분석 중입니다...", { id: "excel-parse" });
 
     try {
-      const { targetMonth, extractedData, mappingResults } = await parseExcelFile(file, defaultMonth);
-      setMonthlyData(targetMonth, extractedData);
-      setMappingResults(mappingResults);
-      setFailedHeaders([]);
-      
-      if (mappingResults.length > 0) {
-        toast.success(`${targetMonth} 매출 데이터를 분석 및 저장했습니다.`, { id: "excel-parse" });
-      } else {
-        toast.success(`${targetMonth} 데이터(총매출 중심)를 추출했습니다.`, { id: "excel-parse" });
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const { targetMonth, extractedData, mappingResults } = await parseExcelFile(file, defaultMonth);
+        await setMonthlyData(targetMonth, extractedData);
+        if (mappingResults.length > 0) successCount++;
       }
+      
+      if (count > 1) {
+        toast.success(`${count}개의 파일 중 ${successCount}개 분석 완료 및 저장되었습니다.`, { id: "excel-parse" });
+      } else {
+        toast.success(`데이터 분석 및 저장이 완료되었습니다.`, { id: "excel-parse" });
+      }
+      
+      setMappingResults([]); // Clear previous results display or handle appropriately
+      setFailedHeaders([]);
     } catch (error: any) {
       toast.error(error.message || "파일 처리 중 오류 발생", { id: "excel-parse" });
     }
+    
+    // Reset file input value so same files can be uploaded again if needed
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const formatNumber = (num: number) => new Intl.NumberFormat("ko-KR").format(num);
@@ -130,7 +142,8 @@ export default function Home() {
   const formatMonth = (m: string) => {
     if (!m) return "데이터 없음";
     const [year, month] = m.split("-");
-    return `${year?.slice(2)}.${month}월`;
+    const displayYear = year?.length === 4 ? year.slice(2) : year;
+    return `${displayYear}.${month}월`;
   };
 
   if (status === "loading") {
@@ -202,14 +215,30 @@ export default function Home() {
               <div className="relative group">
                 <button className="flex items-center gap-1.5 bg-zinc-100 px-3 py-2 rounded-xl text-sm font-bold text-zinc-900 border border-zinc-200">
                   <Calendar size={14} className="text-zinc-500" />
-                  {compareMonth || "선택"}
+                  {formatMonth(compareMonth)}
                   <ChevronDown size={14} className="text-zinc-400" />
                 </button>
-                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px]">
+                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
                   {availableMonths.map(m => (
-                    <button key={m} onClick={() => setCompareMonth(m)} className="w-full text-left px-3 py-2 rounded-xl text-sm font-medium hover:bg-zinc-50">
-                      {m}
-                    </button>
+                    <div key={m} className="flex items-center gap-1 group/item">
+                      <button 
+                        onClick={() => setCompareMonth(m)} 
+                        className="flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium hover:bg-zinc-50 transition-colors"
+                      >
+                        {formatMonth(m)}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`${m} 데이터를 영구적으로 삭제하시겠습니까?`)) {
+                            deleteMonthlyData(m);
+                          }
+                        }}
+                        className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -220,14 +249,30 @@ export default function Home() {
               <div className="relative group">
                 <button className="flex items-center gap-1.5 bg-primary/5 px-3 py-2 rounded-xl text-sm font-bold text-primary border border-primary/20">
                   <Calendar size={14} className="text-primary" />
-                  {selectedMonth}
+                  {formatMonth(selectedMonth)}
                   <ChevronDown size={14} className="text-primary/40" />
                 </button>
-                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px]">
+                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-100 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[160px]">
                   {availableMonths.map(m => (
-                    <button key={m} onClick={() => setSelectedMonth(m)} className="w-full text-left px-3 py-2 rounded-xl text-sm font-medium hover:bg-zinc-50">
-                      {m}
-                    </button>
+                    <div key={m} className="flex items-center gap-1 group/item">
+                      <button 
+                        onClick={() => setSelectedMonth(m)} 
+                        className="flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium hover:bg-zinc-50 transition-colors"
+                      >
+                        {formatMonth(m)}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`${m} 데이터를 영구적으로 삭제하시겠습니까?`)) {
+                            deleteMonthlyData(m);
+                          }
+                        }}
+                        className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -237,7 +282,7 @@ export default function Home() {
 
         <div className="flex flex-col items-center gap-4 w-full md:w-auto">
           <div className="flex items-center gap-3 w-full">
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" multiple className="hidden" />
             <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-white text-slate-900 border border-zinc-200 px-5 py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 toss-shadow hover:bg-zinc-50 transition-colors">
               <FileSpreadsheet size={18} className="text-emerald-600" />
               매출 엑셀 분석
@@ -254,7 +299,7 @@ export default function Home() {
         <div className="p-4 rounded-3xl flex items-center justify-center gap-3 border bg-rose-50/50 border-rose-100 animate-in fade-in zoom-in duration-500">
           <TrendingUp size={20} className="text-rose-600" />
           <p className="font-bold text-zinc-900 text-sm">
-            현재 <span className="text-primary">[{selectedMonth}]</span>의 매출은 <span className="text-zinc-500">[{compareMonth}]</span> 대비{" "}
+            현재 <span className="text-primary">[{formatMonth(selectedMonth)}]</span>의 매출은 <span className="text-zinc-500">[{formatMonth(compareMonth)}]</span> 대비{" "}
             <span className={totalRevComp.isUp ? "text-rose-600" : "text-blue-600"}>
               {totalRevComp.percent}% {totalRevComp.isUp ? "상승" : "하락"}
             </span>한 상태입니다.
@@ -267,7 +312,7 @@ export default function Home() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <TrendingUp size={16} className="text-primary" /> 총매출
+                <TrendingUp size={16} className="text-primary" /> [{formatMonth(selectedMonth)}] 총매출
               </div>
               <ComparisonBadge metric="totalRevenue" />
             </div>
@@ -280,7 +325,7 @@ export default function Home() {
           <div className="md:pl-8 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <ShieldCheck size={16} className="text-indigo-600" /> 보험 매출
+                <ShieldCheck size={16} className="text-indigo-600" /> [{formatMonth(selectedMonth)}] 보험 매출
               </div>
             </div>
             <div className="flex items-baseline gap-1">
@@ -294,7 +339,7 @@ export default function Home() {
           <div className="md:pl-8 flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <Wallet size={16} className="text-emerald-600" /> 비급여 매출
+                <Wallet size={16} className="text-emerald-600" /> [{formatMonth(selectedMonth)}] 비급여 매출
               </div>
               <ComparisonBadge metric="nonBenefit" />
             </div>
