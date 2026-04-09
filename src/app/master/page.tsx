@@ -12,7 +12,8 @@ import {
   Calendar, 
   TrendingUp,
   Search,
-  FileText
+  FileText,
+  ArrowRight
 } from "lucide-react";
 
 export default function MasterDashboard() {
