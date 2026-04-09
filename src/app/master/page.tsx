@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { supabase } from "@/lib/supabase";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 
@@ -33,12 +32,13 @@ export default function MasterDashboard() {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('clinic_metrics')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        // 서버사이드 API를 통해 service_role로 전체 데이터 조회 (RLS 우회)
+        const res = await fetch("/api/master-data");
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "API 오류");
+        }
+        const { data } = await res.json();
         setAllData(data || []);
       } catch (err) {
         console.error("Master dashboard fetch error:", err);

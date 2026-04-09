@@ -4,7 +4,6 @@ import React, { useMemo, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useData, DataMetrics, initialDataMetrics } from "@/context/DataContext";
-import { supabase } from "@/lib/supabase";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 
@@ -69,20 +68,18 @@ export default function MasterUserDetailsPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: dbData, error } = await supabase
-          .from('clinic_metrics')
-          .select('month, metrics')
-          .eq('user_email', decodedEmail);
+        // 서버사이드 API를 통해 service_role로 특정 사용자 데이터 조회 (RLS 우회)
+        const res = await fetch(`/api/master-data?email=${encodeURIComponent(decodedEmail)}`);
+        if (!res.ok) throw new Error("API 오류");
+        const { data: dbData } = await res.json();
 
-        if (error) throw error;
-        
         if (dbData && dbData.length > 0) {
           const transformed: Record<string, DataMetrics> = {};
           dbData.forEach((row: any) => {
             transformed[row.month] = row.metrics;
           });
           setMonthlyData(transformed);
-          
+
           const months = Object.keys(transformed).sort();
           if (months.length > 0) {
             const latest = months[months.length - 1];
