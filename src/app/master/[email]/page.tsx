@@ -3,7 +3,8 @@
 import React, { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useData } from "@/context/DataContext";
+import { useData, DataMetrics, initialDataMetrics } from "@/context/DataContext";
+import { supabase } from "@/lib/supabase";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 
@@ -49,10 +50,67 @@ import {
   Cell
 } from "recharts";
 
-export default function DetailsPage() {
+export default function MasterUserDetailsPage({ params }: { params: { email: string } }) {
   const router = useRouter();
-  const { data: session } = useSession();
-  const { data, compareData, monthlyData, selectedMonth, compareMonth, setSelectedMonth, setCompareMonth } = useData();
+  const { data: session, status } = useSession();
+  const decodedEmail = decodeURIComponent(params.email);
+  const [monthlyData, setMonthlyData] = React.useState<Record<string, DataMetrics>>({});
+  const [selectedMonth, setSelectedMonth] = React.useState<string>("");
+  const [compareMonth, setCompareMonth] = React.useState<string>("");
+  const [dataLoaded, setDataLoaded] = React.useState(false);
+
+  useEffect(() => {
+    if (status === "unauthenticated" || (status === "authenticated" && session?.user?.email !== "wei0508@naver.com")) {
+      router.push("/");
+    }
+  }, [session, status, router]);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const { data: dbData, error } = await supabase
+          .from('clinic_metrics')
+          .select('month, metrics')
+          .eq('user_email', decodedEmail);
+
+        if (error) throw error;
+        
+        if (dbData && dbData.length > 0) {
+          const transformed: Record<string, DataMetrics> = {};
+          dbData.forEach((row: any) => {
+            transformed[row.month] = row.metrics;
+          });
+          setMonthlyData(transformed);
+          
+          const months = Object.keys(transformed).sort();
+          if (months.length > 0) {
+            const latest = months[months.length - 1];
+            const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
+            setSelectedMonth(latest);
+            setCompareMonth(secondLatest);
+          }
+        }
+      } catch (e) {
+         console.error("Master user detail fetch fail:", e);
+      } finally {
+         setDataLoaded(true);
+      }
+    };
+    if (session?.user?.email === "wei0508@naver.com") {
+      fetchUserData();
+    }
+  }, [decodedEmail, session]);
+
+  const data = monthlyData[selectedMonth] || initialDataMetrics;
+  const compareData = monthlyData[compareMonth] || initialDataMetrics;
+
+  if (!dataLoaded) {
+    return (
+      <div className="min-h-screen bg-[#F2F4F6] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
 
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData).sort().reverse();
@@ -262,7 +320,7 @@ export default function DetailsPage() {
               <ArrowLeft size={20} />
             </button>
             <div className="hidden sm:block">
-              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">상세 분석 리포트</h2>
+              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">[{decodedEmail}] 리포트</h2>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-slate-900">{formatMonth(compareMonth)}</span>
                 <span className="text-zinc-300 px-1 font-medium">vs</span>

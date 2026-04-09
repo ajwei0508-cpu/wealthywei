@@ -58,6 +58,34 @@ export default function MasterDashboard() {
     d.month.includes(searchTerm)
   );
 
+  const groupedData = React.useMemo(() => {
+    const groups: Record<string, any> = {};
+    filteredData.forEach(record => {
+      const email = record.user_email;
+      if (!groups[email]) {
+        groups[email] = {
+          user_email: email,
+          user_name: record.user_name || "미지정 병원",
+          records: []
+        };
+      }
+      groups[email].records.push(record);
+    });
+
+    return Object.values(groups).map(g => {
+      g.records.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const latestRecord = g.records[0];
+      return {
+        ...g,
+        latestRevenue: latestRecord.metrics.totalRevenue,
+        latestNonBenefit: latestRecord.metrics.nonBenefit,
+        latestMonth: latestRecord.month,
+        uploadCount: g.records.length,
+        lastUpload: latestRecord.created_at
+      };
+    }).sort((a, b) => new Date(b.lastUpload).getTime() - new Date(a.lastUpload).getTime());
+  }, [filteredData]);
+
   const formatNumber = (num: number) => new Intl.NumberFormat("ko-KR").format(num);
 
   if (status === "loading" || loading) {
@@ -160,45 +188,51 @@ export default function MasterDashboard() {
                 <tr>
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">사용자 (병원명)</th>
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider">분석월</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">총매출</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">비급여</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-center">업로드 일시</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-center">누적 등록 통계</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">최근 달 매출</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-right">최근 달 비급여</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase tracking-wider text-center">최종 업로드 일시</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {filteredData.map((record, index) => (
-                  <tr key={record.id} className="hover:bg-zinc-50/50 transition-colors group">
+                {groupedData.map((userGroup, index) => (
+                  <tr 
+                    key={userGroup.user_email} 
+                    onClick={() => router.push(`/master/${encodeURIComponent(userGroup.user_email)}`)}
+                    className="hover:bg-zinc-50/50 transition-colors group cursor-pointer"
+                  >
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                           <FileText size={16} />
+                           <Users size={16} />
                         </div>
-                        <span className="text-sm font-extrabold text-slate-900">{record.user_name || "미지정 병원"}</span>
+                        <span className="text-sm font-extrabold text-slate-900">{userGroup.user_name}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-sm text-zinc-500 font-medium">{record.user_email}</td>
-                    <td className="px-8 py-5 text-sm font-bold text-zinc-900">
-                      <div className="flex items-center gap-2">
-                         <Calendar size={14} className="text-zinc-300" />
-                         {record.month}
-                      </div>
+                    <td className="px-8 py-5 text-sm text-zinc-500 font-medium">{userGroup.user_email}</td>
+                    <td className="px-8 py-5 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold">
+                         <Database size={12} />
+                         총 {userGroup.uploadCount}개월 등록
+                      </span>
                     </td>
                     <td className="px-8 py-5 text-sm font-bold text-slate-900 text-right">
-                      {formatNumber(record.metrics.totalRevenue)}원
+                      <span className="block text-[10px] text-zinc-400 font-medium mb-0.5">{userGroup.latestMonth} 기준</span>
+                      {formatNumber(userGroup.latestRevenue)}원
                     </td>
                     <td className="px-8 py-5 text-sm font-bold text-primary text-right">
-                      {formatNumber(record.metrics.nonBenefit)}원
+                      {formatNumber(userGroup.latestNonBenefit)}원
                     </td>
-                    <td className="px-8 py-5 text-xs text-zinc-400 font-medium text-center">
-                      {new Date(record.created_at).toLocaleString('ko-KR')}
+                    <td className="px-8 py-5 text-xs text-zinc-400 font-medium text-center flex items-center justify-center gap-2">
+                      {new Date(userGroup.lastUpload).toLocaleString('ko-KR')}
+                      <ArrowRight size={14} className="text-zinc-300 group-hover:text-primary transition-colors" />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             
-            {filteredData.length === 0 && (
+            {groupedData.length === 0 && (
               <div className="py-20 text-center space-y-4">
                 <Search size={48} className="mx-auto text-zinc-200" />
                 <p className="text-zinc-400 font-bold">검색 결과가 없습니다.</p>
