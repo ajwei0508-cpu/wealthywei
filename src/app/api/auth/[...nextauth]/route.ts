@@ -1,38 +1,6 @@
 import NextAuth from "next-auth";
-import KakaoProvider from "next-auth/providers/kakao";
+import { authOptions } from "@/lib/authOptions";
 
-const handler = NextAuth({
-  providers: [
-    KakaoProvider({
-      clientId: process.env.KAKAO_CLIENT_ID || "",
-      clientSecret: process.env.KAKAO_CLIENT_SECRET || "",
-      authorization: {
-        params: {
-          scope: "profile_nickname, profile_image, account_email",
-        },
-      },
-    }),
-  ],
-  callbacks: {
-    async session({ session, token }: { session: any; token: any }) {
-      if (session.user) {
-        session.user.id = token.sub;
-        session.user.email = token.email || session.user.email;
-      }
-      return session;
-    },
-    async jwt({ token, user, account }: { token: any; user?: any; account?: any }) {
-      if (user) {
-        token.id = user.id;
-      }
-      if (account) {
-        token.accessToken = account.access_token;
-        token.email = user?.email; // Ensure email is in token
-      }
-      return token;
-    },
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-});
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
