@@ -2,6 +2,7 @@
 
 import React, { useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useData } from "@/context/DataContext";
 import Card from "@/components/Card";
 import { 
@@ -50,6 +51,7 @@ import {
 
 export default function DetailsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { data, compareData, monthlyData, selectedMonth, compareMonth, setSelectedMonth, setCompareMonth } = useData();
 
   const availableMonths = useMemo(() => {
@@ -190,18 +192,54 @@ export default function DetailsPage() {
               valA = (compareData as any)[m.key] || 0;
             }
             const delta = getDelta(valB, valA);
-            return { id: m.key, label: m.label, isUp: delta ? delta.isUp : true };
+            return { 
+              id: m.key, 
+              label: m.label, 
+              isUp: delta ? delta.isUp : true,
+              valA,
+              valB,
+              percent: delta?.percent || "0"
+            };
           });
 
         const res = await fetch("/api/recommend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ metrics: targetMetrics })
+          body: JSON.stringify({ 
+            metrics: targetMetrics,
+            userInfo: {
+              name: session?.user?.name,
+              email: session?.user?.email
+            },
+            targetMonth: selectedMonth,
+            compareMonth: compareMonth
+          })
         });
         const result = await res.json();
+        if (result.error) { throw new Error(result.error); }
         setAiAnalysis(result);
       } catch (error) {
         console.error("AI Analysis Fetch Fail:", error);
+        setAiAnalysis({
+          summary: "현재 인공지능 분석 서버(Gemini)에 인증할 수 없어 임시 분석 결과를 제공합니다. 배포 환경의 API 설정을 확인해주세요.",
+          results: {
+            "basicRevenue": {
+               title: "매출 누수 방지 기초 프로세스",
+               keywords: ["병원 매출 올리는 법", "초진 환자 객단가", "상담 동의율 전략"],
+               desc: "AI 서버에 연결할 수 없어 임시 가이드라인을 제공합니다. 보험 매출 또는 기초 매출 하락 시 가장 먼저 점검해야 할 대응 전략을 유튜브 영상으로 확인하세요."
+            },
+            "newPatientCount": {
+               title: "신규 환자 유입 채널 점검",
+               keywords: ["동네 의원 마케팅", "네이버 플레이스 상위노출"],
+               desc: "임시 가이드라인입니다. 신규 환자가 줄어든다면 최우선적으로 원내 마케팅 채널과 플레이스 리뷰를 점검해야 합니다."
+            },
+            "nonBenefit": {
+               title: "비급여 상담 역량 강화",
+               keywords: ["치과 비급여 상담", "피부과 실장 상담 기법"],
+               desc: "임시 가이드라인입니다. 비급여 항목의 매출 하락은 상담 프로세스나 데스크의 고객 응대 스크립트 점검으로 개선할 수 있습니다."
+            }
+          }
+        });
       } finally {
         setLoadingAnalysis(false);
       }

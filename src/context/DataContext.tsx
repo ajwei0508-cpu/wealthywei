@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { supabase } from "@/lib/supabase";
@@ -133,7 +135,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       ...prev,
       [month]: updatedMetrics,
     }));
-    
+
     // Automatically shift comparison window forward
     setCompareMonth(selectedMonth);
     setSelectedMonth(month);
@@ -143,12 +145,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       try {
         await supabase
           .from('clinic_metrics')
-          .upsert({ 
+          .upsert({
             user_id: session.user.email,
             user_email: session.user.email,
             user_name: session.user.name || '',
             month: month,
-            metrics: updatedMetrics 
+            metrics: updatedMetrics
           }, { onConflict: 'user_id,month' });
       } catch (e) {
         console.error("Supabase save error:", e);
@@ -161,13 +163,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     try {
       localStorage.removeItem("barun_data_metrics_v2");
     } catch (e) {
-        console.warn("Failed to clear data metrics from local storage", e);
+      console.warn("Failed to clear data metrics from local storage", e);
     }
   };
 
   const data = monthlyData[selectedMonth] || initialDataMetrics;
   const compareData = monthlyData[compareMonth] || initialDataMetrics;
-  
+
   // Rule: Target is strictly 10% more than compareMonth
   const targetRevenue = compareData.totalRevenue > 0 ? compareData.totalRevenue * 1.1 : data.totalRevenue * 1.1;
 
@@ -176,17 +178,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <DataContext.Provider value={{ 
-      data, 
+    <DataContext.Provider value={{
+      data,
       compareData,
-      monthlyData, 
-      selectedMonth, 
+      monthlyData,
+      selectedMonth,
       compareMonth,
       targetRevenue,
-      setSelectedMonth, 
+      setSelectedMonth,
       setCompareMonth,
-      setMonthlyData, 
-      resetData 
+      setMonthlyData,
+      resetData
     }}>
       {children}
     </DataContext.Provider>
