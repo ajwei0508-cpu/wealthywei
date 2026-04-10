@@ -12,12 +12,13 @@ import {
   TrendingUp,
   Settings,
   LogOut,
-  User
+  User,
+  Crown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -80,6 +81,10 @@ export default function DashboardSidebar() {
   const { data: session } = useSession();
   const [isConsultingOpen, setIsConsultingOpen] = useState(true);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
+  const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
 
   const consultingSubMenus = [
     "AI 차팅", "원장", "직원", "실비", "眞장부맥법", "바른 비급여", "마케팅"
@@ -156,6 +161,18 @@ export default function DashboardSidebar() {
             <p className="text-[10px] text-white/40 truncate">{session?.user?.email || "Medical Management"}</p>
           </div>
         </div>
+
+        {/* Master Admin Button (Conditional) */}
+        {isMaster && (
+          <button 
+            onClick={() => router.push("/master")}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 text-xs font-bold transition-all group"
+          >
+            <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            마스터 관리망 접속
+          </button>
+        )}
+
         <button 
           onClick={() => signOut()}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/50 text-xs font-bold transition-all"

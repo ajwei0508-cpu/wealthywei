@@ -192,15 +192,6 @@ export default function Home() {
               <h2 className="text-zinc-500 text-sm font-medium mb-1">바른컨설팅 분석 모드</h2>
               <h1 className="text-3xl font-bold tracking-tight text-slate-900">안녕하세요, {session?.user?.name || "원장님"}.</h1>
             <div className="flex flex-col md:flex-row items-center gap-3 mt-4">
-              {(session?.user?.email?.toLowerCase() === "wei0508@naver.com" || session?.user?.name?.includes("안정위") || session?.user?.name?.includes("wei0508")) && (
-                <button 
-                  onClick={() => router.push("/master")}
-                  className="w-full md:w-auto bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 group"
-                >
-                  <ShieldCheck size={20} className="text-amber-400 group-hover:scale-110 transition-transform" />
-                  마스터 관리망 접속
-                </button>
-              )}
             </div>
             </div>
           
