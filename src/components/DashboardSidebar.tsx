@@ -173,6 +173,13 @@ export default function DashboardSidebar() {
               <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
               마스터 관리망 접속
             </button>
+            <button 
+              onClick={() => router.push("/master/workbooks")}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-amber-500/15 hover:border-amber-400/30 text-white/50 hover:text-amber-300 text-xs font-bold transition-all group"
+            >
+              <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
+              워크북 관리
+            </button>
           </div>
         )}
 

@@ -238,6 +238,7 @@ export default function SurveyPage() {
   const [stampStep, setStampStep] = useState<number | null>(null);
   const [aiDrafts, setAiDrafts] = useState<{ vision: string[]; mission: string[] }>({ vision: [], mission: [] });
   const [loadingDraft, setLoadingDraft] = useState<"vision" | "mission" | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const saveTimer = useRef<NodeJS.Timeout | null>(null);
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
   const isReadOnly = submitted && !isMaster;
@@ -365,7 +366,7 @@ export default function SurveyPage() {
       await fetch("/api/survey", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       await fetch("/api/survey/submit", { method: "POST" });
       setSubmitted(true);
-      toast.success("🎉 워크북이 제출되었습니다! AI 분석이 시작됩니다.", { duration: 5000 });
+      setShowSuccess(true);
     } catch {
       toast.error("제출 중 오류가 발생했습니다.");
     }
@@ -780,6 +781,56 @@ export default function SurveyPage() {
           )}
         </div>
       </main>
+
+      {/* ── 최종 제출 성공 모달 ────────────────────────────────── */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md">
+          <div className="bg-white rounded-[40px] p-12 max-w-md w-full mx-4 text-center shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-300">
+            {/* Confetti circles */}
+            <div className="relative mb-8">
+              <div className="absolute -top-4 -left-4 w-8 h-8 bg-blue-400 rounded-full opacity-60 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="absolute -top-2 -right-6 w-6 h-6 bg-emerald-400 rounded-full opacity-60 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="absolute -bottom-2 -left-6 w-5 h-5 bg-amber-400 rounded-full opacity-60 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div className="absolute -bottom-4 -right-4 w-7 h-7 bg-rose-400 rounded-full opacity-60 animate-bounce" style={{ animationDelay: "450ms" }} />
+              <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/30">
+                <span className="text-5xl">🏆</span>
+              </div>
+            </div>
+
+            <h2 className="text-4xl font-black text-slate-900 mb-2">수고하셨습니다!</h2>
+            <p className="text-lg text-blue-600 font-bold mb-4">워크북 제출 완료! 🎉</p>
+            <p className="text-slate-500 text-sm leading-relaxed mb-8">
+              원장님의 모든 답변이 성공적으로 저장되었습니다.<br />
+              <span className="font-bold text-slate-700">바른컨설팅 AI</span>가 맞춤형 분석 리포트를 곧 준비합니다.
+            </p>
+
+            {/* Stats row */}
+            <div className="flex items-center justify-center gap-6 mb-8">
+              <div className="text-center">
+                <p className="text-2xl font-black text-blue-600">6</p>
+                <p className="text-xs text-slate-400 font-bold">챕터 완료</p>
+              </div>
+              <div className="w-px h-8 bg-slate-100" />
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-600">{fillPct.total}%</p>
+                <p className="text-xs text-slate-400 font-bold">완성도</p>
+              </div>
+              <div className="w-px h-8 bg-slate-100" />
+              <div className="text-center">
+                <p className="text-2xl font-black text-amber-600">{level.icon}</p>
+                <p className="text-xs text-slate-400 font-bold">{level.name}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => router.push("/")}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-500/30 hover:opacity-90 active:scale-95 transition-all"
+            >
+              ✅ 확인 — 메인으로 이동
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

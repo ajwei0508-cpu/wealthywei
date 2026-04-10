@@ -54,6 +54,8 @@ export default function MasterUserDetailsPage() {
   const [selectedMonth, setSelectedMonth] = React.useState<string>("");
   const [compareMonth, setCompareMonth] = React.useState<string>("");
   const [dataLoaded, setDataLoaded] = React.useState(false);
+  const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
   const { watchHistory, convertToWatchUrl, removeFromHistory } = useVideoHistory();
 
   const handleRemoveHistory = (id: string, title: string) => {
@@ -132,38 +134,9 @@ export default function MasterUserDetailsPage() {
   const data = monthlyData[selectedMonth] || initialDataMetrics;
   const compareData = monthlyData[compareMonth] || initialDataMetrics;
 
-  if (!dataLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F2F4F6] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-      </div>
-    );
-  }
-
   const availableMonths = useMemo(() => {
-    return Object.keys(monthlyData).sort().reverse();
+    return Object.keys(monthlyData || {}).sort().reverse();
   }, [monthlyData]);
-
-  const formatNumber = (num: number) => {
-    return new Intl.NumberFormat("ko-KR").format(num);
-  };
-
-  const formatMonth = (m: string) => {
-    if (!m) return "데이터 없음";
-    const [year, month] = m.split("-");
-    const yearSuffix = year ? `${year.slice(2)}.` : "";
-    return `${yearSuffix}${month}월`;
-  };
-
-  const getDelta = (current: number, reference: number) => {
-    if (!reference || reference === 0) return null;
-    const diff = current - reference;
-    return {
-      percent: ((diff / reference) * 100).toFixed(1),
-      isUp: diff >= 0,
-      diff
-    };
-  };
 
   const metrics = useMemo(() => [
     { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
@@ -182,9 +155,19 @@ export default function MasterUserDetailsPage() {
     { key: "cardCollection", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
   ], []);
 
+  const getDelta = (current: number, reference: number) => {
+    if (!reference || reference === 0) return null;
+    const diff = current - reference;
+    return {
+      percent: ((diff / reference) * 100).toFixed(1),
+      isUp: diff >= 0,
+      diff
+    };
+  };
+
   // Analysis Insights Logic (Best/Worst)
   const insights = useMemo(() => {
-    if (!compareMonth) return null;
+    if (!compareMonth || !data || !compareData) return null;
 
     const results = metrics.map(m => {
       let valB = 0;
@@ -215,9 +198,6 @@ export default function MasterUserDetailsPage() {
     };
   }, [data, compareData, compareMonth, metrics]);
 
-  const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
-  const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
-
   // 맞춤 전문 키워드 맵 (사용자 요청 반영)
   const expertKeywords = useMemo(() => ({
     basicRevenue: ["친절한 고객 응대 말투", "리더의 조직 관리 대화법", "성공 사업가 마인드셋"],
@@ -226,19 +206,19 @@ export default function MasterUserDetailsPage() {
   }), []);
 
   const trendChartData = useMemo(() => {
-    return Object.keys(monthlyData)
+    return Object.keys(monthlyData || {})
       .sort()
       .slice(-6)
       .map(month => ({
         name: month.split("-")[1] + "월",
-        "총매출": monthlyData[month].totalRevenue || 0,
+        "총매출": monthlyData[month]?.totalRevenue || 0,
         rawMonth: month
       }));
   }, [monthlyData]);
 
   // Calculate Representative Worst Metric among the Top 3 (보험, 비급여, 신규환자)
   const representativeMetric = useMemo(() => {
-    if (!compareMonth) return null;
+    if (!compareMonth || !data || !compareData) return null;
 
     const keyTargets = ["basicRevenue", "newPatientCount", "nonBenefit"];
     const results = metrics
@@ -266,7 +246,7 @@ export default function MasterUserDetailsPage() {
 
   // Fetch AI Recommendations Batch
   useEffect(() => {
-    if (!compareMonth) return;
+    if (!compareMonth || !data || !compareData) return;
 
     const fetchAnalysis = async () => {
       setLoadingAnalysis(true);
@@ -346,7 +326,26 @@ export default function MasterUserDetailsPage() {
 
     fetchAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, compareMonth]);
+  }, [selectedMonth, compareMonth, data, compareData]);
+
+  if (!dataLoaded) {
+    return (
+      <div className="min-h-screen bg-[#F2F4F6] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat("ko-KR").format(num);
+  };
+
+  const formatMonth = (m: string) => {
+    if (!m) return "데이터 없음";
+    const [year, month] = m.split("-");
+    const yearSuffix = year ? `${year.slice(2)}.` : "";
+    return `${yearSuffix}${month}월`;
+  };
 
   return (
     <main className="min-h-screen bg-[#F2F4F6] pb-20">
