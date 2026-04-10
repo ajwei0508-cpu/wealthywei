@@ -25,11 +25,18 @@ export async function middleware(req: NextRequest) {
     }
   }
   
-  // 마스터 계정 확인 시 통과!
+  // /survey: 일반 로그인 사용자라면 모두 접근 허용 (미로그인만 차단)
+  if (pathname.startsWith("/survey")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
+
+  // 마스터 이메일이 맞다면 무사통과!
   return NextResponse.next();
 }
 
-// 문지기가 감시할 구역 (마스터/어드민 관련 전체 경로)
+// 이 문지기가 감시할 구역을 설정합니다. (admin, master, survey 폴더 전부)
 export const config = {
-  matcher: ["/admin/:path*", "/master/:path*"],
+  matcher: ["/admin/:path*", "/master/:path*", "/survey/:path*"],
 };

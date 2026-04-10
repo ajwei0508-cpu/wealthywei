@@ -165,7 +165,7 @@ export default function DashboardSidebar() {
 
         {/* Master Admin Button (Conditional) */}
         {isMaster && (
-          <div className="space-y-2 mb-3">
+          <div className="space-y-2 mb-2">
             <button 
               onClick={() => router.push("/master")}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 text-xs font-bold transition-all group"
@@ -173,15 +173,17 @@ export default function DashboardSidebar() {
               <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
               마스터 관리망 접속
             </button>
-            <button 
-              onClick={() => router.push("/admin/survey")}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-blue-500/20 hover:border-blue-400/30 text-white/50 hover:text-blue-300 text-xs font-bold transition-all group"
-            >
-              <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
-              컨설팅 워크북 작성
-            </button>
           </div>
         )}
+
+        {/* Workbook Button — ALL users */}
+        <button 
+          onClick={() => router.push("/survey")}
+          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group"
+        >
+          <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
+          경영 진단 워크북 작성
+        </button>
 
         <button 
           onClick={() => signOut()}
