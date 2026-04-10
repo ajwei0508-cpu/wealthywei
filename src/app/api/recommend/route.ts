@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
     // 2. Gemini 모델 호출
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
