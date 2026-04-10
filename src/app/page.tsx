@@ -12,7 +12,6 @@ import {
   Users,
   ShieldCheck,
   FileSpreadsheet,
-  Plus,
   ArrowRight,
   CheckCircle2,
   FileSearch,
@@ -269,13 +268,9 @@ export default function Home() {
         <div className="flex flex-col items-center gap-4 w-full md:w-auto">
           <div className="flex items-center gap-3 w-full">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" multiple className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none bg-white text-slate-900 border border-zinc-200 px-5 py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 toss-shadow hover:bg-zinc-50 transition-colors">
+            <button onClick={() => fileInputRef.current?.click()} className="w-full md:w-auto bg-white text-slate-900 border border-zinc-200 px-8 py-3 rounded-full font-bold text-sm flex items-center justify-center gap-2 toss-shadow hover:bg-zinc-50 transition-all active:scale-95">
               <FileSpreadsheet size={18} className="text-emerald-600" />
-              매출 엑셀 분석
-            </button>
-            <button className="flex-1 md:flex-none bg-primary text-white px-5 py-2.5 rounded-full font-semibold text-sm flex items-center justify-center gap-2 toss-shadow hover:opacity-90">
-              <Plus size={18} />
-              새 컨설팅
+              월별매출업로드
             </button>
           </div>
         </div>
