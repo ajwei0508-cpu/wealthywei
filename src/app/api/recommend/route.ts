@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { model } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 
-// .env.local에서 API 키를 가져옵니다.
+// 서버 측 키(GEMINI_API_KEY)를 우선하고, 클라이언트 측 키(NEXT_PUBLIC_GEMINI_API_KEY)를 차선으로 사용합니다.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 export async function POST(req: Request) {
@@ -69,10 +69,7 @@ export async function POST(req: Request) {
       }
     `;
 
-    // 2. Gemini 모델 호출
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+    // 2. 중앙화된 Gemini 모델 호출 (src/lib/gemini.ts의 singleton 사용)
     const result = await model.generateContent(prompt);
     const response = await result.response;
     rawResponseText = response.text();
