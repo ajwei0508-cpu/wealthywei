@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * [Barun Consulting] Route Access Control Middleware
+ * [Barun Consulting] Route Access Control Proxy
  * 
  * 차단 구역: /admin/*, /master/*
  * 허용 조건: 로그인 세션 존재 && 이메일이 MASTER_EMAIL과 일치
  */
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   // 현재 접속한 사람의 로그인 토큰(정보)을 확인합니다.
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = req.nextUrl;
@@ -18,8 +18,9 @@ export async function middleware(req: NextRequest) {
     
     // 1. 로그인을 아예 안 했거나
     // 2. 이메일이 환경변수에 등록된 마스터 계정이 아니라면
-    if (!token || token.email !== process.env.MASTER_EMAIL) {
-      console.warn(`🔥 Unauthorized access catch: ${token?.email || "Guest"} tried to access ${pathname}`);
+    const masterEmail = process.env.MASTER_EMAIL;
+    if (!token || !token.email || token.email !== masterEmail) {
+      console.warn(`🔥 [Authorization] Unauthorized access catch: ${token?.email || "Guest"} tried to access ${pathname}. Master: ${masterEmail}`);
       // 즉시 메인 페이지("/")로 리다이렉트 시킵니다.
       return NextResponse.redirect(new URL("/", req.url)); 
     }

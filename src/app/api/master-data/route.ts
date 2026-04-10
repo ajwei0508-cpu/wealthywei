@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const MASTER_EMAIL = "wei0508@naver.com";
+const MASTER_EMAIL = process.env.MASTER_EMAIL || "wei0508@naver.com";
 
 export async function GET(req: NextRequest) {
   // 1. 서버사이드 세션 확인 - 마스터 이메일만 허용

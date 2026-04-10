@@ -165,22 +165,13 @@ export default function DashboardSidebar() {
 
         {/* Master Admin Button (Conditional) */}
         {isMaster && (
-          <div className="space-y-2 mb-2">
             <button 
               onClick={() => router.push("/master")}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 text-xs font-bold transition-all group"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10"
             >
               <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-              마스터 관리망 접속
+              마스터 통합 관리망
             </button>
-            <button 
-              onClick={() => router.push("/master/workbooks")}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-amber-500/15 hover:border-amber-400/30 text-white/50 hover:text-amber-300 text-xs font-bold transition-all group"
-            >
-              <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
-              워크북 관리
-            </button>
-          </div>
         )}
 
         {/* Workbook Button — ALL users */}
