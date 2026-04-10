@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useData } from "@/context/DataContext";
 import Card from "@/components/Card";
+import DashboardLayout from "@/components/DashboardLayout";
 import {
   Calendar,
   ChevronDown,
@@ -214,11 +215,17 @@ export default function DetailsPage() {
             expertKeywords: expertKeywords
           })
         });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.details || errorData.error || `서버 에러 (${res.status})`);
+        }
+        
         const result = await res.json();
-        if (result.error) { throw new Error(result.error); }
         setAiAnalysis(result);
-      } catch (error) {
-        console.error("AI Analysis Fetch Fail:", error);
+      } catch (error: any) {
+        console.error("🔥 AI 분석 데이터 로드 실패:", error);
+        toast.error(`AI 분석 실패: ${error.message}`, { id: "ai-error" });
+        
         setAiAnalysis({
           strategicReport: {
             risks: ["현재 인공지능 분석 서버(Gemini)에 인증할 수 없습니다.", "배포 환경의 API 설정을 확인해주세요."],
@@ -253,8 +260,9 @@ export default function DetailsPage() {
   }, [selectedMonth, compareMonth]);
 
   return (
-    <main className="min-h-screen bg-[#F2F4F6] pb-20">
-      <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl border-b border-white/20 shadow-sm">
+    <DashboardLayout>
+      <main className="min-h-screen pb-20">
+        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-zinc-100">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -687,7 +695,8 @@ export default function DetailsPage() {
             )}
           </Card>
         </section>
-      </div>
-    </main>
+        </div>
+      </main>
+    </DashboardLayout>
   );
 }

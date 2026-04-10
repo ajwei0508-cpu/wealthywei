@@ -2,7 +2,8 @@
 
 @theme {
   --color-primary: #1A365D;
-  --color-background-gray: #F2F4F6;
+  --color-secondary: #334155;
+  --color-background-cool: #F8F9FA;
   --font-pretendard: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
 }
 
@@ -19,8 +20,9 @@
 }
 
 :root {
-  --background: #F2F4F6;
+  --background: #F8F9FA;
   --foreground: #1e293b;
+  --nav-navy: #1A365D;
 }
 
 body {
@@ -29,4 +31,13 @@ body {
   font-family: var(--font-pretendard);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }

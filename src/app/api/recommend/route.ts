@@ -3,16 +3,19 @@ import { NextResponse } from "next/server";
 
 // .env.local에서 API 키를 가져옵니다.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || "");
-
-// 최신 표준 모델인 gemini-1.5-flash로 설정
-const model = genAI.getGenerativeModel({ 
-  model: "gemini-1.5-flash" 
-});
 
 export async function POST(req: Request) {
   let rawResponseText = "";
   try {
+    // 1. API 키 유효성 검사
+    if (!GEMINI_API_KEY) {
+      console.error("🔥 AI 분석 API 에러: GEMINI_API_KEY가 설정되지 않았습니다.");
+      return NextResponse.json(
+        { error: "API 키가 환경변수에 설정되지 않았습니다. .env.local 파일을 확인해주세요." },
+        { status: 500 }
+      );
+    }
+
     const { metrics, userInfo, targetMonth, compareMonth, expertKeywords } = await req.json();
 
     if (!metrics || !Array.isArray(metrics)) {
@@ -66,6 +69,10 @@ export async function POST(req: Request) {
       }
     `;
 
+    // 2. Gemini 모델 호출
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
     const result = await model.generateContent(prompt);
     const response = await result.response;
     rawResponseText = response.text();
@@ -83,11 +90,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    // 3. 에러 로깅 강화
+    console.error("🔥 AI 분석 API 에러 상세:", error);
+    
     return NextResponse.json(
       { 
-        error: "Failed to generate suggestions", 
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: "분석 제안 생성에 실패했습니다.", 
+        details: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
         fallback: true
       },
       { status: 500 }
