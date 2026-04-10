@@ -16,8 +16,8 @@ if (!GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || "");
 
-// 원장님의 요청대로 1.5-flash 모델로 통일합니다.
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// 404 에러 방지를 위해 gemini-1.5-flash-latest 별칭을 사용합니다.
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
 /**
  * 연결 테스트용 함수
