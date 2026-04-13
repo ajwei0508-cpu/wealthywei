@@ -19,8 +19,8 @@ export async function proxy(req: NextRequest) {
     
     // 1. 로그인을 아예 안 했거나
     // 2. 이메일이 환경변수에 등록된 마스터 계정이 아니라면
-    const masterEmail = process.env.MASTER_EMAIL;
-    if (!token || !token.email || token.email !== masterEmail) {
+    const masterEmail = (process.env.MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
+    if (!token || !token.email || token.email.toLowerCase() !== masterEmail) {
       console.warn(`🔥 [Authorization] Unauthorized access catch: ${token?.email || "Guest"} tried to access ${pathname}. Master: ${masterEmail}`);
       // 즉시 메인 페이지("/")로 리다이렉트 시킵니다.
       return NextResponse.redirect(new URL("/", req.url)); 

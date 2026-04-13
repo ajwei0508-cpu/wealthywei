@@ -147,7 +147,7 @@ export default function DashboardSidebar() {
       </nav>
 
       {/* User Info Section */}
-      <div className="p-6 mt-auto bg-black/10 border-t border-white/5">
+      <div className="p-6 mt-auto bg-black/10 border-t border-white/5 relative z-[100] pointer-events-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 overflow-hidden">
             {session?.user?.image ? (
@@ -167,7 +167,7 @@ export default function DashboardSidebar() {
         {isMaster && (
           <Link 
             href="/master"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10 cursor-pointer active:scale-95"
           >
             <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
             마스터 통합 관리망
@@ -177,7 +177,7 @@ export default function DashboardSidebar() {
         {/* Workbook Button — ALL users */}
         <Link 
           href="/survey"
-          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3"
+          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
         >
           <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
           경영 진단 워크북 작성
