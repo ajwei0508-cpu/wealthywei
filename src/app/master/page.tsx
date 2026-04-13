@@ -77,7 +77,10 @@ export default function MasterDashboardPortal() {
 
   // Authenticate
   useEffect(() => {
-    if (status === "unauthenticated" || (status === "authenticated" && !isMaster)) {
+    if (status === "unauthenticated") {
+      router.push("/");
+    } else if (status === "authenticated" && !isMaster) {
+      toast.error("마스터 권한이 필요합니다.");
       router.push("/");
     }
   }, [session, status, isMaster, router]);

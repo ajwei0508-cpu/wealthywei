@@ -243,6 +243,14 @@ export default function SurveyPage() {
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
   const isReadOnly = submitted && !isMaster;
 
+  // ── Protection Logic (Page Level) ─────────────────────────────────────────
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      toast.error("로그인이 필요한 서비스입니다.");
+      router.push("/");
+    }
+  }, [status, router]);
+
   // ── Load existing data ─────────────────────────────────────────────────────
   useEffect(() => {
     if (status !== "authenticated") return;
