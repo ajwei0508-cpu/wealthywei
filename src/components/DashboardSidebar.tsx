@@ -165,23 +165,23 @@ export default function DashboardSidebar() {
 
         {/* Master Admin Button (Conditional) */}
         {isMaster && (
-            <button 
-              onClick={() => router.push("/master")}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10"
-            >
-              <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-              마스터 통합 관리망
-            </button>
+          <Link 
+            href="/master"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10"
+          >
+            <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            마스터 통합 관리망
+          </Link>
         )}
 
         {/* Workbook Button — ALL users */}
-        <button 
-          onClick={() => router.push("/survey")}
-          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group"
+        <Link 
+          href="/survey"
+          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3"
         >
           <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
           경영 진단 워크북 작성
-        </button>
+        </Link>
 
         <button 
           onClick={() => signOut()}
