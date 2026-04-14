@@ -10,7 +10,7 @@ import { GoogleGenerativeAI, RequestOptions } from "@google/generative-ai";
  *   (타입 정의: generative-ai.d.ts:1184 - apiVersion?: string)
  */
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 if (!GEMINI_API_KEY) {
   console.warn("⚠️ [Gemini] GEMINI_API_KEY가 환경 변수에 설정되지 않았습니다.");

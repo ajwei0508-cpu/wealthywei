@@ -1,8 +1,8 @@
 import { model } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 
-// 서버 측 키(GEMINI_API_KEY)를 우선하고, 클라이언트 측 키(NEXT_PUBLIC_GEMINI_API_KEY)를 차선으로 사용합니다.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+// 서버 측 키(GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY)를 우선하고, 클라이언트 측 키(NEXT_PUBLIC_GEMINI_API_KEY)를 차선으로 사용합니다.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 export async function POST(req: Request) {
   let rawResponseText = "";
