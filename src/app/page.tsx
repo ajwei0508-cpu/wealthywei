@@ -61,18 +61,23 @@ export default function Home() {
     return Object.keys(monthlyData).sort().reverse();
   }, [monthlyData]);
 
-  // 2. Comparison Logic (Current B vs Reference A)
-  const getComparison = (key: keyof DataMetrics) => {
-    const prevValue = compareData[key];
-    const currentValue = data[key];
+  // 2. Comparison Logic (Updated for Nested Structure)
+  const getNestedComparison = (
+    category: keyof DataMetrics, 
+    field: string
+  ) => {
+    // @ts-ignore - Dynamic access for generic comparison
+    const prevValue = compareData[category]?.[field] || 0;
+    // @ts-ignore
+    const currentValue = data[category]?.[field] || 0;
 
-    if (prevValue === undefined || prevValue === 0) return null;
+    if (prevValue === 0) return null;
 
     const diff = currentValue - prevValue;
-    const percent = (diff / prevValue) * 100;
+    const percent = Math.min(999, (diff / prevValue) * 100);
 
     return {
-      percent: Math.abs(percent).toFixed(1),
+      percent: Math.abs(percent).toFixed(percent >= 100 ? 0 : 1),
       isUp: diff >= 0,
       diff
     };
@@ -85,7 +90,7 @@ export default function Home() {
       .slice(-6)
       .map(month => ({
         name: month.split("-")[1] + "월",
-        revenue: monthlyData[month].totalRevenue,
+        revenue: monthlyData[month].generatedRevenue?.total || 0,
         rawMonth: month
       }));
   }, [monthlyData]);
@@ -98,20 +103,63 @@ export default function Home() {
     toast.loading(`${count}개의 파일을 분석 중입니다...`, { id: "excel-parse" });
 
     let successCount = 0;
+    let hasMissingPatientData = false;
     const defaultMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const { targetMonth, extractedData, mappingResults } = await parseExcelFile(file, defaultMonth);
-        await setMonthlyData(targetMonth, extractedData);
-        if (mappingResults.length > 0) successCount++;
+        const results = await parseExcelFile(file, defaultMonth);
+        
+        for (const res of results) {
+          const { targetMonth, extractedData, mappingResults } = res;
+          await setMonthlyData(targetMonth, extractedData);
+          if (mappingResults.length > 0) successCount++;
+          
+          // [추가] 비표준 양식 감지 시 경고 알림
+          if (mappingResults.some(m => m.original === "Heuristic Search")) {
+            toast("⚠️ 비표준 양식이 감지되어 지능형 분석으로 데이터를 추출했습니다. 숫자가 정확한지 꼭 확인해 주세요.", {
+              duration: 8000,
+              icon: '🔍',
+              style: {
+                borderRadius: '16px',
+                background: '#fff7ed',
+                color: '#9a3412',
+                border: '1px solid #ffedd5',
+                fontSize: '12px',
+                maxWidth: '450px'
+              },
+            });
+          }
+
+          // 환자 수 데이터가 없는 경우 체크
+          if (!extractedData.patientMetrics?.total || extractedData.patientMetrics.total === 0) {
+            hasMissingPatientData = true;
+          }
+        }
       }
       
-      if (count > 1) {
-        toast.success(`${count}개의 파일 중 ${successCount}개 분석 완료 및 저장되었습니다.`, { id: "excel-parse" });
+      if (count > 1 || (successCount > count)) {
+        toast.success(`데이터 분석 및 저장이 완료되었습니다 (${successCount}개 항목).`, { id: "excel-parse" });
       } else {
         toast.success(`데이터 분석 및 저장이 완료되었습니다.`, { id: "excel-parse" });
+      }
+
+      // [추가] 객단가 분석을 위한 가이드 메시지
+      if (hasMissingPatientData) {
+        setTimeout(() => {
+          toast("💡 가이드: 업로드하신 양식에는 환자 수 데이터가 부족합니다. 객단가 분석을 위해 '월말결산(Type D)' 양식을 권장합니다.", {
+            duration: 6000,
+            icon: '📊',
+            style: {
+              borderRadius: '16px',
+              background: '#334155',
+              color: '#fff',
+              fontSize: '12px',
+              maxWidth: '400px'
+            },
+          });
+        }, 1500);
       }
       
       setMappingResults([]); // Clear previous results display or handle appropriately
@@ -126,18 +174,24 @@ export default function Home() {
 
   const formatNumber = (num: number) => new Intl.NumberFormat("ko-KR").format(num);
 
-  const ComparisonBadge = ({ metric }: { metric: keyof DataMetrics }) => {
-    const comp = getComparison(metric);
+  const ComparisonBadge = ({ category, field, isWarning }: { category: keyof DataMetrics, field: string, isWarning?: boolean }) => {
+    const comp = getNestedComparison(category, field);
     if (!comp) return null;
+    
+    let colorClass = comp.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600";
+    if (isWarning) {
+      colorClass = comp.isUp ? "bg-rose-100 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-600";
+    }
+
     return (
-      <div className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded-full ${comp.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"}`}>
+      <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${colorClass}`}>
         {comp.isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
         {comp.percent}%
       </div>
     );
   };
 
-  const totalRevComp = getComparison("totalRevenue");
+  const totalRevComp = getNestedComparison("generatedRevenue", "total");
 
   const formatMonth = (m: string) => {
     if (!m) return "데이터 없음";
@@ -280,7 +334,7 @@ export default function Home() {
         <div className="p-4 rounded-3xl flex items-center justify-center gap-3 border bg-rose-50/50 border-rose-100 animate-in fade-in zoom-in duration-500">
           <TrendingUp size={20} className="text-rose-600" />
           <p className="font-bold text-zinc-900 text-sm">
-            현재 <span className="text-primary">[{formatMonth(selectedMonth)}]</span>의 매출은 <span className="text-zinc-500">[{formatMonth(compareMonth)}]</span> 대비{" "}
+            현재 <span className="text-primary">[{formatMonth(selectedMonth)}]</span>의 발생 매출은 <span className="text-zinc-500">[{formatMonth(compareMonth)}]</span> 대비{" "}
             <span className={totalRevComp.isUp ? "text-rose-600" : "text-blue-600"}>
               {totalRevComp.percent}% {totalRevComp.isUp ? "상승" : "하락"}
             </span>한 상태입니다.
@@ -289,68 +343,149 @@ export default function Home() {
       )}
 
       <div onClick={() => router.push("/details")} className="cursor-pointer group">
-        <Card className="grid grid-cols-1 md:grid-cols-4 gap-8 md:divide-x md:divide-zinc-100 bg-white px-6 py-8 toss-shadow transition-all hover:translate-y-[-2px]">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <TrendingUp size={16} className="text-primary" /> [{formatMonth(selectedMonth)}] 총매출
-              </div>
-              <ComparisonBadge metric="totalRevenue" />
+        {/* 1층: 종합 지표 (Executive Totals) */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="bg-white p-5 toss-shadow border-zinc-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><Users size={16} /></div>
+              <ComparisonBadge category="patientMetrics" field="total" />
             </div>
+            <p className="text-zinc-500 text-[11px] font-bold mb-1">총 내원환자</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-slate-900">{formatNumber(data.totalRevenue)}</span>
-              <span className="text-lg font-bold text-zinc-400">원</span>
+              <span className="text-2xl font-bold text-slate-900">{formatNumber(data.patientMetrics?.total || 0)}</span>
+              <span className="text-xs font-bold text-zinc-400">명</span>
             </div>
-          </div>
+          </Card>
 
-          <div className="md:pl-8 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <ShieldCheck size={16} className="text-indigo-600" /> [{formatMonth(selectedMonth)}] 보험 매출
-              </div>
+          <Card className="bg-slate-900 text-white p-5 toss-shadow border-none">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-white/10 rounded-lg text-white"><TrendingUp size={16} /></div>
+              <ComparisonBadge category="generatedRevenue" field="total" />
             </div>
+            <p className="text-slate-400 text-[11px] font-bold mb-1">총 발생 매출</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-slate-900">
-                {formatNumber((data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0))}
-              </span>
-              <span className="text-lg font-bold text-zinc-400">원</span>
+              <span className="text-2xl font-bold text-white">{formatNumber(data.generatedRevenue?.total || 0)}</span>
+              <span className="text-xs font-bold text-slate-400">원</span>
             </div>
-          </div>
+          </Card>
 
-          <div className="md:pl-8 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <Wallet size={16} className="text-emerald-600" /> [{formatMonth(selectedMonth)}] 비급여 매출
-              </div>
-              <ComparisonBadge metric="nonBenefit" />
+          <Card className="bg-rose-50/50 p-5 toss-shadow border-rose-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-rose-100 rounded-lg text-rose-600"><FileSearch size={16} /></div>
+              <ComparisonBadge category="leakage" field="discountTotal" isWarning />
             </div>
+            <p className="text-rose-600 text-[11px] font-bold mb-1">매출 누수 합계</p>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-slate-900">{formatNumber(data.nonBenefit)}</span>
-              <span className="text-lg font-bold text-zinc-400">원</span>
+              <span className="text-2xl font-bold text-rose-700">{formatNumber((data.leakage?.discountTotal || 0) + (data.leakage?.receivables || 0))}</span>
+              <span className="text-xs font-bold text-rose-400">원</span>
             </div>
-          </div>
+          </Card>
 
-          <div className="md:pl-8 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-zinc-500 font-bold text-xs">
-                <TrendingUp size={16} className="text-primary" /> 목표 달성률
-              </div>
+          <Card className="bg-white p-5 toss-shadow border-zinc-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><Wallet size={16} /></div>
+              <ComparisonBadge category="cashFlow" field="totalReceived" />
             </div>
-            <div className="flex flex-col gap-1 mt-1">
-              <div className="flex justify-between items-end">
-                <span className="text-3xl font-bold text-slate-900">{Math.min(100, Math.round(((data.totalRevenue || 0) / (targetRevenue || 1)) * 100))}%</span>
-                <span className="text-[10px] text-zinc-400">목표 {formatNumber(targetRevenue || 0)}</span>
-              </div>
-              <div className="w-full bg-zinc-100 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div className="bg-primary h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.round(((data.totalRevenue || 0) / (targetRevenue || 1)) * 100))}%` }}></div>
-              </div>
+            <p className="text-zinc-500 text-[11px] font-bold mb-1">실제 수납액</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-slate-900">{formatNumber(data.cashFlow?.totalReceived || 0)}</span>
+              <span className="text-xs font-bold text-zinc-400">원</span>
             </div>
-          </div>
-        </Card>
+          </Card>
+
+          <Card className="bg-white p-5 toss-shadow border-zinc-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 bg-zinc-100 rounded-lg text-zinc-600"><CheckCircle2 size={16} /></div>
+              <div className="text-[10px] font-black text-blue-500">GOAL</div>
+            </div>
+            <p className="text-zinc-400 text-[11px] font-bold mb-1">목표 달성률</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-bold text-slate-900">{Math.min(100, Math.round(((data.generatedRevenue?.total || 0) / (targetRevenue || 1)) * 100))}%</span>
+            </div>
+            <div className="w-full bg-zinc-100 h-1 mt-3 overflow-hidden rounded-full font-medium">
+              <div className="bg-blue-500 h-full rounded-full transition-all" style={{ width: `${Math.min(100, Math.round(((data.generatedRevenue?.total || 0) / (targetRevenue || 1)) * 100))}%` }}></div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 2층: 건강보험 및 청구 상세 (Insurance Breakdown) */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
+          <Card className="bg-indigo-50/30 p-5 border-indigo-100/50">
+             <div className="flex items-center justify-between mb-2">
+                 <span className="text-indigo-600 text-[10px] font-bold px-2 py-0.5 bg-indigo-50 rounded-md">합계</span>
+             </div>
+             <p className="text-zinc-500 text-[11px] font-bold mb-1">건강보험 매출 (계)</p>
+             <div className="text-xl font-bold text-slate-900">{formatNumber((data.generatedRevenue?.copay || 0) + (data.generatedRevenue?.insurance || 0))}</div>
+             <div className="mt-2 h-1 w-full bg-indigo-100 rounded-full overflow-hidden">
+                <div className="bg-indigo-500 h-full" style={{ width: `${data.generatedRevenue?.total ? Math.round(((data.generatedRevenue.copay + data.generatedRevenue.insurance) / data.generatedRevenue.total) * 100) : 0}%` }}></div>
+             </div>
+          </Card>
+
+          <Card className="bg-white p-5 border-zinc-100 shadow-sm">
+             <p className="text-zinc-400 text-[10px] font-bold mb-1">본인부담금</p>
+             <div className="text-xl font-bold text-slate-800">{formatNumber(data.generatedRevenue?.copay || 0)}</div>
+             <div className="text-[10px] text-zinc-400 mt-2 font-medium">환자 현장 수납</div>
+          </Card>
+
+          <Card className="bg-white p-5 border-zinc-100 shadow-sm">
+             <p className="text-zinc-400 text-[10px] font-bold mb-1">보험청구액</p>
+             <div className="text-xl font-bold text-slate-800">{formatNumber(data.generatedRevenue?.insurance || 0)}</div>
+             <div className="text-[10px] text-zinc-400 mt-2 font-medium">공단 청구분</div>
+          </Card>
+
+          <Card className="bg-white p-5 border-zinc-100 shadow-sm">
+             <p className="text-zinc-400 text-[10px] font-bold mb-1">자보청구액</p>
+             <div className="text-xl font-bold text-slate-800">{formatNumber(data.generatedRevenue?.auto || 0)}</div>
+             <div className="text-[10px] text-zinc-400 mt-2 font-medium">자동차보험</div>
+          </Card>
+
+          <Card className="bg-white p-5 border-zinc-100 shadow-sm">
+             <p className="text-zinc-400 text-[10px] font-bold mb-1">산재청구액</p>
+             <div className="text-xl font-bold text-slate-800">{formatNumber(data.generatedRevenue?.worker || 0)}</div>
+             <div className="text-[10px] text-zinc-400 mt-2 font-medium">산업재해</div>
+          </Card>
+        </div>
+
+        {/* 3층: 효율 지표 및 비급여 (Efficiency & Others) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <Card className="bg-amber-50/20 p-6 border-amber-100/50 flex items-center justify-between">
+             <div className="space-y-1">
+                <p className="text-amber-700 text-[11px] font-bold">1인당 평균 객단가 (ARPP)</p>
+                <div className="text-2xl font-black text-amber-900">
+                  {data.patientMetrics?.total > 0 
+                    ? formatNumber(Math.round(data.generatedRevenue.total / data.patientMetrics.total))
+                    : 0} <span className="text-sm font-bold">원</span>
+                </div>
+             </div>
+             <div className="p-4 bg-amber-100/50 rounded-2xl text-amber-600"><TrendingUp size={24} /></div>
+          </Card>
+
+          <Card className="bg-white p-6 border-zinc-100 shadow-sm flex items-center justify-between">
+             <div className="space-y-1">
+                <p className="text-zinc-500 text-[11px] font-bold">신규 환자 비중</p>
+                <div className="text-2xl font-bold text-slate-900">
+                  {formatNumber(data.patientMetrics?.new || 0)} <span className="text-sm text-zinc-400 italic">/ {data.patientMetrics?.total || 0} 명</span>
+                </div>
+             </div>
+             <div className="text-xl font-black text-blue-500">
+                {data.patientMetrics?.total ? Math.round((data.patientMetrics.new / data.patientMetrics.total) * 100) : 0}%
+             </div>
+          </Card>
+
+          <Card className="bg-white p-6 border-zinc-100 shadow-sm flex items-center justify-between">
+             <div className="space-y-1">
+                <p className="text-zinc-500 text-[11px] font-bold">비급여 매출액</p>
+                <div className="text-2xl font-bold text-slate-900">{formatNumber(data.generatedRevenue?.nonCovered || 0)} <span className="text-sm font-normal text-zinc-400">원</span></div>
+             </div>
+             <div className="text-xs font-bold px-2 py-1 bg-zinc-100 text-zinc-500 rounded-md">
+                비중 {data.generatedRevenue?.total ? Math.round((data.generatedRevenue.nonCovered / data.generatedRevenue.total) * 100) : 0}%
+             </div>
+          </Card>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
-        <Card className="h-80 bg-white p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-12">
+        <Card className="h-80 bg-white p-6 shadow-sm border-zinc-100">
           <h3 className="font-bold text-lg mb-6">매출 성장 추이</h3>
           <ResponsiveContainer width="100%" height="80%">
             <BarChart data={chartData}>
@@ -367,15 +502,44 @@ export default function Home() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="bg-slate-900 text-white border-none p-8 flex flex-col justify-center">
-          <h1 className="text-blue-400 font-bold text-xs uppercase tracking-widest mb-2">Clinical Insights</h1>
-          <h3 className="text-2xl font-bold mb-4 leading-tight">데이터 기반의<br />성장 전략을 제안합니다.</h3>
-          <p className="text-slate-400 text-sm mb-8">
-            현재 분석된 데이터를 바탕으로 원장님의 병원에 <br />
-            가장 필요한 컨설팅 항목 3가지를 도출했습니다.
+        <Card className="h-80 bg-white p-6 shadow-sm border-zinc-100">
+          <h3 className="font-bold text-lg mb-4">결제 수단 현황</h3>
+          <div className="space-y-4 mt-6">
+            {[
+              { label: "카드 수납", value: data.paymentMethods?.card || 0, color: "bg-blue-500" },
+              { label: "현금 수납", value: data.paymentMethods?.cash || 0, color: "bg-emerald-500" },
+              { label: "기타 (이체 등)", value: data.paymentMethods?.other || 0, color: "bg-zinc-400" },
+            ].map((item) => {
+              const totalPay = (data.paymentMethods?.card || 0) + (data.paymentMethods?.cash || 0) + (data.paymentMethods?.other || 0);
+              const percent = totalPay ? Math.round((item.value / totalPay) * 100) : 0;
+              return (
+                <div key={item.label} className="space-y-2">
+                  <div className="flex justify-between text-xs font-bold">
+                    <span className="text-zinc-500">{item.label}</span>
+                    <span className="text-slate-900">{formatNumber(item.value)}원 ({percent}%)</span>
+                  </div>
+                  <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
+                    <div className={`${item.color} h-full rounded-full`} style={{ width: `${percent}%` }}></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="bg-slate-900 text-white border-none p-8 flex flex-col justify-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+          <h1 className="text-blue-400 font-bold text-xs uppercase tracking-widest mb-2 relative">Clinical Insights</h1>
+          <h3 className="text-2xl font-bold mb-4 leading-tight relative">지표 분석 결과<br />매출 누수가 감지되었습니다.</h3>
+          <p className="text-slate-400 text-sm mb-8 relative">
+            {(data.leakage?.discountTotal || 0) > 0 ? (
+              <>이번 달 할인액이 {formatNumber(data.leakage.discountTotal)}원 발생했습니다. <br />비급여 항목의 구성비 조정을 제안합니다.</>
+            ) : (
+              <>현재 데이터 기반으로 원장님의 병원에 <br />가장 필요한 컨설팅 항목을 도출했습니다.</>
+            )}
           </p>
-          <button className="w-full bg-blue-600 py-4 rounded-2xl font-bold text-sm hover:bg-blue-500 transition-all">
-            정밀 컨설팅 보고서 받기
+          <button className="w-full bg-blue-600 py-4 rounded-2xl font-bold text-sm hover:bg-blue-500 transition-all relative z-10">
+            정밀 누수 차단 보고서 받기
           </button>
         </Card>
       </div>

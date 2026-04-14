@@ -5,39 +5,45 @@ import { useSession } from "next-auth/react";
 import { supabase } from "@/lib/supabase";
 
 export interface DataMetrics {
-  totalRevenue: number;
-  patientPay: number;
-  insuranceClaim: number;
-  patientCount: number;             // 내원환자수
-  newPatientCount: number;          // 신규환자수
-  autoInsuranceCount: number;       // 자보환자수
-  industrialAccidentClaim: number;   // 산재청구액
-  autoInsuranceClaim: number;        // 자보청구액
-  totalTreatmentFee: number;        // 총진료비
-  nonBenefit: number;               // 비급여
-  patientTotalBase: number;         // 환자부담계
-  accountsReceivable: number;       // 미수금
-  totalCollection: number;          // 수납총액
-  cashCollection: number;           // 현금수납
-  cardCollection: number;           // 카드수납
+  patientMetrics: {
+    total: number;
+    new: number;
+    auto: number;
+    dailyAvg: number;
+  };
+  generatedRevenue: {
+    total: number;
+    copay: number;      // 본인부담
+    insurance: number;  // 보험청구
+    auto: number;       // 자보청구
+    worker: number;     // 산재청구
+    nonCovered: number; // 비급여
+    patientTotal: number; // 환자부담계 (본부+비급여)
+  };
+  leakage: {
+    receivables: number;  // 미수금
+    discountTotal: number; // 할인총액
+    roundOffTotal: number; // 절사총액
+  };
+  cashFlow: {
+    totalReceived: number; // 수납총액
+    totalRefund: number;   // 환불총액
+  };
+  paymentMethods: {
+    cash: number;  // 현금
+    card: number;  // 카드
+    other: number; // 기타 (이체 등)
+  };
+  version: string; // 스키마 버전 관리 ('v3')
 }
 
 export const initialDataMetrics: DataMetrics = {
-  totalRevenue: 0,
-  patientPay: 0,
-  insuranceClaim: 0,
-  patientCount: 0,
-  newPatientCount: 0,
-  autoInsuranceCount: 0,
-  industrialAccidentClaim: 0,
-  autoInsuranceClaim: 0,
-  totalTreatmentFee: 0,
-  nonBenefit: 0,
-  patientTotalBase: 0,
-  accountsReceivable: 0,
-  totalCollection: 0,
-  cashCollection: 0,
-  cardCollection: 0,
+  patientMetrics: { total: 0, new: 0, auto: 0, dailyAvg: 0 },
+  generatedRevenue: { total: 0, copay: 0, insurance: 0, auto: 0, worker: 0, nonCovered: 0, patientTotal: 0 },
+  leakage: { receivables: 0, discountTotal: 0, roundOffTotal: 0 },
+  cashFlow: { totalReceived: 0, totalRefund: 0 },
+  paymentMethods: { cash: 0, card: 0, other: 0 },
+  version: 'v3'
 };
 
 interface DataContextType {
@@ -75,15 +81,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const { data: dbData, error } = await supabase
             .from('clinic_metrics')
             .select('month, metrics')
-            .eq('user_id', session.user.email.toLowerCase()); // Using email as user_id for matching
+            .eq('user_id', session.user.email.toLowerCase());
 
-          if (dbData && dbData.length > 0) {
+          if (dbData) {
             const transformed: Record<string, DataMetrics> = {};
             dbData.forEach((row: { month: string; metrics: DataMetrics }) => {
               transformed[row.month] = row.metrics;
             });
+            
             setStateMonthlyData(transformed);
             updateSelectedMonths(transformed);
+            
+            // If logged in and Supabase returned [], it means the user has NO data.
+            // We should overwrite local storage to prevent stale fallback.
+            localStorage.setItem("barun_data_metrics_v3", JSON.stringify(transformed));
+            
             setIsLoaded(true);
             return;
           }
@@ -92,11 +104,24 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // 2. Fallback to LocalStorage
-      const saved = localStorage.getItem("barun_data_metrics_v2");
+      // 2. Fallback to LocalStorage (Clean Slate Logic)
+      const saved = localStorage.getItem("barun_data_metrics_v3");
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          
+          // Version Check for Clean Slate
+          if (parsed && typeof parsed === 'object') {
+            const firstMonth = Object.keys(parsed)[0];
+            if (!parsed[firstMonth]?.version || parsed[firstMonth]?.version !== 'v3') {
+              console.warn("Outdated data schema detected. Clearing for V3 refactoring.");
+              localStorage.removeItem("barun_data_metrics_v3");
+              setStateMonthlyData({});
+              setIsLoaded(true);
+              return;
+            }
+          }
+          
           setStateMonthlyData(parsed);
           updateSelectedMonths(parsed);
         } catch (e) {
@@ -116,14 +141,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
       setSelectedMonth(latest);
       setCompareMonth(secondLatest);
+    } else {
+      // If no data, reset to current month
+      const now = new Date();
+      const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      setSelectedMonth(current);
+      setCompareMonth("");
     }
   };
 
   // Sync to LocalStorage (as backup)
   useEffect(() => {
-    if (Object.keys(monthlyData).length > 0) {
-      localStorage.setItem("barun_data_metrics_v2", JSON.stringify(monthlyData));
-    }
+    // Always sync, even if empty, to reflect deletions correctly
+    localStorage.setItem("barun_data_metrics_v3", JSON.stringify(monthlyData));
   }, [monthlyData]);
 
   const setMonthlyData = async (month: string, newData: Partial<DataMetrics>) => {
@@ -196,7 +226,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const resetData = () => {
     setStateMonthlyData({});
     try {
-      localStorage.removeItem("barun_data_metrics_v2");
+      localStorage.removeItem("barun_data_metrics_v3");
     } catch (e) {
       console.warn("Failed to clear data metrics from local storage", e);
     }
@@ -206,7 +236,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const compareData = monthlyData[compareMonth] || initialDataMetrics;
 
   // Rule: Target is strictly 10% more than compareMonth
-  const targetRevenue = compareData.totalRevenue > 0 ? compareData.totalRevenue * 1.1 : data.totalRevenue * 1.1;
+  const targetRevenue = (compareData.generatedRevenue?.total || 0) > 0 
+    ? compareData.generatedRevenue.total * 1.1 
+    : (data.generatedRevenue?.total || 0) * 1.1;
 
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;

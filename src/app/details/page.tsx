@@ -92,20 +92,21 @@ export default function DetailsPage() {
   };
 
   const metrics = useMemo(() => [
-    { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
-    { key: "nonBenefit", label: "비급여", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
-    { key: "newPatientCount", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { key: "totalTreatmentFee", label: "총진료비", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
-    { key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
-    { key: "patientCount", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { key: "patientPay", label: "본인부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
-    { key: "insuranceClaim", label: "보험청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { key: "autoInsuranceClaim", label: "자보청구액", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
-    { key: "autoInsuranceCount", label: "자보환자수", unit: "명", icon: Users, color: "text-orange-600", bg: "bg-orange-50" },
-    { key: "industrialAccidentClaim", label: "산재청구액", unit: "원", icon: Briefcase, color: "text-red-600", bg: "bg-red-50" },
-    { key: "accountsReceivable", label: "미수금", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
-    { key: "cashCollection", label: "현금수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
-    { key: "cardCollection", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
+    { category: "generatedRevenue", key: "insurance", label: "보험 매출 (산출)", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
+    { category: "generatedRevenue", key: "nonCovered", label: "비급여", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
+    { category: "patientMetrics", key: "new", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { category: "generatedRevenue", key: "total", label: "발생 매출 (총진료비)", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
+    { category: "custom", key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
+    { category: "patientMetrics", key: "total", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+    { category: "generatedRevenue", key: "copay", label: "본인부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
+    { category: "generatedRevenue", key: "insurance", label: "보험청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { category: "generatedRevenue", key: "auto", label: "자보청구액", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
+    { category: "patientMetrics", key: "auto", label: "자보환자수", unit: "명", icon: Users, color: "text-orange-600", bg: "bg-orange-50" },
+    { category: "generatedRevenue", key: "worker", label: "산재청구액", unit: "원", icon: Briefcase, color: "text-red-600", bg: "bg-red-50" },
+    { category: "leakage", key: "receivables", label: "미수금", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
+    { category: "leakage", key: "discountTotal", label: "할인총액 (누수)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-50" },
+    { category: "paymentMethods", key: "cash", label: "현금수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
+    { category: "paymentMethods", key: "card", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
   ], []);
 
   // Analysis Insights Logic (Best/Worst)
@@ -116,19 +117,20 @@ export default function DetailsPage() {
       let valB = 0;
       let valA = 0;
 
-      if (m.key === "basicRevenue") {
-        valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
-        valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
-      } else if (m.key === "arpu") {
-        valB = (data.totalRevenue || 0) / Math.max(data.patientCount || 1, 1);
-        valA = (compareData.totalRevenue || 0) / Math.max(compareData.patientCount || 1, 1);
+      if (m.key === "arpu") {
+        valB = (data.generatedRevenue?.total || 0) / Math.max(data.patientMetrics?.total || 1, 1);
+        valA = (compareData.generatedRevenue?.total || 0) / Math.max(compareData.patientMetrics?.total || 1, 1);
+      } else if (m.category === "custom") {
+          valB = 0; valA = 0; // Placeholder
       } else {
-        valB = (data as any)[m.key] || 0;
-        valA = (compareData as any)[m.key] || 0;
+        // @ts-ignore
+        valB = data[m.category]?.[m.key] || 0;
+        // @ts-ignore
+        valA = compareData[m.category]?.[m.key] || 0;
       }
 
       const delta = getDelta(valB, valA);
-      return { ...m, valB, valA, delta };
+      return { ...m, valB, valA, delta, uniqueKey: `${m.category}_${m.key}` };
     }).filter(r => r.delta !== null);
 
     if (results.length < 2) return null;
@@ -136,7 +138,7 @@ export default function DetailsPage() {
     const sortedByDelta = [...results].sort((a, b) => parseFloat(b.delta!.percent) - parseFloat(a.delta!.percent));
     
     // 3대 핵심 지표 중 최악 지표 찾기
-    const targetKeys = ["basicRevenue", "nonBenefit", "newPatientCount"];
+    const targetKeys = ["insurance", "nonCovered", "new"];
     const targetResults = results.filter(r => targetKeys.includes(r.key));
     const sortedTarget = [...targetResults].sort((a, b) => parseFloat(a.delta!.percent) - parseFloat(b.delta!.percent));
     const worstTargetThree = sortedTarget.length > 0 && parseFloat(sortedTarget[0].delta!.percent) < 0 ? sortedTarget[0] : null;
@@ -153,9 +155,9 @@ export default function DetailsPage() {
 
   // 맞춤 전문 키워드 맵 (사용자 요청 반영)
   const expertKeywords = useMemo(() => ({
-    basicRevenue: ["친절한 고객 응대 말투", "리더의 조직 관리 대화법", "성공 사업가 마인드셋"],
-    newPatientCount: ["고객 유입 마케팅 공식", "입소문 마케팅 비결", "브랜딩 차별화 전략"],
-    nonBenefit: ["1등 상담 화법", "클로징 성공 기술", "고객 심리 공략"]
+    insurance: ["친절한 고객 응대 말투", "리더의 조직 관리 대화법", "성공 사업가 마인드셋"],
+    new: ["고객 유입 마케팅 공식", "입소문 마케팅 비결", "브랜딩 차별화 전략"],
+    nonCovered: ["1등 상담 화법", "클로징 성공 기술", "고객 심리 공략"]
   }), []);
 
   const trendChartData = useMemo(() => {
@@ -164,7 +166,7 @@ export default function DetailsPage() {
       .slice(-6)
       .map(month => ({
         name: month.split("-")[1] + "월",
-        "총매출": monthlyData[month].totalRevenue || 0,
+        "총매출": monthlyData[month].generatedRevenue?.total || 0,
         rawMonth: month
       }));
   }, [monthlyData]);
@@ -180,15 +182,16 @@ export default function DetailsPage() {
           .map(m => {
             let valB = 0;
             let valA = 0;
-            if (m.key === "basicRevenue") {
-              valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
-              valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
-            } else if (m.key === "arpu") {
-              valB = (data.totalRevenue || 0) / Math.max(data.patientCount || 1, 1);
-              valA = (compareData.totalRevenue || 0) / Math.max(compareData.patientCount || 1, 1);
+            if (m.key === "arpu") {
+              valB = (data.generatedRevenue?.total || 0) / Math.max(data.patientMetrics?.total || 1, 1);
+              valA = (compareData.generatedRevenue?.total || 0) / Math.max(compareData.patientMetrics?.total || 1, 1);
+            } else if (m.category === "custom") {
+              valB = 0; valA = 0;
             } else {
-              valB = (data as any)[m.key] || 0;
-              valA = (compareData as any)[m.key] || 0;
+              // @ts-ignore
+              valB = data[m.category]?.[m.key] || 0;
+              // @ts-ignore
+              valA = compareData[m.category]?.[m.key] || 0;
             }
             const delta = getDelta(valB, valA);
             return {
@@ -233,17 +236,17 @@ export default function DetailsPage() {
             solutions: ["임시 분석 결과를 아래 솔루션 탭에서 확인하실 수 있습니다."]
           },
           results: {
-            "basicRevenue": {
-              title: "매출 누수 방지 기초 프로세스",
+            "insurance": {
+              title: "보험 매출 누수 방지 기초 프로세스",
               keywords: ["병원 매출 올리는 법", "초진 환자 객단가", "상담 동의율 전략"],
               desc: "AI 서버에 연결할 수 없어 임시 가이드라인을 제공합니다. 보험 매출 또는 기초 매출 하락 시 가장 먼저 점검해야 할 대응 전략을 유튜브 영상으로 확인하세요."
             },
-            "newPatientCount": {
+            "new": {
               title: "신규 환자 유입 채널 점검",
               keywords: ["동네 의원 마케팅", "네이버 플레이스 상위노출"],
               desc: "임시 가이드라인입니다. 신규 환자가 줄어든다면 최우선적으로 원내 마케팅 채널과 플레이스 리뷰를 점검해야 합니다."
             },
-            "nonBenefit": {
+            "nonCovered": {
               title: "비급여 상담 역량 강화",
               keywords: ["병원 비급여 상담", "피부과 실장 상담 기법"],
               desc: "임시 가이드라인입니다. 비급여 항목의 매출 하락은 상담 프로세스나 데스크의 고객 응대 스크립트 점검으로 개선할 수 있습니다."
@@ -531,15 +534,16 @@ export default function DetailsPage() {
             let valB = 0;
             let valA = 0;
 
-            if (m.key === "basicRevenue") {
-              valB = (data.patientPay || 0) + (data.insuranceClaim || 0) + (data.autoInsuranceClaim || 0);
-              valA = (compareData.patientPay || 0) + (compareData.insuranceClaim || 0) + (compareData.autoInsuranceClaim || 0);
-            } else if (m.key === "arpu") {
-              valB = (data.totalRevenue || 0) / Math.max(data.patientCount || 1, 1);
-              valA = (compareData.totalRevenue || 0) / Math.max(compareData.patientCount || 1, 1);
+            if (m.key === "arpu") {
+              valB = (data.generatedRevenue?.total || 0) / Math.max(data.patientMetrics?.total || 1, 1);
+              valA = (compareData.generatedRevenue?.total || 0) / Math.max(compareData.patientMetrics?.total || 1, 1);
+            } else if (m.category === "custom") {
+              valB = 0; valA = 0;
             } else {
-              valB = (data as any)[m.key] || 0;
-              valA = (compareData as any)[m.key] || 0;
+              // @ts-ignore
+              valB = data[m.category]?.[m.key] || 0;
+              // @ts-ignore
+              valA = compareData[m.category]?.[m.key] || 0;
             }
 
             const delta = getDelta(valB, valA);
