@@ -21,21 +21,35 @@ async function test() {
   const genAI = new GoogleGenerativeAI(apiKey);
   
   try {
-    // Attempt ListModels to find valid model names
-    console.log("Listing available models...");
-    // SDK doesn't expose listModels easily in Node with just the API Key in some versions,
-    // but we can try common ones: gemini-1.5-flash, gemini-1.5-flash-latest, gemini-pro
-    const models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro", "gemini-2.0-flash-exp"];
-    for (const m of models) {
-      try {
-        console.log(`Checking ${m}...`);
-        const model = genAI.getGenerativeModel({ model: m });
+    console.log("Listing available models using REST API...");
+    // Use standard fetch to list models via API key
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const data = await response.json();
+    
+    if (data.error) {
+       console.error("API Error:", data.error);
+       return;
+    }
+
+    console.log("Available Models count:", data.models ? data.models.length : 0);
+    if (data.models) {
+      data.models.forEach(m => console.log(`- ${m.name} (${m.supportedGenerationMethods.join(', ')})`));
+    }
+
+    if (data.models && data.models.length > 0) {
+      // Find a model that supports generateContent
+      const validModel = data.models.find(m => m.supportedGenerationMethods.includes('generateContent'));
+      if (validModel) {
+        const modelName = validModel.name.split('/').pop();
+        console.log(`Trying model: ${modelName}`);
+        const model = genAI.getGenerativeModel({ model: modelName });
         const res = await model.generateContent("test");
-        console.log(`Success with ${m}!`);
-        return m;
-      } catch (e) {
-        console.log(`Failed ${m}: ${e.status}`);
+        console.log(`Success with ${modelName}! Response: ${res.response.text()}`);
+      } else {
+        console.log("No models found that support generateContent.");
       }
+    } else {
+      console.log("No models available for this API key.");
     }
   } catch (error) {
     console.error("Critical error:", error);

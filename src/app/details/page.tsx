@@ -92,21 +92,19 @@ export default function DetailsPage() {
   };
 
   const metrics = useMemo(() => [
-    { category: "generatedRevenue", key: "insurance", label: "보험 매출 (산출)", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
-    { category: "generatedRevenue", key: "nonCovered", label: "비급여", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
-    { category: "patientMetrics", key: "new", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { category: "generatedRevenue", key: "totalCovered", label: "보험 매출 (청구+본인)", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
+    { category: "generatedRevenue", key: "insurance", label: "보험 청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { category: "generatedRevenue", key: "copay", label: "본인 부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
+    { category: "generatedRevenue", key: "nonCovered", label: "비급여 매출", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
+    { category: "generatedRevenue", key: "auto", label: "자동차 보험", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
+    { category: "patientMetrics", key: "total", label: "내원 환자수 (유입)", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+    { category: "patientMetrics", key: "new", label: "신규 환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
     { category: "generatedRevenue", key: "total", label: "발생 매출 (총진료비)", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
     { category: "custom", key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
-    { category: "patientMetrics", key: "total", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-    { category: "generatedRevenue", key: "copay", label: "본인부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
-    { category: "generatedRevenue", key: "insurance", label: "보험청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { category: "generatedRevenue", key: "auto", label: "자보청구액", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
-    { category: "patientMetrics", key: "auto", label: "자보환자수", unit: "명", icon: Users, color: "text-orange-600", bg: "bg-orange-50" },
-    { category: "generatedRevenue", key: "worker", label: "산재청구액", unit: "원", icon: Briefcase, color: "text-red-600", bg: "bg-red-50" },
-    { category: "leakage", key: "receivables", label: "미수금", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
-    { category: "leakage", key: "discountTotal", label: "할인총액 (누수)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-50" },
-    { category: "paymentMethods", key: "cash", label: "현금수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
-    { category: "paymentMethods", key: "card", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
+    { category: "leakage", key: "discountTotal", label: "매출 누수 (할인)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-50" },
+    { category: "leakage", key: "receivables", label: "매출 누수 (미수)", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
+    { category: "paymentMethods", key: "cash", label: "현금 수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
+    { category: "paymentMethods", key: "card", label: "카드 수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
   ], []);
 
   // Analysis Insights Logic (Best/Worst)

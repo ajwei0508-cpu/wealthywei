@@ -18,13 +18,13 @@ if (!GEMINI_API_KEY) {
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || "");
 
-// RequestOptions에 apiVersion: "v1"을 지정하여 v1beta 대신 v1 엔드포인트를 강제합니다.
+// RequestOptions에 apiVersion: "v1beta"를 지정합니다. (일부 최신 모델은 v1beta에서만 접근 가능할 수 있음)
 const requestOptions: RequestOptions = {
-  apiVersion: "v1",
+  apiVersion: "v1beta",
 };
 
 const model = genAI.getGenerativeModel(
-  { model: "gemini-2.5-flash" },
+  { model: "gemini-1.5-flash" }, 
   requestOptions
 );
 

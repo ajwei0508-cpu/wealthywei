@@ -15,6 +15,7 @@ export interface DataMetrics {
     total: number;
     copay: number;      // 본인부담
     insurance: number;  // 보험청구
+    totalCovered: number; // 보험매출 합계 (본인부담 + 보험청구)
     auto: number;       // 자보청구
     worker: number;     // 산재청구
     nonCovered: number; // 비급여
@@ -34,12 +35,81 @@ export interface DataMetrics {
     card: number;  // 카드
     other: number; // 기타 (이체 등)
   };
+  hanchartData?: {
+    rank: number;
+    type: string;
+    nonTaxable: number;
+    taxable: number;
+    coveredCopay: number;
+    coveredClaim: number;
+    autoClaim: number;
+    totalCopay: number;
+    supportFund: number;
+    totalRevenue: number;
+    ratio: number;
+  }[];
+  okchartData?: {
+    totalPatients: number;
+    newPatients: number;
+    autoPatients: number;
+    avgDailyPatients: number;
+    totalRevenue: number;
+    insuranceClaim: number;
+    copay: number;
+    autoClaim: number;
+    workerClaim: number;
+    nonCovered: number;
+    patientTotal: number;
+    receivables: number;
+    discountTotal: number;
+    roundOffTotal: number;
+    totalReceived: number;
+    totalRefund: number;
+    cashPayment: number;
+    cardPayment: number;
+    giftPayment: number;
+  };
+  hanisarangData?: {
+    totalPatients: number;
+    newPatients: number;
+    totalRevenue: number;
+    insuranceClaim: number;
+    copay: number;
+    nonCovered: number;
+    receivables: number;
+    discountTotal: number;
+    roundOffTotal: number;
+    totalReceived: number;
+    totalRefund: number;
+    cashPayment: number;
+    transferPayment: number;
+    generalCopay: number;
+  };
+  donguibogamData?: {
+    totalRevenue: number;
+    insuranceClaim: number;
+    copay: number;
+    fullCopay: number;
+    nonCovered: number;
+    discount: number;
+    receivables: number;
+    totalReceived: number;
+    cashTotal: number;
+    cardTotal: number;
+    newPatients: number;
+    recurringPatients: number;
+    referralPatients: number;
+    totalPatients: number;
+    treatments: Record<string, number>;
+    hasFinancialData: boolean;
+    hasTreatmentData: boolean;
+  };
   version: string; // 스키마 버전 관리 ('v3')
 }
 
 export const initialDataMetrics: DataMetrics = {
   patientMetrics: { total: 0, new: 0, auto: 0, dailyAvg: 0 },
-  generatedRevenue: { total: 0, copay: 0, insurance: 0, auto: 0, worker: 0, nonCovered: 0, patientTotal: 0 },
+  generatedRevenue: { total: 0, copay: 0, insurance: 0, totalCovered: 0, auto: 0, worker: 0, nonCovered: 0, patientTotal: 0 },
   leakage: { receivables: 0, discountTotal: 0, roundOffTotal: 0 },
   cashFlow: { totalReceived: 0, totalRefund: 0 },
   paymentMethods: { cash: 0, card: 0, other: 0 },
@@ -157,36 +227,70 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   }, [monthlyData]);
 
   const setMonthlyData = async (month: string, newData: Partial<DataMetrics>) => {
-    const updatedMetrics = {
-      ...(monthlyData[month] || initialDataMetrics),
-      ...newData,
-    };
+    let finalMetrics: DataMetrics | null = null;
 
-    setStateMonthlyData((prev) => ({
-      ...prev,
-      [month]: updatedMetrics,
-    }));
+    setStateMonthlyData((prev) => {
+      const existing = prev[month] || { ...initialDataMetrics, donguibogamData: undefined };
+      
+      const mergeSubset = (target: any, source: any) => {
+        if (!source) return target;
+        const result = { ...(target || {}) };
+        Object.keys(source).forEach(key => {
+          if (source[key] !== undefined && source[key] !== 0 && source[key] !== "") {
+            result[key] = source[key];
+          } else if (result[key] === undefined) {
+             result[key] = source[key];
+          }
+        });
+        return result;
+      };
 
-    // Automatically shift comparison window forward
+      const updatedMetrics: DataMetrics = {
+        ...existing,
+        ...newData,
+        patientMetrics: mergeSubset(existing.patientMetrics, newData.patientMetrics),
+        generatedRevenue: mergeSubset(existing.generatedRevenue, newData.generatedRevenue),
+        leakage: mergeSubset(existing.leakage, newData.leakage),
+        cashFlow: mergeSubset(existing.cashFlow, newData.cashFlow),
+        paymentMethods: mergeSubset(existing.paymentMethods, newData.paymentMethods),
+      };
+
+      if (newData.donguibogamData) {
+        const eD = existing.donguibogamData || { treatments: {} };
+        const nD = newData.donguibogamData;
+        updatedMetrics.donguibogamData = {
+          ...mergeSubset(eD, nD), 
+          treatments: {
+            ...(eD.treatments || {}),
+            ...(nD.treatments || {})
+          },
+          hasFinancialData: eD.hasFinancialData || nD.hasFinancialData,
+          hasTreatmentData: eD.hasTreatmentData || nD.hasTreatmentData,
+        };
+      }
+
+      finalMetrics = updatedMetrics;
+      return { ...prev, [month]: updatedMetrics };
+    });
+
     setCompareMonth(selectedMonth);
     setSelectedMonth(month);
 
-    // Sync to Supabase if logged in
-    if (session?.user?.email) {
-      try {
-        await supabase
-          .from('clinic_metrics')
-          .upsert({
+    setTimeout(async () => {
+      if (session?.user?.email && finalMetrics) {
+        try {
+          await supabase.from('clinic_metrics').upsert({
             user_id: session.user.email.toLowerCase(),
             user_email: session.user.email.toLowerCase(),
             user_name: session.user.name || '',
             month: month,
-            metrics: updatedMetrics
+            metrics: finalMetrics
           }, { onConflict: 'user_id,month' });
-      } catch (e) {
-        console.error("Supabase save error:", e);
+        } catch (e) {
+          console.error("Supabase save error:", e);
+        }
       }
-    }
+    }, 10);
   };
 
   const deleteMonthlyData = async (month: string) => {
