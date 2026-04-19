@@ -166,11 +166,11 @@ export default function DashboardSidebar() {
         {/* Master Admin Button (Conditional) */}
         {isMaster && (
           <Link 
-            href="/master"
+            href="/survey/admin"
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10 cursor-pointer active:scale-95"
           >
             <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-            마스터 통합 관리망
+            마스터 워크북 관리 Dashboard
           </Link>
         )}
 

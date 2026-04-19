@@ -1055,6 +1055,24 @@ export default function SurveyPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
       <RadarWidget radarData={radarData} />
 
+      {/* Master Admin Entry Point */}
+      {isMaster && (
+        <div className="fixed left-6 bottom-6 z-40">
+          <button 
+            onClick={() => router.push("/survey/admin")}
+            className="flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl hover:bg-blue-600 hover:-translate-y-1 active:scale-95 transition-all group border border-white/10"
+          >
+            <div className="w-10 h-10 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:bg-white group-hover:text-blue-600 transition-colors">
+              <Shield size={20} />
+            </div>
+            <div className="text-left pr-2">
+              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Administrator</p>
+              <p className="text-sm font-black text-white">마스터 워크북 관리</p>
+            </div>
+          </button>
+        </div>
+      )}
+
       {stampStep !== null && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
           <div className="animate-bounce-once bg-white rounded-[40px] p-10 shadow-2xl border-4 border-blue-500 text-center">
