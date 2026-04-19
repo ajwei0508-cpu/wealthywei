@@ -11,12 +11,23 @@ const supabaseAdmin = createClient(
 export async function GET() {
   const session = await getServerSession(authOptions);
   
+  // 진단용 로그 (서버 터미널/Vercel 로그에서 확인 가능)
+  console.log("🔍 [Admin API Audit] Session Info:", {
+    hasSession: !!session,
+    userEmail: session?.user?.email,
+    masterEmailEnv: process.env.NEXT_PUBLIC_MASTER_EMAIL || process.env.MASTER_EMAIL,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 5)
+  });
+
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized - No session found" }, { status: 401 });
   }
 
   const userEmail = session.user.email.toLowerCase();
   const masterEmail = (process.env.NEXT_PUBLIC_MASTER_EMAIL || process.env.MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
+
+  console.log("🔍 [Admin API Audit] Email Match:", { userEmail, masterEmail, isMatch: userEmail === masterEmail });
 
   if (userEmail !== masterEmail) {
     return NextResponse.json({ error: "Forbidden - Master only" }, { status: 403 });
