@@ -5,6 +5,7 @@ import { DataProvider } from "@/context/DataContext";
 import { VideoHistoryProvider } from "@/context/VideoHistoryContext";
 import AuthProvider from "@/components/AuthProvider";
 import { Toaster } from "react-hot-toast";
+import HomeButton from "@/components/HomeButton";
 
 export const metadata: Metadata = {
   title: "바른컨설팅 | 메디컬 컨설팅 플랫폼",
@@ -22,6 +23,7 @@ export default function RootLayout({
         <AuthProvider>
           <VideoHistoryProvider>
             <DataProvider>
+              <HomeButton />
               {children}
               <Toaster position="top-center" />
             </DataProvider>
