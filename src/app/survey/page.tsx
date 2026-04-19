@@ -347,7 +347,7 @@ export default function SurveyPage() {
   const [stampStep, setStampStep] = useState<number | null>(null);
 
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
-  const isReadOnly = submitted && !isMaster;
+  const isReadOnly = false; // 마스터 권한 없이도 모든 사용자가 상시 수정 가능하도록 변경
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1140,15 +1140,11 @@ export default function SurveyPage() {
               className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm text-white shadow-lg transition-all hover:opacity-90 active:scale-95 bg-gradient-to-r ${ch.color}`}>
               임시 저장 후 다음 <ChevronRight size={16} />
             </button>
-          ) : !submitted ? (
+          ) : (
             <button onClick={handleSubmit}
               className="flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow-lg hover:opacity-90 active:scale-95 transition-all">
-              <Check size={16} />✨ 최종 제출 & AI 분석 요청
+              <Check size={16} />✨ {submitted ? "수정 후 재제출 & AI 요청" : "최종 제출 & AI 분석 요청"}
             </button>
-          ) : (
-            <div className="flex items-center gap-2 px-8 py-3 rounded-2xl font-bold text-sm text-slate-400 bg-slate-100 border border-slate-200">
-              <Lock size={16} />제출 완료
-            </div>
           )}
         </div>
       </main>

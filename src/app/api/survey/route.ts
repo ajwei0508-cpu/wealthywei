@@ -46,11 +46,7 @@ export async function POST(req: NextRequest) {
       .eq("user_id", userId)
       .single();
 
-    const masterEmail = (process.env.MASTER_EMAIL || process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
-    
-    if (existing?.submitted && userId !== masterEmail) {
-      return NextResponse.json({ error: "이미 제출된 워크북은 수정할 수 없습니다." }, { status: 403 });
-    }
+    // 403 방어 로직 제거: 모든 사용자가 상시 수정 가능
 
     const body = await req.json();
 
