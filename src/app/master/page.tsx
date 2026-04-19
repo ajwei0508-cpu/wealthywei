@@ -197,6 +197,14 @@ export default function MasterDashboardPortal() {
             >
               워크북 관리
             </button>
+            <div className="w-[1px] h-3 bg-zinc-200 mx-1" />
+            <button
+              onClick={() => router.push("/survey/admin")}
+              className="px-4 py-1.5 rounded-xl text-xs font-bold text-amber-600 hover:bg-amber-50 transition-all flex items-center gap-1.5"
+            >
+              <FileText size={14} />
+              제출 파일 관리
+            </button>
           </nav>
         </div>
         
