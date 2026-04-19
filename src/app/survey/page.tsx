@@ -154,8 +154,11 @@ function useSTT() {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
-const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: string; value: string[]; onUpload: (urls: string[]) => void; hint?: string; disabled?: boolean }) => {
+const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: string; value: string | string[]; onUpload: (urls: string[]) => void; hint?: string; disabled?: boolean }) => {
   const [uploading, setUploading] = useState(false);
+
+  // Ensure value is always an array for internal logic
+  const normalizedValue = Array.isArray(value) ? value : (value ? [value] : []);
 
   // 파일 확장자별 아이콘 및 색상 결정
   const getFileIcon = (url: string) => {
@@ -171,7 +174,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // 용량 제한 체크 (예: 파일당 50MB)
+    // 용량 제한 체크
     const largeFiles = files.filter(f => f.size > 50 * 1024 * 1024);
     if (largeFiles.length > 0) {
       toast.error("50MB를 초과하는 파일이 포함되어 있습니다.");
@@ -179,7 +182,6 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
     }
 
     setUploading(true);
-    const newUrls: string[] = [...value];
     
     try {
       const uploadPromises = files.map(async (file) => {
@@ -204,7 +206,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
       });
 
       const uploadedUrls = await Promise.all(uploadPromises);
-      onUpload([...value, ...uploadedUrls]);
+      onUpload([...normalizedValue, ...uploadedUrls]);
       toast.success(`${uploadedUrls.length}개의 파일이 업로드되었습니다.`);
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -216,7 +218,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
   };
 
   const removeFile = (index: number) => {
-    const newList = [...value];
+    const newList = [...normalizedValue];
     newList.splice(index, 1);
     onUpload(newList);
   };
@@ -226,9 +228,9 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
       <Lbl hint={hint}>{label}</Lbl>
       
       {/* 업로드된 파일 리스트 */}
-      {value.length > 0 && (
+      {normalizedValue.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {value.map((url, idx) => {
+          {normalizedValue.map((url, idx) => {
             const meta = getFileIcon(url);
             return (
               <div key={idx} className="group relative flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
@@ -265,7 +267,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
           </div>
           <div className="text-center">
             <p className="text-sm font-black text-slate-600">{uploading ? "업로드 중..." : "파일들 선택 또는 드래그"}</p>
-            <p className="text-[11px] text-slate-400 mt-1 font-bold">압축 파일(.zip), 문서, 이미지 모두 가능 (중복 선택 가능)</p>
+            <p className="text-[11px] text-slate-400 mt-1 font-bold">압축 파일(.zip), 문서, 이미지 모두 가능</p>
           </div>
         </label>
       )}

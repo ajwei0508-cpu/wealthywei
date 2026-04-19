@@ -18,12 +18,12 @@ export async function POST() {
   try {
     const { error } = await supabaseAdmin
       .from("survey_workbook")
-      .upsert({
-        user_id: userId,
+      .update({
         submitted: true,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      })
+      .eq("user_id", userId);
 
     if (error) throw error;
 

@@ -72,8 +72,11 @@ export default function AdminSurveyPage() {
     const allFiles: { category: string; urls: string[] }[] = [];
 
     const safePush = (category: string, urls: any) => {
-      if (Array.isArray(urls) && urls.length > 0) {
-        allFiles.push({ category, urls: urls.filter(u => typeof u === 'string') });
+      if (Array.isArray(urls)) {
+        const validUrls = urls.filter(u => typeof u === 'string' && u.trim().length > 0);
+        if (validUrls.length > 0) {
+          allFiles.push({ category, urls: validUrls });
+        }
       }
     };
 

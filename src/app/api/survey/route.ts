@@ -53,13 +53,30 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    const { error } = await supabaseAdmin
+    const { data: existingRow } = await supabaseAdmin
       .from("survey_workbook")
-      .upsert({
-        user_id: userId,
-        data: body,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      .select("user_id")
+      .eq("user_id", userId)
+      .single();
+
+    const payload = {
+      data: body,
+      updated_at: new Date().toISOString(),
+    };
+
+    let error;
+    if (existingRow) {
+      const { error: updateError } = await supabaseAdmin
+        .from("survey_workbook")
+        .update(payload)
+        .eq("user_id", userId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabaseAdmin
+        .from("survey_workbook")
+        .insert({ user_id: userId, ...payload });
+      error = insertError;
+    }
 
     if (error) throw error;
 
