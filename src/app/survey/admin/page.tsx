@@ -11,7 +11,8 @@ import {
   ShieldCheck, 
   File, 
   FileImage, 
-  CheckCircle 
+  CheckCircle,
+  X
 } from "lucide-react";
 import toast from "react-hot-toast";
 
