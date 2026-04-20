@@ -174,7 +174,7 @@ export default function MasterDashboardPortal() {
               <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">ADMIN ONLY</h2>
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-amber-500" />
-                <span className="text-sm font-bold text-slate-900">마스터 통합 관리망</span>
+                <span className="text-sm font-bold text-slate-900">마스터 통합 매출 통계</span>
               </div>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function MasterDashboardPortal() {
                 activeTab === "revenue" ? "bg-white text-primary shadow-sm" : "text-zinc-400 hover:text-zinc-600"
               }`}
             >
-              매출 분석 현황
+              종합 매출통계 현황
             </button>
             <button
               onClick={() => { setActiveTab("workbooks"); setSelectedWorkbook(null); }}
@@ -287,8 +287,8 @@ export default function MasterDashboardPortal() {
         <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
           <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50">
             <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <FileText size={20} className="text-primary" />
-              전체 클리닉 매출 분석 현황
+              <TrendingUp size={20} className="text-primary" />
+              전체 클리닉 매출통계 현황
             </h3>
             <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">REALTIME SYNC</span>
           </div>
@@ -532,8 +532,9 @@ export default function MasterDashboardPortal() {
                       <td className="px-8 py-5 text-xs text-zinc-400 font-medium text-right">{new Date(w.updated_at).toLocaleDateString()}</td>
                       <td className="px-8 py-5">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => setSelectedWorkbook(w)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition"><Eye size={14} /></button>
-                          <button onClick={() => handleDeleteWorkbook(w.user_id, w.user_id)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button>
+                          <button onClick={() => router.push(`/master/${encodeURIComponent(w.user_id)}`)} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition" title="매출통계 보기"><BarChart3 size={14} /></button>
+                          <button onClick={() => setSelectedWorkbook(w)} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition" title="워크북 상세"><Eye size={14} /></button>
+                          <button onClick={() => handleDeleteWorkbook(w.user_id, w.user_id)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition" title="삭제"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>

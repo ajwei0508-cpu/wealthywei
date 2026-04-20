@@ -165,13 +165,22 @@ export default function DashboardSidebar() {
 
         {/* Master Admin Button (Conditional) */}
         {isMaster && (
-          <Link 
-            href="/survey/admin"
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10 cursor-pointer active:scale-95"
-          >
-            <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-            마스터 워크북 관리 Dashboard
-          </Link>
+          <div className="flex flex-col gap-2 mt-4">
+            <Link 
+              href="/survey/admin"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10 cursor-pointer active:scale-95"
+            >
+              <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+              마스터 워크북 관리 Dashboard
+            </Link>
+            <Link 
+              href="/master"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-blue-400/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-blue-400/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
+            >
+              <BarChart3 size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
+              마스터 매출 통계 관리
+            </Link>
+          </div>
         )}
 
         {/* Workbook Button — ALL users */}
