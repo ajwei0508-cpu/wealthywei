@@ -15,17 +15,30 @@ export interface ParseExcelResult {
 }
 
 export function extractDateFromFilename(filename: string): string | null {
-  const parenMatch = filename.match(/(\d{4})[^\d](\d{1,2})/);
-  if (parenMatch) return `${parenMatch[1]}-${parenMatch[2].padStart(2, "0")}`;
+  // YYYY-MM, YYYY.MM, YYYY/MM 등 4자리 연도 우선
+  const fullYearMatch = filename.match(/(\d{4})[^\d](\d{1,2})/);
+  if (fullYearMatch) {
+    const m = parseInt(fullYearMatch[2]);
+    if (m >= 1 && m <= 12) return `${fullYearMatch[1]}-${fullYearMatch[2].padStart(2, "0")}`;
+  }
 
+  // YYYYMM 형식 (6자리 숫자)
   const digit6Match = filename.match(/(\d{4})(\d{2})/);
-  if (digit6Match) return `${digit6Match[1]}-${digit6Match[2]}`;
+  if (digit6Match) {
+    const m = parseInt(digit6Match[2]);
+    if (m >= 1 && m <= 12 && digit6Match[1].startsWith("20")) {
+      return `${digit6Match[1]}-${digit6Match[2]}`;
+    }
+  }
 
-  const fullYearMatch = filename.match(/(\d{4})[^\d]?(\d{1,2})/);
-  if (fullYearMatch) return `${fullYearMatch[1]}-${fullYearMatch[2].padStart(2, "0")}`;
-
-  const shortYearMatch = filename.match(/(\d{2})[^\d]?(\d{1,2})/);
-  if (shortYearMatch) return `20${shortYearMatch[1]}-${shortYearMatch[2].padStart(2, "0")}`;
+  // YY-MM 형식 (2자리 연도) - 월이 1~12 사이인 경우만 허용
+  const shortYearMatch = filename.match(/(\d{2})[^\d](\d{1,2})/);
+  if (shortYearMatch) {
+    const m = parseInt(shortYearMatch[2]);
+    if (m >= 1 && m <= 12) {
+      return `20${shortYearMatch[1]}-${shortYearMatch[2].padStart(2, "0")}`;
+    }
+  }
 
   return null;
 }
@@ -46,6 +59,40 @@ const excelDateToMonth = (serial: number): string | null => {
       }
     }
   } catch (e) {}
+  return null;
+};
+
+const tryExtractMonth = (val: unknown, baseYear?: string): string | null => {
+  if (typeof val === "number") {
+    // 만약 1~12 사이의 숫자이고 baseYear가 있다면 연말결산 형식으로 처리
+    if (baseYear && val >= 1 && val <= 12) {
+      return `${baseYear}-${String(val).padStart(2, "0")}`;
+    }
+    return excelDateToMonth(val);
+  }
+  const str = String(val || "").trim();
+  
+  // "1월", "2월" 등 단순 월 표시 처리
+  if (baseYear && (str.endsWith("월") || /^\d{1,2}$/.test(str))) {
+    const m = str.replace("월", "");
+    const num = parseInt(m);
+    if (!isNaN(num) && num >= 1 && num <= 12) {
+      return `${baseYear}-${String(num).padStart(2, "0")}`;
+    }
+  }
+
+  // YYYY-MM or YYYY.MM or YYYY/MM
+  const match = str.match(/(\d{4})[^\d](\d{1,2})/);
+  if (match) {
+    const m = parseInt(match[2]);
+    if (m >= 1 && m <= 12) return `${match[1]}-${match[2].padStart(2, "0")}`;
+  }
+  // YYYYMM
+  const match2 = str.match(/(\d{4})(\d{2})/);
+  if (match2 && match2[1].startsWith("20")) {
+    const m = parseInt(match2[2]);
+    if (m >= 1 && m <= 12) return `${match2[1]}-${match2[2]}`;
+  }
   return null;
 };
 
@@ -393,73 +440,112 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
 }
 
 function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResult[] {
-  const extractedData: DataMetrics = JSON.parse(JSON.stringify(initialDataMetrics));
-  const mappingResults: MappingResult[] = [];
+  const results: ParseExcelResult[] = [];
 
-  const headerRowIndex = jsonData.findIndex(row => 
-    row.some(cell => String(cell).includes("내원환자수")) || 
-    row.some(cell => String(cell).includes("총진료비"))
-  );
+  // 연말결산:2025 형식 찾기
+  let contextYear = "";
+  for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
+    const rowStr = jsonData[i].join(" ");
+    const yearMatch = rowStr.match(/연말결산:(\d{4})/);
+    if (yearMatch) {
+      contextYear = yearMatch[1];
+      break;
+    }
+  }
+
+  // "월"이라는 정확한 컬럼이 있는 행을 우선적으로 헤더로 인식 (연말결산 등 리스트 형태)
+  let headerRowIndex = jsonData.findIndex(row => row.some(cell => String(cell).trim() === "월"));
+  
+  // 못 찾으면 기존 방식대로 내원환자수나 총진료비가 있는 행 찾기
+  if (headerRowIndex === -1) {
+    headerRowIndex = jsonData.findIndex(row => 
+      row.some(cell => String(cell).includes("내원환자수")) || 
+      row.some(cell => String(cell).includes("총진료비"))
+    );
+  }
 
   if (headerRowIndex === -1) return [];
 
   const headers = jsonData[headerRowIndex].map(h => normalize(h));
-  const dataRow = jsonData[headerRowIndex + 1];
-  if (!dataRow) return [];
+  
+  // 날짜/월 컬럼 인덱스 찾기
+  const dateColIdx = headers.findIndex(h => 
+    h === "월" || h === "월별" || h.includes("년월") || h.includes("일자") || h.includes("기간") || h.includes("구분") || h.includes("날짜")
+  );
 
-  const findAndParse = (keywords: string[]) => {
-    const idx = headers.findIndex(h => keywords.some(k => h === normalize(k)));
-    return idx !== -1 ? parseCleanNumber(dataRow[idx]) : 0;
-  };
+  // 모든 데이터 행 순회
+  for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+    const dataRow = jsonData[i];
+    if (!dataRow || dataRow.every(c => !c)) continue;
+    
+    // 합계 행 건너뛰기
+    if (dataRow.some(cell => String(cell).includes("합계") || String(cell).includes("총계"))) continue;
 
-  extractedData.patientMetrics.total = findAndParse(["내원환자수"]);
-  extractedData.patientMetrics.new = findAndParse(["신규환자수"]);
-  extractedData.patientMetrics.auto = findAndParse(["자보환자수"]);
-  extractedData.patientMetrics.dailyAvg = findAndParse(["진료일평균환자수"]);
+    let rowMonth = targetMonth;
+    if (dateColIdx !== -1 && dataRow[dateColIdx]) {
+      const extracted = tryExtractMonth(dataRow[dateColIdx], contextYear);
+      if (extracted) rowMonth = extracted;
+    }
 
-  extractedData.generatedRevenue.total = findAndParse(["총진료비"]);
-  extractedData.generatedRevenue.copay = findAndParse(["본인부담"]);
-  extractedData.generatedRevenue.insurance = findAndParse(["보험(청구)"]);
-  extractedData.generatedRevenue.auto = findAndParse(["자보(청구)"]);
-  extractedData.generatedRevenue.worker = findAndParse(["산재(청구)"]);
-  extractedData.generatedRevenue.nonCovered = findAndParse(["비급여"]);
-  extractedData.generatedRevenue.patientTotal = findAndParse(["환자부담계"]);
+    const extractedData: DataMetrics = JSON.parse(JSON.stringify(initialDataMetrics));
+    const mappingResults: MappingResult[] = [];
 
-  extractedData.leakage.receivables = findAndParse(["미수금"]);
-  extractedData.leakage.discountTotal = findAndParse(["할인총액"]);
-  extractedData.leakage.roundOffTotal = findAndParse(["절사총액"]);
+    const findAndParse = (keywords: string[]) => {
+      const idx = headers.findIndex(h => keywords.some(k => h === normalize(k)));
+      return idx !== -1 ? parseCleanNumber(dataRow[idx]) : 0;
+    };
 
-  extractedData.cashFlow.totalReceived = findAndParse(["수납총액"]);
-  extractedData.cashFlow.totalRefund = findAndParse(["환불총액"]);
+    extractedData.patientMetrics.total = findAndParse(["내원환자수"]);
+    extractedData.patientMetrics.new = findAndParse(["신규환자수"]);
+    extractedData.patientMetrics.auto = findAndParse(["자보환자수"]);
+    extractedData.patientMetrics.dailyAvg = findAndParse(["진료일평균환자수"]);
 
-  extractedData.paymentMethods.cash = findAndParse(["현금수납"]);
-  extractedData.paymentMethods.card = findAndParse(["카드수납"]);
-  extractedData.paymentMethods.other = findAndParse(["건생수납"]);
+    extractedData.generatedRevenue.total = findAndParse(["총진료비"]);
+    extractedData.generatedRevenue.copay = findAndParse(["본인부담"]);
+    extractedData.generatedRevenue.insurance = findAndParse(["보험(청구)"]);
+    extractedData.generatedRevenue.auto = findAndParse(["자보(청구)"]);
+    extractedData.generatedRevenue.worker = findAndParse(["산재(청구)"]);
+    extractedData.generatedRevenue.nonCovered = findAndParse(["비급여"]);
+    extractedData.generatedRevenue.patientTotal = findAndParse(["환자부담계"]);
 
-  extractedData.okchartData = {
-    totalPatients: extractedData.patientMetrics.total,
-    newPatients: extractedData.patientMetrics.new,
-    autoPatients: extractedData.patientMetrics.auto,
-    avgDailyPatients: extractedData.patientMetrics.dailyAvg,
-    totalRevenue: extractedData.generatedRevenue.total,
-    insuranceClaim: extractedData.generatedRevenue.insurance,
-    copay: extractedData.generatedRevenue.copay,
-    autoClaim: extractedData.generatedRevenue.auto,
-    workerClaim: extractedData.generatedRevenue.worker,
-    nonCovered: extractedData.generatedRevenue.nonCovered,
-    patientTotal: extractedData.generatedRevenue.patientTotal,
-    receivables: extractedData.leakage.receivables,
-    discountTotal: extractedData.leakage.discountTotal,
-    roundOffTotal: extractedData.leakage.roundOffTotal,
-    totalReceived: extractedData.cashFlow.totalReceived,
-    totalRefund: extractedData.cashFlow.totalRefund,
-    cashPayment: extractedData.paymentMethods.cash,
-    cardPayment: extractedData.paymentMethods.card,
-    giftPayment: extractedData.paymentMethods.other,
-  };
+    extractedData.leakage.receivables = findAndParse(["미수금"]);
+    extractedData.leakage.discountTotal = findAndParse(["할인총액"]);
+    extractedData.leakage.roundOffTotal = findAndParse(["절사총액"]);
 
-  mappingResults.push({ original: "오케이차트 수납통계", standard: "정밀 파싱" });
-  return [{ targetMonth, extractedData, mappingResults }];
+    extractedData.cashFlow.totalReceived = findAndParse(["수납총액"]);
+    extractedData.cashFlow.totalRefund = findAndParse(["환불총액"]);
+
+    extractedData.paymentMethods.cash = findAndParse(["현금수납"]);
+    extractedData.paymentMethods.card = findAndParse(["카드수납"]);
+    extractedData.paymentMethods.other = findAndParse(["건생수납"]);
+
+    extractedData.okchartData = {
+      totalPatients: extractedData.patientMetrics.total,
+      newPatients: extractedData.patientMetrics.new,
+      autoPatients: extractedData.patientMetrics.auto,
+      avgDailyPatients: extractedData.patientMetrics.dailyAvg,
+      totalRevenue: extractedData.generatedRevenue.total,
+      insuranceClaim: extractedData.generatedRevenue.insurance,
+      copay: extractedData.generatedRevenue.copay,
+      autoClaim: extractedData.generatedRevenue.auto,
+      workerClaim: extractedData.generatedRevenue.worker,
+      nonCovered: extractedData.generatedRevenue.nonCovered,
+      patientTotal: extractedData.generatedRevenue.patientTotal,
+      receivables: extractedData.leakage.receivables,
+      discountTotal: extractedData.leakage.discountTotal,
+      roundOffTotal: extractedData.leakage.roundOffTotal,
+      totalReceived: extractedData.cashFlow.totalReceived,
+      totalRefund: extractedData.cashFlow.totalRefund,
+      cashPayment: extractedData.paymentMethods.cash,
+      cardPayment: extractedData.paymentMethods.card,
+      giftPayment: extractedData.paymentMethods.other,
+    };
+
+    mappingResults.push({ original: "오케이차트 수납통계", standard: "정밀 파싱" });
+    results.push({ targetMonth: rowMonth, extractedData, mappingResults });
+  }
+
+  return results;
 }
 
 function parseHanisarang(jsonData: string[][], targetMonth: string): ParseExcelResult[] {
