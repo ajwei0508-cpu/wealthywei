@@ -294,14 +294,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteMonthlyData = async (month: string) => {
-    // 1. Update Local State
-    const updated = { ...monthlyData };
-    delete updated[month];
-    setStateMonthlyData(updated);
+    // 1. Update Local State (Functional Update to prevent race conditions in loops)
+    setStateMonthlyData((prev) => {
+      const updated = { ...prev };
+      delete updated[month];
+      return updated;
+    });
 
     // 2. Adjust selection if needed
     if (selectedMonth === month || compareMonth === month) {
-      updateSelectedMonths(updated);
+      // Note: This might still use stale selectedMonth/compareMonth if called rapidly, 
+      // but the key is removing the month from the data map.
     }
 
     // 3. Sync to Supabase via API

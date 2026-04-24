@@ -22,13 +22,21 @@ import {
   ArrowDownCircle,
   MinusCircle,
   Play,
-  Upload
+  Upload,
+  Rocket,
+  Zap,
+  AlertTriangle,
+  Activity,
+  ShieldAlert,
+  BrainCircuit,
+  Sparkles
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { parseExcelFile } from "@/lib/excelParser";
 import toast from "react-hot-toast";
-import { generateClinicInsight } from "@/lib/aiService";
+import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 
@@ -50,6 +58,8 @@ export default function OkchartPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
+  const [isManageMode, setIsManageMode] = useState(false);
+  const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
 
   // State for Period Comparison
   const [viewMode, setViewMode] = useState<"single" | "period">("single");
@@ -103,21 +113,102 @@ export default function OkchartPage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const resList = await parseExcelFile(files[i], selectedMonth, "okchart");
-        for (const res of resList) await setMonthlyData(res.targetMonth, res.extractedData);
+        for (const res of resList) {
+          // 신규환자가 0인 달은 미래의 예약된 데이터이거나 실적이 없는 달이므로 등록에서 제외 및 기존 데이터 삭제
+          const d = res.extractedData;
+          const isInvalidMonth = d.newPatients === 0;
+          
+          if (!isInvalidMonth) {
+            await setMonthlyData(res.targetMonth, d);
+          } else {
+            // 이미 0원 데이터가 등록되어 있는 경우 삭제 처리하여 화면에서 제거
+            await deleteMonthlyData(res.targetMonth);
+            console.log(`${res.targetMonth} 데이터는 신규환자가 0명이라 삭제/제외 처리했습니다.`);
+          }
+        }
       }
+      
+      // 업로드 후 선택된 달이 삭제된 달(0명)이라면, 가장 최근 데이터가 있는 달로 자동 이동
+      const currentMonths = Object.keys(monthlyData).sort();
+      if (currentMonths.length > 0 && !currentMonths.includes(selectedMonth)) {
+        setSelectedMonth(currentMonths[currentMonths.length - 1]);
+      }
+
       toast.success("분석 완료", { id: "excel-parse" });
     } catch (err: any) {
       toast.error(err.message, { id: "excel-parse" });
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedMonthsForDelete.length === 0) return;
+    if (!confirm(`${selectedMonthsForDelete.length}개의 데이터를 삭제하시겠습니까?`)) return;
+    
+    toast.loading("데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of selectedMonthsForDelete) {
+        await deleteMonthlyData(m);
+      }
+      setSelectedMonthsForDelete([]);
+      setIsManageMode(false);
+      toast.success("선택한 데이터가 삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const allMonths = Object.keys(monthlyData);
+    if (allMonths.length === 0) return;
+    if (!confirm("전체 데이터를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+    
+    toast.loading("전체 데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of allMonths) {
+        await deleteMonthlyData(m);
+      }
+      setIsManageMode(false);
+      toast.success("전체 데이터가 삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
+  const toggleMonthSelection = (m: string) => {
+    setSelectedMonthsForDelete(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const allMonths = Object.keys(monthlyData);
+    if (selectedMonthsForDelete.length === allMonths.length) {
+      setSelectedMonthsForDelete([]);
+    } else {
+      setSelectedMonthsForDelete(allMonths);
+    }
+  };
+
   useEffect(() => {
     async function getInsight() {
       if (data.totalRevenue > 0) {
+        const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
+        const cached = localStorage.getItem(cacheKey);
+        
+        if (cached) {
+          setInsight(cached);
+          setLoadingInsight(false);
+          return;
+        }
+
         setLoadingInsight(true);
+        setInsight(""); // 초기화
         try {
-          const res = await generateClinicInsight(currentData);
-          setInsight(res);
+          await generateClinicInsightStream(currentData, (text) => {
+            setInsight(text);
+          });
+          // 스트리밍 완료 후 캐시 저장 (전체 텍스트가 완성되었을 때)
+          // useEffect 내에서 스트리밍이 끝나면 마지막 텍스트를 캐싱하도록 처리
         } catch (e) {
           setInsight("현재 데이터를 기반으로 원장님의 병원을 위한 경영 진단을 준비 중입니다.");
         } finally {
@@ -126,7 +217,15 @@ export default function OkchartPage() {
       }
     }
     getInsight();
-  }, [data.totalRevenue, currentData]);
+  }, [data.totalRevenue, currentData, selectedMonth]);
+
+  // 캐싱을 위한 별도 effect (텍스트가 완성되면 저장)
+  useEffect(() => {
+    if (insight && !loadingInsight && data.totalRevenue > 0) {
+      const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
+      localStorage.setItem(cacheKey, insight);
+    }
+  }, [insight, loadingInsight, selectedMonth, data.totalRevenue]);
 
   const formatMonth = (m: string) => {
     if (!m) return "선택 안됨";
@@ -229,39 +328,87 @@ export default function OkchartPage() {
             </div>
           </div>
 
-          {/* Year Tabs */}
-          <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar">
-            {uniqueYears.map(year => (
-              <button
-                key={year}
-                onClick={() => setDisplayYear(year)}
-                className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border ${
-                  displayYear === year 
-                  ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
-                  : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
-                }`}
-              >
-                {year}년
-              </button>
-            ))}
+          {/* Year Tabs & Management Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {uniqueYears.map(year => (
+                <button
+                  key={year}
+                  onClick={() => setDisplayYear(year)}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
+                    displayYear === year 
+                    ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
+                    : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
+                  }`}
+                >
+                  {year}년
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!isManageMode ? (
+                <button 
+                  onClick={() => setIsManageMode(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group"
+                >
+                  <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={toggleSelectAll}
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
+                  >
+                    {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
+                  </button>
+                  <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedMonthsForDelete.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={14} /> {selectedMonthsForDelete.length}개 삭제
+                  </button>
+                  <button 
+                    onClick={handleDeleteAll}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-rose-400 text-[10px] font-black uppercase border border-rose-500/30 hover:bg-rose-900/20 transition-all"
+                  >
+                    초기화
+                  </button>
+                  <button 
+                    onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
+                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                  >
+                    닫기
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Filtered Horizontal Month Navigation */}
           <div className="mb-10 relative">
-            <div className="flex items-center gap-1.5 pb-4">
+            <div className="flex items-center gap-1.5 pb-4 overflow-x-auto no-scrollbar">
               {filteredMonths.map((m) => (
                 <button
                   key={m}
-                  onClick={() => handleMonthClick(m)}
-                  className={`flex-1 min-w-0 py-3 rounded-xl border transition-all flex flex-col items-center justify-center ${
-                    selectedMonth === m 
+                  onClick={() => isManageMode ? toggleMonthSelection(m) : handleMonthClick(m)}
+                  className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center justify-center relative ${
+                    isManageMode && selectedMonthsForDelete.includes(m)
+                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 scale-95 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+                    : selectedMonth === m && !isManageMode
                     ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
-                    : compareMonth === m
+                    : compareMonth === m && !isManageMode
                     ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
                     : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
                   }`}
                 >
-                  <span className={`text-[8px] font-black uppercase ${selectedMonth === m ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
+                  {isManageMode && (
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#0A0E1A] border-white/20"}`}>
+                       {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
+                    </div>
+                  )}
+                  <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
                     {m.split("-")[0].slice(2)}년
                   </span>
                   <span className="text-sm font-black tracking-tighter">
@@ -269,9 +416,9 @@ export default function OkchartPage() {
                   </span>
                 </button>
               ))}
-              {availableMonths.length === 0 && (
+              {filteredMonths.length === 0 && (
                 <div className="text-slate-600 text-sm font-medium py-4 px-2 italic">
-                  업로드된 데이터가 없습니다. 엑셀 파일을 업로드해주세요.
+                  {displayYear}년 데이터가 없습니다.
                 </div>
               )}
             </div>
@@ -812,76 +959,196 @@ export default function OkchartPage() {
           </div>
         </div>
 
-        {/* AI Insight & YouTube Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {/* Clinic AI Strategy */}
-          <div className="lg:col-span-2 relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1A1F35] to-[#0D1117] border border-gold-500/20 shadow-2xl">
-            <div className="absolute top-0 right-0 p-12 opacity-[0.05] group-hover:scale-110 transition-transform duration-1000">
-              <Lightbulb size={240} />
+        {/* Strategic Dashboard: Growth vs Risk (High-End) */}
+        <section className="mb-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
+                <div className="h-1 w-8 bg-gold-500 rounded-full" />
+                성장 vs 위험 전략 대시보드
+              </h2>
+              <p className="text-slate-500 text-xs mt-1">실시간 데이터 분석 기반 경영 전략 매트릭스</p>
             </div>
-            
-            <div className="relative z-10 p-8 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-[#0A0E1A] shadow-lg shadow-gold-500/20">
-                    <TrendingUp size={28} />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">AI 경영 분석 인사이트</h2>
-                    <p className="text-gold-500/80 text-xs font-bold uppercase tracking-widest">Powered by Gemini Pro</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-gold-500/10 border border-gold-500/20">
-                  <div className="h-2 w-2 rounded-full bg-gold-500 animate-pulse" />
-                  <span className="text-[10px] font-bold text-gold-500 uppercase tracking-tighter">Live Analysis</span>
-                </div>
-              </div>
+            <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+              <span className="text-[10px] font-black text-slate-500 uppercase">Current Month Score</span>
+              <div className="h-4 w-px bg-white/10" />
+              <span className="text-xl font-black text-gold-500">
+                {Math.round(
+                  Math.min(40, (revenuePerPatient / 120000) * 40) + 
+                  Math.min(20, ((pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0) / 90) * 20) + 
+                  Math.min(40, (data.newPatients / 50) * 40)
+                )}
+              </span>
+            </div>
+          </div>
 
-              <div className="flex-grow bg-black/40 backdrop-blur-sm border border-white/5 rounded-3xl p-8 min-h-[300px]">
-                {loadingInsight ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-4 py-12">
-                    <div className="w-12 h-12 border-2 border-gold-500/20 border-t-gold-500 rounded-full animate-spin" />
-                    <p className="text-gold-500 text-sm font-medium animate-pulse">Clinic data intelligence analyzing...</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* 🚀 좌측: 성장 및 기회 전략 (Blue Theme) */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-blue-500/20 shadow-2xl p-8"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Rocket size={200} />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Rocket size={20} />
                   </div>
-                ) : (
-                  <div className="prose prose-invert prose-gold max-w-none">
-                    <p className="text-slate-300 leading-relaxed text-lg font-light whitespace-pre-wrap">
-                      {insight || "데이터를 업로드하시면 실시간 AI 경영 분석 리포트가 생성됩니다."}
+                  <h3 className="text-xl font-black text-blue-400 uppercase tracking-tighter">🚀 성장 및 기회 전략</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Item 1: LTV Systematization */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all group/item">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-blue-200">1. 비급여 고액 결제(LTV) 시스템화</span>
+                      <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">상태: {data.nonCovered / (data.newPatients || 1) > 300000 ? "우수" : "보완"}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      신환 1인당 비급여 기여도 <span className="text-blue-400 font-bold">{formatNumber(Math.round(data.nonCovered / (data.newPatients || 1)))}원</span>. 
+                      자보/재진 환자용 프리미엄 패키지 안내 프로토콜을 가동하여 고액 결제 비중을 높이세요.
                     </p>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
 
-          {/* YouTube Recommendations */}
-          <div className="bg-[#111624] border border-white/10 rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl relative group">
-             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:opacity-10 transition-all">
-               <Play size={120} />
-             </div>
-             
-             <div className="p-8 pb-4">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="h-12 w-12 rounded-2xl bg-red-500/10 flex items-center justify-center text-red-500 shadow-inner">
-                    <Play size={26} />
+                  {/* Item 2: Resource Timing */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
+                    <span className="text-sm font-bold text-blue-200 block mb-2">2. 데이터 기반 자원 집중 및 마케팅</span>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      일평균 환자 <span className="text-blue-400 font-bold">{data.avgDailyPatients.toFixed(1)}명</span>. 
+                      주말/월말 인력 집중 및 당근마켓/블로그 광고 입찰가 최적화를 통해 유입 효율을 극대화할 타이밍입니다.
+                    </p>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">원장님을 위한 추천 영상</h2>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Management Strategy</p>
+
+                  {/* Item 3: Re-investment */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-blue-200">3. 선순환 투자 및 리텐션 강화</span>
+                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        유지율: {(pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0).toFixed(1)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      건강한 현금흐름을 초진 유치 채널에 재투자하세요. 현재 환자 유지율을 바탕으로 충성 고객 전용 캠페인 강화를 제안합니다.
+                    </p>
                   </div>
                 </div>
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-6" />
-             </div>
+              </div>
+            </motion.div>
 
-             <div className="px-8 pb-8 flex-grow">
-               <div className="space-y-4">
-                 <YoutubeVideoLink keyword={currentData.generatedRevenue?.nonCovered > (currentData.generatedRevenue?.total * 0.4) ? "비급여 상담 스페셜리스트" : "한의원 재진 환자 관리"} />
-                 <YoutubeVideoLink keyword="한의원 경영 분석" />
-                 <YoutubeVideoLink keyword="오케이차트 활용 한의원 경영" />
-               </div>
-             </div>
+            {/* ⚠️ 우측: 위험 및 방어 전략 (Red Theme) */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-rose-500/20 shadow-2xl p-8"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <ShieldAlert size={200} />
+              </div>
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="h-10 w-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter">⚠️ 위험 및 방어 전략</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Item 1: Revenue Concentration */}
+                  <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/10 hover:bg-rose-500/10 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">1. 매출 편중 리스크 관리</span>
+                      {/* 실제 일별 데이터가 없을 경우를 대비해 상징적 알림으로 표시 */}
+                      <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">집중도 점검</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      특정일 매출 의존도가 30%를 초과하지 않도록 주의하세요. 고액 결제 의존도를 탈피하고 평일 중저가 파이프라인 구축이 필요합니다.
+                    </p>
+                  </div>
+
+                  {/* Item 2: Entry Cliff */}
+                  <div className={`p-5 rounded-2xl ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'bg-rose-500/20 border-rose-500/40 animate-pulse' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">2. 고수익 착시 및 유입 절벽</span>
+                      <span className={`text-[10px] font-black ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'text-white bg-rose-600' : 'text-rose-500 bg-rose-500/10'} px-2 py-0.5 rounded-full`}>
+                        신환비율: {data.totalPatients > 0 ? ((data.newPatients / data.totalPatients) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                    {data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 && (
+                      <div className="flex items-center gap-2 mb-2 text-rose-400 font-bold text-[10px]">
+                        <AlertTriangle size={12} /> 위험: 신규 환자 유입이 기준치(10%) 미만입니다!
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      매출은 유지되나 신환 비중이 낮습니다. 재진 사이클 종료 시 급격한 매출 하락이 우려되므로 즉각적인 마케팅 전환이 시급합니다.
+                    </p>
+                  </div>
+
+                  {/* Item 3: KPI Shift & Operational Load */}
+                  <div className={`p-5 rounded-2xl ${data.avgDailyPatients > 40 ? 'bg-rose-500/20 border-rose-500/40' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">3. 선행 지표 관리 및 진료 밀도</span>
+                      <span className={`text-[10px] font-black ${data.avgDailyPatients > 40 ? 'text-white bg-rose-600' : 'text-indigo-500 bg-indigo-500/10'} px-2 py-0.5 rounded-full`}>
+                        일평균: {data.avgDailyPatients.toFixed(1)}명
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      매출보다 <b>'일일 신규 환자 3명 달성'</b>으로 지표를 강제 전환하세요. {data.avgDailyPatients > 40 ? "진료 밀도가 매우 높습니다. 서비스 질 저하 및 리텐션 하락을 방지하기 위한 인력 배치가 필요합니다." : "운영 효율성은 현재 안정적인 범위 내에 있습니다."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
+        </section>
+        {/* Bottom CTA to AI Deep Analysis */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 mb-20 px-4"
+        >
+          <button 
+            onClick={() => router.push("/ai-intelligence")}
+            className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-2xl shadow-blue-500/20 active:scale-[0.98] transition-all"
+          >
+            <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+              {/* Animated Background Decor */}
+              <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
+                <BrainCircuit size={300} />
+              </div>
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px]" />
+
+              <div className="relative z-10 flex items-center gap-8 text-left">
+                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 group-hover:rotate-6 transition-transform">
+                  <Sparkles size={40} />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-white tracking-tight mb-2">AI 경영 심층 분석 리포트</h2>
+                  <p className="text-slate-400 font-light max-w-md">
+                    수개월간의 데이터를 통합 분석하여 원장님께 가장 최적화된 맞춤형 경영 전략과 미래 예측을 제안합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex flex-col items-end mr-4 hidden md:block">
+                  <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Upgrade Strategy</span>
+                  <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 group-hover:border-blue-500 transition-all duration-300">
+                  <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </button>
+        </motion.section>
 
         {/* Footer Info */}
         <div className="text-center p-12 mt-12 border-t border-white/5">

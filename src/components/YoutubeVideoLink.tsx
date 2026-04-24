@@ -130,8 +130,8 @@ export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: Yout
         addHistory({
           title: video.snippet.title,
           keyword: keyword,
-          desc: activeSolution.desc,
-          indicator: mLabel,
+          desc: activeSolution?.desc || "AI 추천 경영 영상 학습",
+          indicator: mLabel || "AI 추천",
           id: videoId
         });
         toast.success("경영 학습 기록에 저장되었습니다.");

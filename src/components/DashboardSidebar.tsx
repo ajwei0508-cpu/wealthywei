@@ -14,7 +14,8 @@ import {
   LogOut,
   User,
   Crown,
-  ClipboardList
+  ClipboardList,
+  Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -129,6 +130,14 @@ export default function DashboardSidebar() {
               </div>
             ))}
           </NavItem>
+
+          {/* 1.1 AI 경영 분석 (New) */}
+          <NavItem 
+            icon={Sparkles} 
+            label="AI 경영 분석" 
+            isActive={pathname === "/emr/okchart"}
+            onClick={() => router.push("/emr/okchart")}
+          />
 
           {/* 2. 바른개원법 (Locked) */}
           <NavItem icon={FileText} label="바른개원법" isLocked />

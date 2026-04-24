@@ -4,7 +4,10 @@ import { DataMetrics } from "@/context/DataContext";
 /**
  * 전담 한의원 경영 진단 AI 서비스
  */
-export async function generateClinicInsight(data: DataMetrics): Promise<string> {
+/**
+ * 전담 한의원 경영 진단 AI 서비스 (스트리밍 지원)
+ */
+export async function generateClinicInsightStream(data: DataMetrics, onChunk: (text: string) => void): Promise<void> {
   const isOkchart = !!data.okchartData;
   const metrics = isOkchart ? data.okchartData : null;
   
@@ -15,7 +18,7 @@ export async function generateClinicInsight(data: DataMetrics): Promise<string> 
     [데이터 정보]
     - 모델: ${isOkchart ? "오케이차트 (OkChart)" : "일반 데이터"}
     - 총 매출: ${data.generatedRevenue.total.toLocaleString()}원
-    - 보험 매출: ${data.generatedRevenue.insurance.toLocaleString() + data.generatedRevenue.copay.toLocaleString()}원
+    - 보험 매출: ${(data.generatedRevenue.insurance + data.generatedRevenue.copay).toLocaleString()}원
     - 비급여 매출: ${data.generatedRevenue.nonCovered.toLocaleString()}원
     - 자동차보험: ${data.generatedRevenue.auto.toLocaleString()}원
     - 내원 환자수: ${data.patientMetrics.total}명
@@ -24,17 +27,85 @@ export async function generateClinicInsight(data: DataMetrics): Promise<string> 
     - 미수금: ${metrics.receivables.toLocaleString()}원
     - 할인액: ${metrics.discountTotal.toLocaleString()}원
     - 실제 수납액: ${metrics.totalReceived.toLocaleString()}원
-    - 카드 결제 비중: ${((metrics.cardPayment / metrics.totalReceived) * 100).toFixed(1)}%
+    - 카드 결제 비중: ${metrics.totalReceived > 0 ? ((metrics.cardPayment / metrics.totalReceived) * 100).toFixed(1) : 0}%
     ` : ""}
 
     [작성 가이드라인]
-    1. 현재 경영 상태에 대한 총평 (긍정적인 점 포함)
-    2. 강점과 약점 (매출 구조, 환자 유입 등 분석)
-    3. 구체적인 경영 개선 제안 (비급여 비중, 신환 유입 등)
-    4. 다음 달을 위한 한 줄 전략
+    1. 현재 경영 상태에 대한 핵심 요약 (3줄 이내)
+    2. 이번 달 가장 주목해야 할 지표 한 가지와 이유
+    3. 즉각적인 개선 제안 (단기 전략)
 
-    문체는 정중하면서도 통찰력 있게 작성해주시고, 수치에 기반한 분석을 포함해주세요.
+    문체는 정중하면서도 통찰력 있게 작성해주시고, **매우 간결하게 핵심 위주로** 작성해주세요.
     마크다운 형식을 사용하여 가독성 있게 응답해주세요.
+  `;
+
+  try {
+    const result = await model.generateContentStream(prompt);
+    let fullText = "";
+    for await (const chunk of result.stream) {
+      const chunkText = chunk.text();
+      fullText += chunkText;
+      onChunk(fullText);
+    }
+  } catch (error) {
+    console.error("AI Insight Streaming Failed:", error);
+    onChunk("현재 데이터를 분석하는 중 오류가 발생했습니다.");
+  }
+}
+
+export async function generateClinicInsight(data: DataMetrics): Promise<string> {
+  let fullText = "";
+  await generateClinicInsightStream(data, (text) => { fullText = text; });
+  return fullText;
+}
+
+/**
+ * 다중 월 데이터를 분석하여 거시적 전략 브리핑 생성 (JSON 기반 시각화 대응)
+ */
+export async function generateStrategicBriefing(history: { month: string, metrics: DataMetrics }[]): Promise<string> {
+  const sortedHistory = [...history].sort((a, b) => a.month.localeCompare(b.month));
+  
+  const dataSummary = sortedHistory.map(h => `
+    - ${h.month}: 매출 ${h.metrics.generatedRevenue.total.toLocaleString()}원, 환자 ${h.metrics.patientMetrics.total}명 (신환 ${h.metrics.patientMetrics.new}명), 비급여 ${h.metrics.generatedRevenue.nonCovered.toLocaleString()}원
+  `).join("\n");
+
+  const prompt = `
+    당신은 세계 최고의 병원 경영 컨설팅 그룹의 수석 파트너입니다. 
+    제공된 한의원의 시계열 경영 데이터를 정밀 분석하여, 원장님을 위한 '최고 등급 전략 보고서'를 JSON 형식으로 작성해주세요.
+
+    [과거 데이터 추이]
+    ${dataSummary}
+
+    [응답 JSON 형식]
+    반드시 아래 구조의 JSON 데이터만 출력해주세요 (추가 텍스트 금지):
+    {
+      "summary": {
+        "headline": "강력하고 전문적인 한 줄 메시지",
+        "statusPill": "성장 가속 | 안정화 단계 | 리스크 관리 | 공격적 확장",
+        "healthScores": {
+          "profitability": 0-100점,
+          "stability": 0-100점,
+          "growth": 0-100점,
+          "patientFlow": 0-100점,
+          "efficiency": 0-100점
+        }
+      },
+      "executiveInsights": [
+        { "title": "핵심 통찰 제목", "content": "데이터 근거가 포함된 심층 분석 (2줄)", "impact": "매우 높음 | 높음 | 보통" }
+      ],
+      "actionPlan": [
+        { "phase": "1단계: 제목", "task": "구체적인 실천 과제", "expectedEffect": "기대 효과" }
+      ],
+      "recommendedVideoKeyword": "아래 목록 중 데이터 분석 결과 가장 필요한 키워드 1개만 선택",
+      "detailedAnalysis": "전체적인 경영 흐름과 미래 예측을 담은 심층 서사형 리포트 (마크다운 형식)"
+    }
+
+    [선택 가능한 키워드 목록]
+    - 상담/클로징: 1등 상담 화법, 클로징 성공 기술, 고객 심리 공략
+    - 마케팅/브랜딩: 고객 유입 마케팅 공식, 입소문 마케팅 비결, 브랜딩 차별화 전략
+    - 서비스/마인드: 친절한 고객 응대 말투, 리더의 조직 관리 대화법, 성공 사업가 마인드셋
+
+    문체는 지극히 전문적이고 통찰력 있게 작성해주세요.
   `;
 
   try {
@@ -42,7 +113,12 @@ export async function generateClinicInsight(data: DataMetrics): Promise<string> 
     const response = await result.response;
     return response.text();
   } catch (error) {
-    console.error("AI Insight Generation Failed:", error);
-    return "현재 데이터를 분석하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주시거나, 데이터를 확인해주세요.";
+    console.error("Strategic Briefing Failed:", error);
+    return JSON.stringify({
+      summary: { headline: "분석 중 오류 발생", statusPill: "Error", healthScores: { profitability: 0, stability: 0, growth: 0, patientFlow: 0, efficiency: 0 } },
+      executiveInsights: [],
+      actionPlan: [],
+      detailedAnalysis: "데이터 추세 분석 중 오류가 발생했습니다."
+    });
   }
 }
