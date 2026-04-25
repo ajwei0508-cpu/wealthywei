@@ -1,0 +1,1410 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { 
+  ArrowLeft,
+  ArrowRight,
+  TrendingUp, 
+  Users, 
+  CreditCard, 
+  ArrowUpRight, 
+  Plus, 
+  Clock, 
+  Calendar,
+  ChevronRight,
+  Info,
+  Lightbulb,
+  Trash2,
+  FileText,
+  ShieldCheck,
+  AlertCircle,
+  DollarSign,
+  ArrowDownCircle,
+  MinusCircle,
+  Play,
+  Upload,
+  Rocket,
+  Zap,
+  AlertTriangle,
+  Activity,
+  ShieldAlert,
+  BrainCircuit,
+  Sparkles
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useData } from "@/context/DataContext";
+import DashboardLayout from "@/components/DashboardLayout";
+import { parseExcelFile } from "@/lib/excelParser";
+import toast from "react-hot-toast";
+import { generateClinicInsightStream } from "@/lib/aiService";
+import { useRouter } from "next/navigation";
+import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
+
+const formatNumber = (num: number) => {
+  return new Intl.NumberFormat("ko-KR").format(num || 0);
+};
+
+export default function HanchartPage() {
+  const { 
+    monthlyData, 
+    selectedMonth, 
+    compareMonth,
+    setSelectedMonth, 
+    setCompareMonth,
+    setMonthlyData, 
+    resetData,
+    deleteMonthlyData 
+  } = useData();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [insight, setInsight] = useState<string>("");
+  const [loadingInsight, setLoadingInsight] = useState(false);
+  const [isManageMode, setIsManageMode] = useState(false);
+  const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; type: "single" | "bulk" | "all" } | null>(null);
+
+  // State for Period Comparison
+  const [viewMode, setViewMode] = useState<"single" | "period">("single");
+  const [startMonth, setStartMonth] = useState<string>("");
+  const [endMonth, setEndMonth] = useState<string>("");
+  const router = useRouter();
+
+  const availableMonths = React.useMemo(() => {
+    return Object.keys(monthlyData).sort();
+  }, [monthlyData]);
+
+  const filteredMonthsForPeriod = React.useMemo(() => {
+    if (!startMonth || !endMonth) return [];
+    return availableMonths.filter(m => m >= startMonth && m <= endMonth);
+  }, [availableMonths, startMonth, endMonth]);
+
+  // Current & Previous Data for Comparison
+
+  // --- Standardized Data Mapping for hanchart ---
+  const currentEntry = monthlyData[selectedMonth] || {};
+  const rawData = currentEntry.hanchartData;
+  
+  const isMock = !rawData;
+  const data = rawData ? {
+    totalPatients: rawData.totalPatients || 0,
+    newPatients: rawData.newPatients || 0,
+    autoPatients: rawData.autoPatients || 0,
+    avgDailyPatients: (rawData.totalPatients || 0) / 24,
+    totalRevenue: rawData.totalRevenue || 0,
+    insuranceClaim: rawData.insuranceClaim || 0,
+    copay: rawData.copay || 0,
+    autoClaim: rawData.autoClaim || 0,
+    workerClaim: rawData.workerClaim || 0,
+    nonCovered: rawData.nonCovered || 0,
+    patientTotal: (rawData.copay || 0) + (rawData.nonCovered || 0) + (rawData.autoClaim || 0),
+    receivables: rawData.receivables || 0,
+    discountTotal: rawData.discountTotal || rawData.discount || 0,
+    roundOffTotal: rawData.roundOffTotal || 0,
+    totalReceived: rawData.totalReceived || 0,
+    totalRefund: rawData.totalRefund || 0,
+    cashPayment: rawData.cashPayment || rawData.cashTotal || 0,
+    cardPayment: rawData.cardPayment || rawData.cardTotal || 0,
+    giftPayment: rawData.transferPayment || 0,
+    treatments: rawData.treatments || {},
+  } : {
+    "totalPatients": 1250,
+    "newPatients": 85,
+    "autoPatients": 12,
+    "avgDailyPatients": 52,
+    "totalRevenue": 75400000,
+    "insuranceClaim": 28400000,
+    "copay": 10200000,
+    "autoClaim": 4500000,
+    "workerClaim": 0,
+    "nonCovered": 36800000,
+    "patientTotal": 47000000,
+    "receivables": 1850000,
+    "discountTotal": 650000,
+    "roundOffTotal": 15400,
+    "totalReceived": 45200000,
+    "totalRefund": 350000,
+    "cashPayment": 12500000,
+    "cardPayment": 32700000,
+    "giftPayment": 0,
+    "treatments": {}
+};
+
+  const prevMonthIndex = availableMonths.indexOf(selectedMonth) - 1;
+  const prevMonthKey = prevMonthIndex >= 0 ? availableMonths[prevMonthIndex] : "";
+  const prevEntry = monthlyData[compareMonth || prevMonthKey] || {};
+  const rawPData = prevEntry.hanchartData;
+
+  const mockHanchartData = [
+    { rank: 1, type: "초진(64)", nonTaxable: 4460100, taxable: 1360000, coveredCopay: 707690, coveredClaim: 1862610, autoClaim: 1388750, totalCopay: 6527790, supportFund: 6000, totalRevenue: 9779150, ratio: 14.2 },
+    { rank: 2, type: "재진(937)", nonTaxable: 19670600, taxable: 1788000, coveredCopay: 7931130, coveredClaim: 21176800, autoClaim: 8792730, totalCopay: 29014730, supportFund: 5500, totalRevenue: 58984260, ratio: 85.8 },
+  ];
+  
+  const displayData = isMock ? mockHanchartData : (currentEntry.hanchartData || []);
+
+  const pData = rawPData ? {
+    totalPatients: rawPData.totalPatients || 0,
+    newPatients: rawPData.newPatients || 0,
+    autoPatients: rawPData.autoPatients || 0,
+    avgDailyPatients: (rawPData.totalPatients || 0) / 24,
+    totalRevenue: rawPData.totalRevenue || 0,
+    insuranceClaim: rawPData.insuranceClaim || 0,
+    copay: rawPData.copay || 0,
+    autoClaim: rawPData.autoClaim || 0,
+    workerClaim: rawPData.workerClaim || 0,
+    nonCovered: rawPData.nonCovered || 0,
+  } : data;
+
+
+  // Derived Metrics
+  const insuranceRevenue = data.insuranceClaim + data.copay;
+  const pInsuranceRevenue = pData.insuranceClaim + pData.copay;
+  
+  const revenuePerPatient = data.totalPatients > 0 ? data.totalRevenue / data.totalPatients : 0;
+  const pRevenuePerPatient = pData.totalPatients > 0 ? pData.totalRevenue / pData.totalPatients : 0;
+  
+  const nonCoveredRatio = insuranceRevenue > 0 ? (data.nonCovered / insuranceRevenue) * 100 : 0;
+  const pNonCoveredRatio = pInsuranceRevenue > 0 ? (pData.nonCovered / pInsuranceRevenue) * 100 : 0;
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    toast.loading("한차트 파일 분석 중...", { id: "excel-parse" });
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const resList = await parseExcelFile(files[i], selectedMonth, "okchart");
+        for (const res of resList) {
+          // 신규환자가 0인 달은 미래의 예약된 데이터이거나 실적이 없는 달이므로 등록에서 제외 및 기존 데이터 삭제
+          const d = res.extractedData;
+          const isInvalidMonth = d.newPatients === 0;
+          
+          if (!isInvalidMonth) {
+            await setMonthlyData(res.targetMonth, d);
+          } else {
+            // 이미 0원 데이터가 등록되어 있는 경우 삭제 처리하여 화면에서 제거
+            await deleteMonthlyData(res.targetMonth);
+            console.log(`${res.targetMonth} 데이터는 신규환자가 0명이라 삭제/제외 처리했습니다.`);
+          }
+        }
+      }
+      
+      // 업로드 후 선택된 달이 삭제된 달(0명)이라면, 가장 최근 데이터가 있는 달로 자동 이동
+      const currentMonths = Object.keys(monthlyData).sort();
+      if (currentMonths.length > 0 && !currentMonths.includes(selectedMonth)) {
+        setSelectedMonth(currentMonths[currentMonths.length - 1]);
+      }
+
+      toast.success("분석 완료", { id: "excel-parse" });
+    } catch (err: any) {
+      toast.error(err.message, { id: "excel-parse" });
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    console.log(`[HanchartPage] Attempting to delete ${selectedMonthsForDelete.length} months`);
+    if (pendingDelete?.type !== "bulk") {
+      setPendingDelete({ id: "bulk", type: "bulk" });
+      return;
+    }
+    
+    setPendingDelete(null);
+    
+    toast.loading("데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of selectedMonthsForDelete) {
+        await deleteMonthlyData(m);
+      }
+      setSelectedMonthsForDelete([]);
+      setIsManageMode(false);
+      toast.success("선택한 데이터가 삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const allMonths = Object.keys(monthlyData);
+    console.log("[HanchartPage] Attempting to delete ALL data");
+    if (pendingDelete?.type !== "all") {
+      setPendingDelete({ id: "all", type: "all" });
+      return;
+    }
+    
+    setPendingDelete(null);
+    
+    toast.loading("전체 데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of allMonths) {
+        await deleteMonthlyData(m);
+      }
+      setIsManageMode(false);
+      toast.success("전체 데이터가 삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
+  const toggleMonthSelection = (m: string) => {
+    setSelectedMonthsForDelete(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const allMonths = Object.keys(monthlyData);
+    if (selectedMonthsForDelete.length === allMonths.length) {
+      setSelectedMonthsForDelete([]);
+    } else {
+      setSelectedMonthsForDelete(allMonths);
+    }
+  };
+
+  useEffect(() => {
+    async function getInsight() {
+      if (data.totalRevenue > 0) {
+        const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
+        const cached = localStorage.getItem(cacheKey);
+        
+        if (cached) {
+          setInsight(cached);
+          setLoadingInsight(false);
+          return;
+        }
+
+        setLoadingInsight(true);
+        setInsight(""); // 초기화
+        try {
+          await generateClinicInsightStream(currentEntry, (text) => {
+            setInsight(text);
+          });
+          // 스트리밍 완료 후 캐시 저장 (전체 텍스트가 완성되었을 때)
+          // useEffect 내에서 스트리밍이 끝나면 마지막 텍스트를 캐싱하도록 처리
+        } catch (e) {
+          setInsight("현재 데이터를 기반으로 원장님의 병원을 위한 경영 진단을 준비 중입니다.");
+        } finally {
+          setLoadingInsight(false);
+        }
+      }
+    }
+    getInsight();
+  }, [data.totalRevenue, currentEntry, selectedMonth]);
+
+  // 캐싱을 위한 별도 effect (텍스트가 완성되면 저장)
+  useEffect(() => {
+    if (insight && !loadingInsight && data.totalRevenue > 0) {
+      const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
+      localStorage.setItem(cacheKey, insight);
+    }
+  }, [insight, loadingInsight, selectedMonth, data.totalRevenue]);
+
+  const formatMonth = (m: string) => {
+    if (!m) return "선택 안됨";
+    const [year, month] = m.split("-");
+    return `${year.slice(2)}년 ${month}월`;
+  };
+
+  const [displayYear, setDisplayYear] = useState<string>(() => {
+    return selectedMonth.split("-")[0];
+  });
+
+  const uniqueYears = Array.from(new Set(availableMonths.map(m => m.split("-")[0]))).sort((a, b) => b.localeCompare(a));
+
+  // 월 클릭 시 자동 전월 비교
+  const handleMonthClick = (m: string) => {
+    setSelectedMonth(m);
+    const idx = availableMonths.indexOf(m);
+    if (idx > 0) {
+      setCompareMonth(availableMonths[idx - 1]);
+    }
+  };
+
+  // Quick Comparison Logic
+  const setMoM = () => {
+    const idx = availableMonths.indexOf(selectedMonth);
+    if (idx > 0) setCompareMonth(availableMonths[idx - 1]);
+    else toast.error("이전 달 데이터가 없습니다.");
+  };
+
+  const setYoY = () => {
+    const [y, m] = selectedMonth.split("-");
+    const lastYear = `${parseInt(y) - 1}-${m}`;
+    if (availableMonths.includes(lastYear)) {
+      setCompareMonth(lastYear);
+      setDisplayYear((parseInt(y) - 1).toString()); // 해당 연도 탭으로 이동
+      toast.success(`${parseInt(y)-1}년 ${m}월과 비교합니다.`);
+    } else {
+      toast.error("작년 동월 데이터가 없습니다.");
+    }
+  };
+
+  const filteredMonths = availableMonths.filter(m => m.startsWith(displayYear));
+
+  return (
+    <DashboardLayout>
+      <div className="min-h-screen bg-[#0A0E1A] text-white font-sans selection:bg-gold-500/30">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-24">
+        
+        {/* Page Header */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <button 
+              onClick={() => router.push("/")} 
+              className="text-slate-500 hover:text-gold-400 flex items-center gap-2 text-sm transition-all group"
+            >
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> EMR 선택
+            </button>
+            <div className="flex items-center gap-3">
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" multiple className="hidden" />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 bg-[#FBBF24] hover:bg-[#F59E0B] text-[#0A0E1A] px-6 py-3 rounded-2xl text-xs font-black transition-all shadow-[0_0_20px_rgba(251,191,36,0.3)] active:scale-95 group"
+              >
+                <Upload size={18} className="group-hover:bounce-y transition-transform" /> 
+                <span className="tracking-tight">신규 데이터 업로드</span>
+              </button>
+              <div className="flex items-center gap-2 relative">
+                {pendingDelete?.type === "single" && pendingDelete.id === selectedMonth ? (
+                  <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+                    <button
+                      onClick={() => {
+                        console.log(`[HanchartPage] Confirmed reset for ${selectedMonth}`);
+                        deleteMonthlyData(selectedMonth);
+                        setPendingDelete(null);
+                      }}
+                      className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg shadow-rose-500/20"
+                    >
+                      진짜 삭제
+                    </button>
+                    <button
+                      onClick={() => setPendingDelete(null)}
+                      className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all"
+                    >
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { 
+                      console.log(`[HanchartPage] Reset button clicked for ${selectedMonth}`);
+                      setPendingDelete({ id: selectedMonth, type: "single" });
+                    }}
+                    className="group p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400 relative z-50 cursor-pointer"
+                    title="데이터 초기화"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-3 py-1 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-500 text-xs font-bold tracking-wider uppercase">
+                  EMR Intelligence
+                </span>
+                <span className="text-slate-400 text-xs font-medium uppercase tracking-widest flex items-center gap-1">
+                  <ShieldCheck size={12} className="text-emerald-500" /> Powered by OKChart
+                </span>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
+                한차트 <span className="text-slate-400">경영 리포트</span>
+              </h1>
+            </div>
+
+            {/* Quick Toggle Buttons */}
+            <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+              <button 
+                onClick={setYoY}
+                className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5 transition-all text-slate-400 hover:text-white"
+              >
+                작년 대비 (YoY)
+              </button>
+            </div>
+          </div>
+
+          {/* Year Tabs & Management Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {uniqueYears.map(year => (
+                <button
+                  key={year}
+                  onClick={() => setDisplayYear(year)}
+                  className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
+                    displayYear === year 
+                    ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
+                    : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
+                  }`}
+                >
+                  {year}년
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!isManageMode ? (
+                <button 
+                  onClick={() => {
+                    console.log("[HanchartPage] Entering Data Management Mode");
+                    setIsManageMode(true);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group relative z-50 cursor-pointer"
+                >
+                  <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 relative z-50">
+                  <button 
+                    onClick={toggleSelectAll}
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
+                  </button>
+                  <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedMonthsForDelete.length === 0}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer font-black text-[10px] uppercase ${
+                      pendingDelete?.type === "bulk" 
+                        ? "bg-rose-600 text-white ring-2 ring-white/20 scale-105" 
+                        : "bg-rose-500 text-white hover:bg-rose-600"
+                    }`}
+                  >
+                    <Trash2 size={14} /> {pendingDelete?.type === "bulk" ? "정말 삭제할까요?" : `${selectedMonthsForDelete.length}개 삭제`}
+                  </button>
+                  <button 
+                    onClick={handleDeleteAll}
+                    className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase border transition-all cursor-pointer ${
+                      pendingDelete?.type === "all"
+                        ? "bg-rose-700 text-white border-white/50 scale-105"
+                        : "bg-slate-800 text-rose-400 border-rose-500/30 hover:bg-rose-900/20"
+                    }`}
+                  >
+                    {pendingDelete?.type === "all" ? "전체 데이터 삭제 확정" : "초기화"}
+                  </button>
+                  {pendingDelete && (
+                    <button 
+                      onClick={() => setPendingDelete(null)}
+                      className="px-4 py-2 rounded-xl bg-white/20 text-white text-[10px] font-black uppercase hover:bg-white/30 transition-all cursor-pointer"
+                    >
+                      취소
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
+                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all cursor-pointer"
+                  >
+                    닫기
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Filtered Horizontal Month Navigation */}
+          <div className="mb-10 relative">
+            <div className="flex items-center gap-1.5 pb-4 overflow-x-auto no-scrollbar">
+              {filteredMonths.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => isManageMode ? toggleMonthSelection(m) : handleMonthClick(m)}
+                  className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center justify-center relative ${
+                    isManageMode && selectedMonthsForDelete.includes(m)
+                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 scale-95 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
+                    : selectedMonth === m && !isManageMode
+                    ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
+                    : compareMonth === m && !isManageMode
+                    ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                    : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
+                  }`}
+                >
+                  {isManageMode && (
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#0A0E1A] border-white/20"}`}>
+                       {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
+                    </div>
+                  )}
+                  <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
+                    {m.split("-")[0].slice(2)}년
+                  </span>
+                  <span className="text-sm font-black tracking-tighter">
+                    {m.split("-")[1]}월
+                  </span>
+                </button>
+              ))}
+              {filteredMonths.length === 0 && (
+                <div className="text-slate-600 text-sm font-medium py-4 px-2 italic">
+                  {displayYear}년 데이터가 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* New Animated Hero Row: Total Revenue */}
+          <div className="relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1A1F35] to-[#0D1117] border border-gold-500/30 shadow-2xl p-10 mb-8">
+            <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-1000">
+              <DollarSign size={300} />
+            </div>
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div>
+                <p className="text-gold-500/80 text-xs font-black uppercase tracking-[0.2em] mb-3">Target Month Performance</p>
+                <h2 className="text-white text-xl font-medium mb-1">
+                  <span className="text-gold-400 font-black">{formatMonth(selectedMonth)}</span> 총 진료비 매출액
+                </h2>
+                <p className="text-slate-500 text-sm">한차트 시스템에서 집계된 전체 발생 매출입니다.</p>
+              </div>
+              
+              <div className="text-center md:text-right">
+                <div className="inline-flex items-baseline gap-2 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-3xl border border-white/10 shadow-2xl">
+                  <RollingNumber value={data.totalRevenue} />
+                  <span className="text-2xl font-black text-slate-500">원</span>
+                </div>
+                {compareMonth && (
+                  <div className={`mt-4 flex items-center justify-center md:justify-end gap-2 font-bold ${data.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
+                    <div className={`px-2 py-0.5 rounded-md text-[10px] uppercase ${data.totalRevenue >= pData.totalRevenue ? "bg-emerald-500/10" : "bg-rose-500/10"}`}>
+                      {data.totalRevenue >= pData.totalRevenue ? "Growth" : "Decline"}
+                    </div>
+                    <span className="text-lg">
+                      {data.totalRevenue >= pData.totalRevenue ? "▲" : "▼"} 
+                      {formatNumber(Math.abs(data.totalRevenue - pData.totalRevenue))}원
+                    </span>
+                    <span className="text-slate-600 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Trend Mini Chart */}
+          <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">매출 및 내원 환자 추세</h3>
+                <p className="text-slate-500 text-xs">최근 업로드된 12개월간의 경영 흐름 분석</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-sm bg-gold-500" />
+                  <span className="text-[10px] font-bold text-slate-400">매출액</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400">환자수</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="h-48 flex items-end justify-between gap-1 px-2">
+              {(() => {
+                const currentIndex = availableMonths.indexOf(selectedMonth);
+                const trendMonths = availableMonths.slice(Math.max(0, currentIndex - 11), currentIndex + 1);
+                
+                // 시간순으로 정렬 (Oldest -> Newest)
+                const finalTrendMonths = trendMonths.length < 12 && availableMonths.length > trendMonths.length
+                  ? availableMonths.slice(0, 12)
+                  : [...trendMonths];
+
+                return finalTrendMonths.map((m) => {
+                  const mData = monthlyData[m]?.hanchartData;
+                  const rev = mData?.totalRevenue || 0;
+                  const maxRev = Math.max(...finalTrendMonths.map(mm => monthlyData[mm]?.hanchartData?.totalRevenue || 1));
+                  const height = Math.max(8, (rev / maxRev) * 100);
+                  
+                  return (
+                    <div 
+                      key={m} 
+                      onClick={() => handleMonthClick(m)}
+                      className="group relative flex-1 flex flex-col items-center gap-2 cursor-pointer"
+                    >
+                      <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
+                        <div 
+                          className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/10 group-hover:bg-white/20"}`}
+                          style={{ height: `${height}%` }}
+                        />
+                        <div 
+                          className="absolute w-full h-1 bg-blue-500/40 bottom-0 mb-1"
+                          style={{ bottom: `${Math.min(95, (mData?.totalPatients || 0) / 10)}%` }}
+                        />
+                      </div>
+                      <span className={`text-[9px] font-black transition-colors whitespace-nowrap ${selectedMonth === m ? "text-[#FBBF24]" : "text-slate-600"}`}>
+                        {m.split("-")[1]}월
+                      </span>
+                      
+                      <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none min-w-[120px] shadow-2xl">
+                        <p className="text-[10px] font-black text-slate-500 mb-1 uppercase">{formatMonth(m)}</p>
+                        <p className="text-sm font-black text-white">{formatNumber(rev)}원</p>
+                        <p className="text-[10px] font-bold text-blue-400 mt-1">{formatNumber(mData?.totalPatients || 0)}명 내원</p>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
+          {/* Second Row: Comparison Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {/* 1. Total Revenue Comparison Card */}
+            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-gold-500/30 transition-all group shadow-xl">
+              <div className="flex justify-between items-start mb-6">
+                <div className="p-3 bg-gold-500/10 rounded-2xl text-gold-500 group-hover:bg-gold-500 group-hover:text-[#0A0E1A] transition-all">
+                  <TrendingUp size={22} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Monthly Growth</p>
+                  <p className={`text-sm font-black ${data.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pData.totalRevenue > 0 ? ((data.totalRevenue - pData.totalRevenue) / pData.totalRevenue * 100).toFixed(1) : 0}%
+                  </p>
+                </div>
+              </div>
+              <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">전월 대비 매출 비교</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] text-slate-600 font-bold uppercase">{formatMonth(compareMonth || prevMonthKey)}</span>
+                  <span className="text-sm font-bold text-slate-400">{formatNumber(pData.totalRevenue)}</span>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-[10px] text-gold-500 font-bold uppercase">{formatMonth(selectedMonth)}</span>
+                  <span className="text-xl font-black text-white">{formatNumber(data.totalRevenue)}</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mt-2">
+                  <div 
+                    className="h-full bg-gold-500" 
+                    style={{ width: `${Math.min(100, (data.totalRevenue / (pData.totalRevenue || 1)) * 50)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Revenue Per Patient (객단가) */}
+            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-blue-500/30 transition-all group shadow-xl">
+              <div className="flex justify-between items-start mb-6">
+                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                  <Users size={22} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Efficiency</p>
+                  <p className={`text-sm font-black ${revenuePerPatient >= pRevenuePerPatient ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pRevenuePerPatient > 0 ? ((revenuePerPatient - pRevenuePerPatient) / pRevenuePerPatient * 100).toFixed(1) : 0}%
+                  </p>
+                </div>
+              </div>
+              <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">평균 객단가 분석</h3>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-3xl font-black text-white tracking-tighter">{formatNumber(Math.round(revenuePerPatient))}</span>
+                <span className="text-sm font-bold text-slate-500">원 / 명</span>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 text-[11px] text-blue-200/60 leading-relaxed">
+                지난달 대비 환자 1인당 매출이 <span className="text-blue-400 font-bold">{formatNumber(Math.abs(Math.round(revenuePerPatient - pRevenuePerPatient)))}원</span> {revenuePerPatient >= pRevenuePerPatient ? "증가" : "감소"}했습니다.
+              </div>
+            </div>
+
+            {/* 3. Non-covered Ratio Comparison */}
+            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-amber-500/30 transition-all group shadow-xl">
+              <div className="flex justify-between items-start mb-6">
+                <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
+                  <Plus size={22} />
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Revenue Mix</p>
+                  <p className="text-sm font-black text-amber-400">
+                    {nonCoveredRatio.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">건강보험 대비 비급여 비율</h3>
+              <div className="space-y-4">
+                <div className="relative h-4 w-full bg-slate-800 rounded-lg overflow-hidden flex">
+                  <div 
+                    className="h-full bg-blue-500 shadow-[inset_-2px_0_4px_rgba(0,0,0,0.3)]" 
+                    style={{ width: `${100 - nonCoveredRatio}%` }}
+                    title="건강보험"
+                  />
+                  <div 
+                    className="h-full bg-amber-500 shadow-[inset_2px_0_4px_rgba(0,0,0,0.3)]" 
+                    style={{ width: `${nonCoveredRatio}%` }}
+                    title="비급여"
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-slate-400">건강보험 {formatNumber(insuranceRevenue)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="text-slate-400">비급여 {formatNumber(data.nonCovered)}</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 italic mt-2 text-center">
+                  * 지난달 대비 비급여 비중이 <span className={nonCoveredRatio >= pNonCoveredRatio ? "text-emerald-400" : "text-rose-400"}>{(nonCoveredRatio - pNonCoveredRatio).toFixed(1)}%p</span> 변화했습니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        {isMock && (
+          <div className="mb-8 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+              <Info size={20} />
+            </div>
+            <p className="text-emerald-200/80 text-sm font-medium italic">
+              * 현재 보시는 화면은 가이드용 <span className="text-emerald-400 font-bold underline underline-offset-4 decoration-emerald-500/30">샘플 데이터</span>입니다. 엑셀 업로드 시 원장님 한의원의 실제 통계로 자동 업데이트됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* Premium Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Card 2: Insurance Total */}
+          <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform">
+              <ShieldCheck size={80} />
+            </div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">Insurance</span>
+                {compareMonth && (
+                  <p className={`text-[10px] font-black ${insuranceRevenue >= pInsuranceRevenue ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pInsuranceRevenue > 0 ? ((insuranceRevenue - pInsuranceRevenue) / pInsuranceRevenue * 100).toFixed(1) : 0}%
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">보험 수익 (본인+청구)</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(insuranceRevenue)}</span>
+              <span className="text-xs font-bold text-slate-500">원</span>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 flex justify-between">
+              <div className="text-[10px] text-slate-500">
+                <span className="block font-bold">본부금</span>
+                {formatNumber(data.copay)}
+              </div>
+              <div className="text-[10px] text-slate-500 text-right">
+                <span className="block font-bold">청구액</span>
+                {formatNumber(data.insuranceClaim)}
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Non-Covered */}
+          <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform">
+              <Plus size={80} />
+            </div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
+                <Plus size={20} />
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">General</span>
+                {compareMonth && (
+                  <p className={`text-[10px] font-black ${data.nonCovered >= pData.nonCovered ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pData.nonCovered > 0 ? ((data.nonCovered - pData.nonCovered) / pData.nonCovered * 100).toFixed(1) : 0}%
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">비급여 진료 수익</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(data.nonCovered)}</span>
+              <span className="text-xs font-bold text-slate-500">원</span>
+            </div>
+            <div className="mt-6 space-y-2">
+              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
+              </div>
+              <p className="text-[10px] text-slate-500 font-bold">전체 매출의 {nonCoveredRatio.toFixed(1)}% 차지</p>
+            </div>
+          </div>
+
+          {/* Card 4: Auto Insurance */}
+          <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform">
+              <TrendingUp size={80} />
+            </div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
+                <TrendingUp size={20} />
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">Auto</span>
+                {compareMonth && (
+                  <p className={`text-[10px] font-black ${data.autoClaim >= pData.autoClaim ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pData.autoClaim > 0 ? ((data.autoClaim - pData.autoClaim) / pData.autoClaim * 100).toFixed(1) : 0}%
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">자보 진료 수익</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(data.autoClaim)}</span>
+              <span className="text-xs font-bold text-slate-500">원</span>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 flex justify-between">
+              <span className="text-[10px] text-slate-500">자보 내원환자</span>
+              <span className="text-[10px] text-rose-400 font-black">{formatNumber(data.autoPatients)}명</span>
+            </div>
+          </div>
+
+          {/* Card 5: Worker Compensation */}
+          <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform">
+              <ShieldCheck size={80} />
+            </div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">Worker</span>
+                {compareMonth && (
+                  <p className={`text-[10px] font-black ${data.workerClaim >= pData.workerClaim ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pData.workerClaim > 0 ? ((data.workerClaim - pData.workerClaim) / pData.workerClaim * 100).toFixed(1) : 0}%
+                  </p>
+                )}
+              </div>
+            </div>
+            <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">산재 진료 수익</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(data.workerClaim)}</span>
+              <span className="text-xs font-bold text-slate-500">원</span>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5">
+               <p className="text-[10px] text-slate-500">정밀 파싱 모드 활성화됨</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Patient Metrics Summary Bar */}
+        <div className="mb-12">
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
+            <div className="flex flex-col items-end">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">총 내원 환자</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-black text-gold-500 leading-none">{formatNumber(data.totalPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                {compareMonth && (
+                  <span className={`text-[10px] font-bold ${data.totalPatients >= pData.totalPatients ? "text-emerald-400" : "text-rose-400"}`}>
+                    {data.totalPatients >= pData.totalPatients ? "▲" : "▼"} {formatNumber(Math.abs(data.totalPatients - pData.totalPatients))}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
+            <div className="flex flex-col items-end">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">신규 환자 수</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-black text-blue-400 leading-none">{formatNumber(data.newPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                {compareMonth && (
+                  <span className={`text-[10px] font-bold ${data.newPatients >= pData.newPatients ? "text-emerald-400" : "text-rose-400"}`}>
+                    {data.newPatients >= pData.newPatients ? "▲" : "▼"} {formatNumber(Math.abs(data.newPatients - pData.newPatients))}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
+            <div className="flex flex-col items-end">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">자보 환자 수</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-black text-rose-400 leading-none">{formatNumber(data.autoPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                {compareMonth && (
+                  <span className={`text-[10px] font-bold ${data.autoPatients >= pData.autoPatients ? "text-emerald-400" : "text-rose-400"}`}>
+                    {data.autoPatients >= pData.autoPatients ? "▲" : "▼"} {formatNumber(Math.abs(data.autoPatients - pData.autoPatients))}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
+            <div className="flex flex-col items-end">
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">일평균 환자</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-black text-emerald-400 leading-none">{data.avgDailyPatients.toFixed(1)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                {compareMonth && (
+                  <span className={`text-[10px] font-bold ${data.avgDailyPatients >= pData.avgDailyPatients ? "text-emerald-400" : "text-rose-400"}`}>
+                    {data.avgDailyPatients >= pData.avgDailyPatients ? "▲" : "▼"} {(Math.abs(data.avgDailyPatients - pData.avgDailyPatients)).toFixed(1)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed Analysis Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* Adjustment & Cashflow Analysis */}
+          <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-8 shadow-inner shadow-black/40 border-t-white/10 transition-all hover:bg-[#131a2c]">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gold-400/20 flex items-center justify-center text-gold-400">
+                  <DollarSign size={20} />
+                </div>
+                수납 및 경영 누수 분석
+              </h2>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Actual Received */}
+              <div className="p-5 rounded-2xl bg-white/5 border border-white/10 group hover:bg-white/10 transition-all duration-300">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-400 font-medium">실제 수납총액</span>
+                  <span className="text-xl font-black text-white">{formatNumber(data.totalReceived)}원</span>
+                </div>
+                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-gold-500 to-gold-200"
+                    style={{ width: `${(data.totalReceived / (data.patientTotal || 1)) * 100}%` }}
+                  />
+                </div>
+                <div className="flex justify-between mt-2">
+                  <span className="text-[10px] text-slate-500">예정 수납액 대비 수납율</span>
+                  <span className="text-[10px] text-gold-400 font-bold">{((data.totalReceived / (data.patientTotal || 1)) * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+
+              {/* Adjustments Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 transition-colors">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 flex items-center gap-1">
+                    <AlertCircle size={10} className="text-amber-500" /> 미수금
+                  </p>
+                  <p className="text-lg font-black text-amber-500">{formatNumber(data.receivables)}원</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/30 transition-colors">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 flex items-center gap-1">
+                    <MinusCircle size={10} className="text-red-500" /> 할인총액
+                  </p>
+                  <p className="text-lg font-black text-red-500">{formatNumber(data.discountTotal)}원</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-slate-500/30 transition-colors">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 flex items-center gap-1">
+                    <ArrowDownCircle size={10} className="text-slate-400" /> 절사총액
+                  </p>
+                  <p className="text-lg font-black text-slate-300">{formatNumber(data.roundOffTotal)}원</p>
+                </div>
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-colors">
+                  <p className="text-[10px] text-slate-500 uppercase font-bold mb-1 flex items-center gap-1">
+                    <ArrowDownCircle size={10} className="text-indigo-400" /> 환불총액
+                  </p>
+                  <p className="text-lg font-black text-indigo-400">{formatNumber(data.totalRefund)}원</p>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gold-500/5 border border-gold-500/10 flex items-start gap-3">
+                <Lightbulb size={20} className="text-gold-500 shrink-0 mt-1" />
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  결산 데이터상 <span className="text-gold-400 font-bold">{formatNumber(data.receivables + data.discountTotal)}원</span>의 경영 누수(미수+할인)가 발생했습니다. 차트 내 수납 상태가 '미수'인 환자 리스트를 확인해 주세요.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Method Analysis */}
+          <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-8 shadow-inner shadow-black/40 border-t-white/10 transition-all hover:bg-[#131a2c]">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-indigo-400/20 flex items-center justify-center text-indigo-400">
+                  <CreditCard size={20} />
+                </div>
+                수납 수단별 비중 (실수납)
+              </h2>
+            </div>
+
+            <div className="flex items-center justify-center p-8 mb-4 relative min-h-[220px]">
+              <div className="absolute inset-x-0 bottom-0 text-center text-slate-700 text-[120px] font-black -z-10 select-none opacity-10 leading-none">
+                OK
+              </div>
+              
+              <div className="flex flex-col gap-6 w-full">
+                <div className="flex items-center gap-4">
+                  <div className="w-24 text-right text-xs font-bold text-slate-500 uppercase tracking-tighter shrink-0">Card Payment</div>
+                  <div className="h-3 grow bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-500 rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                      style={{ width: `${(data.cardPayment / (data.totalReceived || 1)) * 100}%` }}
+                    />
+                  </div>
+                  <div className="w-16 text-sm font-bold text-white shrink-0">{((data.cardPayment / (data.totalReceived || 1)) * 100).toFixed(0)}%</div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-24 text-right text-xs font-bold text-slate-500 uppercase tracking-tighter shrink-0">Cash Payment</div>
+                  <div className="h-3 grow bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gold-500 rounded-full shadow-[0_0_10px_rgba(234,179,8,0.5)]" 
+                      style={{ width: `${(data.cashPayment / (data.totalReceived || 1)) * 100}%` }}
+                    />
+                  </div>
+                  <div className="w-16 text-sm font-bold text-white shrink-0">{((data.cashPayment / (data.totalReceived || 1)) * 100).toFixed(0)}%</div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="w-24 text-right text-xs font-bold text-slate-500 uppercase tracking-tighter shrink-0">Other/Gift</div>
+                  <div className="h-3 grow bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-slate-600 rounded-full" 
+                      style={{ width: `${(data.giftPayment / (data.totalReceived || 1)) * 100 || 5}%` }}
+                    />
+                  </div>
+                  <div className="w-16 text-sm font-bold text-white shrink-0">{(data.giftPayment > 0 ? (data.giftPayment / (data.totalReceived || 1)) * 100 : 0).toFixed(0)}%</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-gold-500" />
+                  <span className="text-xs text-slate-400">현금</span>
+                </div>
+                <span className="text-sm font-bold">{formatNumber(data.cashPayment)}원</span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                  <span className="text-xs text-slate-400">카드</span>
+                </div>
+                <span className="text-sm font-bold">{formatNumber(data.cardPayment)}원</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Strategic Dashboard: Growth vs Risk (High-End) */}
+        <section className="mb-16">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+            <div>
+              <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
+                <div className="h-1 w-8 bg-gold-500 rounded-full" />
+                성장 vs 위험 전략 대시보드
+              </h2>
+              <p className="text-slate-500 text-xs mt-1">실시간 데이터 분석 기반 경영 전략 매트릭스</p>
+            </div>
+            <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+              <span className="text-[10px] font-black text-slate-500 uppercase">Current Month Score</span>
+              <div className="h-4 w-px bg-white/10" />
+              <span className="text-xl font-black text-gold-500">
+                {Math.round(
+                  Math.min(40, (revenuePerPatient / 120000) * 40) + 
+                  Math.min(20, ((pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0) / 90) * 20) + 
+                  Math.min(40, (data.newPatients / 50) * 40)
+                )}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* 🚀 좌측: 성장 및 기회 전략 (Blue Theme) */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-blue-500/20 shadow-2xl p-8"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Rocket size={200} />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Rocket size={20} />
+                  </div>
+                  <h3 className="text-xl font-black text-blue-400 uppercase tracking-tighter">🚀 성장 및 기회 전략</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Item 1: LTV Systematization */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all group/item">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-blue-200">1. 비급여 고액 결제(LTV) 시스템화</span>
+                      <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">상태: {data.nonCovered / (data.newPatients || 1) > 300000 ? "우수" : "보완"}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      신환 1인당 비급여 기여도 <span className="text-blue-400 font-bold">{formatNumber(Math.round(data.nonCovered / (data.newPatients || 1)))}원</span>. 
+                      자보/재진 환자용 프리미엄 패키지 안내 프로토콜을 가동하여 고액 결제 비중을 높이세요.
+                    </p>
+                  </div>
+
+                  {/* Item 2: Resource Timing */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
+                    <span className="text-sm font-bold text-blue-200 block mb-2">2. 데이터 기반 자원 집중 및 마케팅</span>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      일평균 환자 <span className="text-blue-400 font-bold">{data.avgDailyPatients.toFixed(1)}명</span>. 
+                      주말/월말 인력 집중 및 당근마켓/블로그 광고 입찰가 최적화를 통해 유입 효율을 극대화할 타이밍입니다.
+                    </p>
+                  </div>
+
+                  {/* Item 3: Re-investment */}
+                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-blue-200">3. 선순환 투자 및 리텐션 강화</span>
+                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                        유지율: {(pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0).toFixed(1)}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      건강한 현금흐름을 초진 유치 채널에 재투자하세요. 현재 환자 유지율을 바탕으로 충성 고객 전용 캠페인 강화를 제안합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ⚠️ 우측: 위험 및 방어 전략 (Red Theme) */}
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-rose-500/20 shadow-2xl p-8"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <ShieldAlert size={200} />
+              </div>
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="h-10 w-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter">⚠️ 위험 및 방어 전략</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Item 1: Revenue Concentration */}
+                  <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/10 hover:bg-rose-500/10 transition-all">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">1. 매출 편중 리스크 관리</span>
+                      {/* 실제 일별 데이터가 없을 경우를 대비해 상징적 알림으로 표시 */}
+                      <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">집중도 점검</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      특정일 매출 의존도가 30%를 초과하지 않도록 주의하세요. 고액 결제 의존도를 탈피하고 평일 중저가 파이프라인 구축이 필요합니다.
+                    </p>
+                  </div>
+
+                  {/* Item 2: Entry Cliff */}
+                  <div className={`p-5 rounded-2xl ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'bg-rose-500/20 border-rose-500/40 animate-pulse' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">2. 고수익 착시 및 유입 절벽</span>
+                      <span className={`text-[10px] font-black ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'text-white bg-rose-600' : 'text-rose-500 bg-rose-500/10'} px-2 py-0.5 rounded-full`}>
+                        신환비율: {data.totalPatients > 0 ? ((data.newPatients / data.totalPatients) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                    {data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 && (
+                      <div className="flex items-center gap-2 mb-2 text-rose-400 font-bold text-[10px]">
+                        <AlertTriangle size={12} /> 위험: 신규 환자 유입이 기준치(10%) 미만입니다!
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      매출은 유지되나 신환 비중이 낮습니다. 재진 사이클 종료 시 급격한 매출 하락이 우려되므로 즉각적인 마케팅 전환이 시급합니다.
+                    </p>
+                  </div>
+
+                  {/* Item 3: KPI Shift & Operational Load */}
+                  <div className={`p-5 rounded-2xl ${data.avgDailyPatients > 40 ? 'bg-rose-500/20 border-rose-500/40' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-sm font-bold text-rose-200">3. 선행 지표 관리 및 진료 밀도</span>
+                      <span className={`text-[10px] font-black ${data.avgDailyPatients > 40 ? 'text-white bg-rose-600' : 'text-indigo-500 bg-indigo-500/10'} px-2 py-0.5 rounded-full`}>
+                        일평균: {data.avgDailyPatients.toFixed(1)}명
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      매출보다 <b>'일일 신규 환자 3명 달성'</b>으로 지표를 강제 전환하세요. {data.avgDailyPatients > 40 ? "진료 밀도가 매우 높습니다. 서비스 질 저하 및 리텐션 하락을 방지하기 위한 인력 배치가 필요합니다." : "운영 효율성은 현재 안정적인 범위 내에 있습니다."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* Comparison Table Section (Hanchart Specific) */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl mb-12 relative overflow-hidden"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gold-500/50 to-transparent" />
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gold-500/20 flex items-center justify-center text-gold-500">
+                  <Activity size={20} />
+                </div>
+                환자 분류별 상세 성과 리포트
+              </h2>
+              <p className="text-slate-500 text-xs mt-1 ml-13">초진/재진 및 유입 경로별 매출 비중 분석</p>
+            </div>
+            <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-gold-500 uppercase tracking-widest">
+              Standard Format: Hanchart
+            </div>
+          </div>
+
+          <div className="overflow-x-auto no-scrollbar">
+            <table className="w-full text-left border-separate border-spacing-y-2">
+              <thead>
+                <tr className="text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                  <th className="px-6 py-4">Rank</th>
+                  <th className="px-6 py-4">분류 (환자수)</th>
+                  <th className="px-6 py-4 text-right">총 매출액</th>
+                  <th className="px-6 py-4">매출 비중</th>
+                  <th className="px-6 py-4">주요 지표</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {displayData.map((row: any, idx: number) => (
+                  <tr key={idx} className="group hover:bg-white/5 transition-all">
+                    <td className="px-6 py-4 bg-white/5 rounded-l-2xl group-hover:bg-white/10 transition-all">
+                      <span className="h-7 w-7 rounded-lg bg-slate-800 flex items-center justify-center font-black text-slate-400 group-hover:text-gold-400">
+                        {idx + 1}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 bg-white/5 group-hover:bg-white/10 transition-all">
+                      <div className="font-bold text-white group-hover:text-gold-400 transition-colors">{row.type}</div>
+                    </td>
+                    <td className="px-6 py-4 bg-white/5 text-right font-black text-white group-hover:bg-white/10 transition-all">
+                      {new Intl.NumberFormat('ko-KR').format(row.totalRevenue)}원
+                    </td>
+                    <td className="px-6 py-4 bg-white/5 group-hover:bg-white/10 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="h-1.5 grow bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gold-500 rounded-full"
+                            style={{ width: `${row.ratio}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 w-8">{row.ratio}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 bg-white/5 rounded-r-2xl group-hover:bg-white/10 transition-all">
+                      <div className="flex gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-bold">
+                          급여 {new Intl.NumberFormat('ko-KR').format(row.coveredClaim + row.coveredCopay)}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 text-[10px] font-bold">
+                          비급여 {new Intl.NumberFormat('ko-KR').format(row.nonTaxable + row.taxable)}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+
+        {/* Bottom CTA to AI Deep Analysis */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 mb-20 px-4"
+        >
+          <button 
+            onClick={() => router.push("/ai-intelligence")}
+            className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-2xl shadow-blue-500/20 active:scale-[0.98] transition-all"
+          >
+            <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+              {/* Animated Background Decor */}
+              <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
+                <BrainCircuit size={300} />
+              </div>
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px]" />
+
+              <div className="relative z-10 flex items-center gap-8 text-left">
+                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 group-hover:rotate-6 transition-transform">
+                  <Sparkles size={40} />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black text-white tracking-tight mb-2">AI 경영 심층 분석 리포트</h2>
+                  <p className="text-slate-400 font-light max-w-md">
+                    수개월간의 데이터를 통합 분석하여 원장님께 가장 최적화된 맞춤형 경영 전략과 미래 예측을 제안합니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex flex-col items-end mr-4 hidden md:block">
+                  <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Upgrade Strategy</span>
+                  <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-blue-500 group-hover:border-blue-500 transition-all duration-300">
+                  <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                </div>
+              </div>
+            </div>
+          </button>
+        </motion.section>
+
+        {/* Footer Info */}
+        <div className="text-center p-12 mt-12 border-t border-white/5">
+           <p className="text-slate-600 text-xs font-medium tracking-widest uppercase mb-4">Clinic Performance Management System • WealthyWei Platform</p>
+           <div className="flex justify-center gap-8 text-slate-700">
+             <span className="flex items-center gap-2"><ShieldCheck size={14} /> Data Privacy Encryption</span>
+             <span className="flex items-center gap-2"><AlertCircle size={14} /> Real-time Sync</span>
+           </div>
+        </div>
+
+      {/* Background Decor */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-[-1] overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gold-900/10 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-900/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[30%] right-[10%] w-[20%] h-[20%] bg-amber-900/5 rounded-full blur-[100px] animate-pulse" />
+      </div>
+
+      <style jsx global>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          background-size: 200% auto;
+          animation: gradient 4s linear infinite;
+        }
+      `}</style>
+        </main>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+// --- Rolling Number Component ---
+function RollingNumber({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let start = displayValue;
+    const end = value;
+    const duration = 1500;
+    const startTime = performance.now();
+
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function (outExpo)
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      
+      const current = Math.floor(start + (end - start) * ease);
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    };
+
+    requestAnimationFrame(update);
+  }, [value]);
+
+  return (
+    <span className="text-5xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-gold-400 via-white to-gold-400 animate-gradient drop-shadow-[0_0_15px_rgba(251,191,36,0.3)]">
+      {new Intl.NumberFormat("ko-KR").format(displayValue)}
+    </span>
+  );
+}
