@@ -347,24 +347,26 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     ? compareData.generatedRevenue.total * 1.1 
     : (data.generatedRevenue?.total || 0) * 1.1;
 
+  const contextValue = React.useMemo(() => ({
+    data,
+    compareData,
+    monthlyData,
+    selectedMonth,
+    compareMonth,
+    targetRevenue,
+    setSelectedMonth,
+    setCompareMonth,
+    setMonthlyData,
+    deleteMonthlyData,
+    resetData
+  }), [data, compareData, monthlyData, selectedMonth, compareMonth, targetRevenue]);
+
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
   return (
-    <DataContext.Provider value={{
-      data,
-      compareData,
-      monthlyData,
-      selectedMonth,
-      compareMonth,
-      targetRevenue,
-      setSelectedMonth,
-      setCompareMonth,
-      setMonthlyData,
-      deleteMonthlyData,
-      resetData
-    }}>
+    <DataContext.Provider value={contextValue}>
       {children}
     </DataContext.Provider>
   );

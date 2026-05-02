@@ -118,17 +118,30 @@ export default function AiIntelligencePage() {
   useEffect(() => {
     async function fetchBriefing() {
       if (history.length > 0) {
+        // Create a unique key based on the months and their revenue to detect changes
+        const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
+        const cacheKey = `strategic_briefing_${historyKey}`;
+        const cached = localStorage.getItem(cacheKey);
+
+        if (cached) {
+          setBriefing(cached);
+          setLoading(false);
+          return;
+        }
+
         setLoading(true);
         try {
           const res = await generateStrategicBriefing(history);
           setBriefing(res);
+          // Cache the result
+          if (res && !res.includes("Error")) {
+            localStorage.setItem(cacheKey, res);
+          }
         } catch (e) {
           setBriefing("");
         } finally {
           setLoading(false);
         }
-
-        // 최신 월 요약 제거됨
       }
     }
     fetchBriefing();

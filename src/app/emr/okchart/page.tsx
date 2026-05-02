@@ -44,6 +44,8 @@ const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
 };
 
+const EMPTY_OKCHART_DATA = { okchartData: null };
+
 export default function OkchartPage() {
   const { 
     monthlyData, 
@@ -77,7 +79,7 @@ export default function OkchartPage() {
   }, [availableMonths, startMonth, endMonth]);
 
   // Current & Previous Data for Comparison
-  const currentData = monthlyData[selectedMonth] || { okchartData: null };
+  const currentData = monthlyData[selectedMonth] || EMPTY_OKCHART_DATA;
   const prevMonthIndex = availableMonths.indexOf(selectedMonth) - 1;
   const prevMonthKey = prevMonthIndex >= 0 ? availableMonths[prevMonthIndex] : "";
   const prevDataEntry = monthlyData[compareMonth || prevMonthKey] || { okchartData: null };
