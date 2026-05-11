@@ -70,8 +70,22 @@ export default function OkchartPage() {
   const router = useRouter();
 
   const availableMonths = React.useMemo(() => {
-    return Object.keys(monthlyData).sort();
+    return Object.keys(monthlyData).filter(m => {
+      const entry = monthlyData[m];
+      return entry && entry.okchartData;
+    }).sort();
   }, [monthlyData]);
+
+  useEffect(() => {
+    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+      if (availableMonths.length > 1) {
+        setCompareMonth(availableMonths[availableMonths.length - 2]);
+      } else {
+        setCompareMonth("");
+      }
+    }
+  }, [availableMonths, selectedMonth, setSelectedMonth, setCompareMonth]);
 
   const filteredMonthsForPeriod = React.useMemo(() => {
     if (!startMonth || !endMonth) return [];
@@ -961,154 +975,7 @@ export default function OkchartPage() {
           </div>
         </div>
 
-        {/* Strategic Dashboard: Growth vs Risk (High-End) */}
-        <section className="mb-16">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-3">
-                <div className="h-1 w-8 bg-gold-500 rounded-full" />
-                성장 vs 위험 전략 대시보드
-              </h2>
-              <p className="text-slate-500 text-xs mt-1">실시간 데이터 분석 기반 경영 전략 매트릭스</p>
-            </div>
-            <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
-              <span className="text-[10px] font-black text-slate-500 uppercase">Current Month Score</span>
-              <div className="h-4 w-px bg-white/10" />
-              <span className="text-xl font-black text-gold-500">
-                {Math.round(
-                  Math.min(40, (revenuePerPatient / 120000) * 40) + 
-                  Math.min(20, ((pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0) / 90) * 20) + 
-                  Math.min(40, (data.newPatients / 50) * 40)
-                )}
-              </span>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* 🚀 좌측: 성장 및 기회 전략 (Blue Theme) */}
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-blue-500/20 shadow-2xl p-8"
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <Rocket size={200} />
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                    <Rocket size={20} />
-                  </div>
-                  <h3 className="text-xl font-black text-blue-400 uppercase tracking-tighter">🚀 성장 및 기회 전략</h3>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Item 1: LTV Systematization */}
-                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all group/item">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-bold text-blue-200">1. 비급여 고액 결제(LTV) 시스템화</span>
-                      <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-full">상태: {data.nonCovered / (data.newPatients || 1) > 300000 ? "우수" : "보완"}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      신환 1인당 비급여 기여도 <span className="text-blue-400 font-bold">{formatNumber(Math.round(data.nonCovered / (data.newPatients || 1)))}원</span>. 
-                      자보/재진 환자용 프리미엄 패키지 안내 프로토콜을 가동하여 고액 결제 비중을 높이세요.
-                    </p>
-                  </div>
-
-                  {/* Item 2: Resource Timing */}
-                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
-                    <span className="text-sm font-bold text-blue-200 block mb-2">2. 데이터 기반 자원 집중 및 마케팅</span>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      일평균 환자 <span className="text-blue-400 font-bold">{data.avgDailyPatients.toFixed(1)}명</span>. 
-                      주말/월말 인력 집중 및 당근마켓/블로그 광고 입찰가 최적화를 통해 유입 효율을 극대화할 타이밍입니다.
-                    </p>
-                  </div>
-
-                  {/* Item 3: Re-investment */}
-                  <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-bold text-blue-200">3. 선순환 투자 및 리텐션 강화</span>
-                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                        유지율: {(pData.totalPatients > 0 ? ((data.totalPatients - data.newPatients) / pData.totalPatients) * 100 : 0).toFixed(1)}%
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      건강한 현금흐름을 초진 유치 채널에 재투자하세요. 현재 환자 유지율을 바탕으로 충성 고객 전용 캠페인 강화를 제안합니다.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* ⚠️ 우측: 위험 및 방어 전략 (Red Theme) */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative group overflow-hidden rounded-[2.5rem] bg-[#0F172A]/80 border border-rose-500/20 shadow-2xl p-8"
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
-                <ShieldAlert size={200} />
-              </div>
-
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="h-10 w-10 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
-                    <ShieldAlert size={20} />
-                  </div>
-                  <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter">⚠️ 위험 및 방어 전략</h3>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Item 1: Revenue Concentration */}
-                  <div className="p-5 rounded-2xl bg-rose-500/5 border border-rose-500/10 hover:bg-rose-500/10 transition-all">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-bold text-rose-200">1. 매출 편중 리스크 관리</span>
-                      {/* 실제 일별 데이터가 없을 경우를 대비해 상징적 알림으로 표시 */}
-                      <span className="text-[10px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">집중도 점검</span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      특정일 매출 의존도가 30%를 초과하지 않도록 주의하세요. 고액 결제 의존도를 탈피하고 평일 중저가 파이프라인 구축이 필요합니다.
-                    </p>
-                  </div>
-
-                  {/* Item 2: Entry Cliff */}
-                  <div className={`p-5 rounded-2xl ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'bg-rose-500/20 border-rose-500/40 animate-pulse' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-bold text-rose-200">2. 고수익 착시 및 유입 절벽</span>
-                      <span className={`text-[10px] font-black ${data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 ? 'text-white bg-rose-600' : 'text-rose-500 bg-rose-500/10'} px-2 py-0.5 rounded-full`}>
-                        신환비율: {data.totalPatients > 0 ? ((data.newPatients / data.totalPatients) * 100).toFixed(1) : 0}%
-                      </span>
-                    </div>
-                    {data.totalPatients > 0 && (data.newPatients / data.totalPatients) < 0.1 && (
-                      <div className="flex items-center gap-2 mb-2 text-rose-400 font-bold text-[10px]">
-                        <AlertTriangle size={12} /> 위험: 신규 환자 유입이 기준치(10%) 미만입니다!
-                      </div>
-                    )}
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      매출은 유지되나 신환 비중이 낮습니다. 재진 사이클 종료 시 급격한 매출 하락이 우려되므로 즉각적인 마케팅 전환이 시급합니다.
-                    </p>
-                  </div>
-
-                  {/* Item 3: KPI Shift & Operational Load */}
-                  <div className={`p-5 rounded-2xl ${data.avgDailyPatients > 40 ? 'bg-rose-500/20 border-rose-500/40' : 'bg-rose-500/5 border-rose-500/10'} hover:bg-rose-500/10 transition-all`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className="text-sm font-bold text-rose-200">3. 선행 지표 관리 및 진료 밀도</span>
-                      <span className={`text-[10px] font-black ${data.avgDailyPatients > 40 ? 'text-white bg-rose-600' : 'text-indigo-500 bg-indigo-500/10'} px-2 py-0.5 rounded-full`}>
-                        일평균: {data.avgDailyPatients.toFixed(1)}명
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      매출보다 <b>'일일 신규 환자 3명 달성'</b>으로 지표를 강제 전환하세요. {data.avgDailyPatients > 40 ? "진료 밀도가 매우 높습니다. 서비스 질 저하 및 리텐션 하락을 방지하기 위한 인력 배치가 필요합니다." : "운영 효율성은 현재 안정적인 범위 내에 있습니다."}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </section>
         {/* Bottom CTA to AI Deep Analysis */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
@@ -1117,7 +984,7 @@ export default function OkchartPage() {
           className="mt-12 mb-20 px-4"
         >
           <button 
-            onClick={() => router.push("/ai-intelligence")}
+            onClick={() => router.push("/ai-intelligence?emr=okchart")}
             className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-2xl shadow-blue-500/20 active:scale-[0.98] transition-all"
           >
             <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">

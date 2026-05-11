@@ -22,7 +22,8 @@ import {
   Wallet,
   ArrowDownCircle,
   MinusCircle,
-  Calendar
+  Calendar,
+  ArrowUpRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
@@ -55,7 +56,23 @@ export default function HanisarangPage() {
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
 
-  const availableMonths = useMemo(() => Object.keys(monthlyData).sort(), [monthlyData]);
+  const availableMonths = useMemo(() => {
+    return Object.keys(monthlyData).filter(m => {
+      const entry = monthlyData[m];
+      return entry && entry.hanisarangData;
+    }).sort();
+  }, [monthlyData]);
+
+  useEffect(() => {
+    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+      if (availableMonths.length > 1) {
+        setCompareMonth(availableMonths[availableMonths.length - 2]);
+      } else {
+        setCompareMonth("");
+      }
+    }
+  }, [availableMonths, selectedMonth, setSelectedMonth, setCompareMonth]);
   const currentEntry = monthlyData[selectedMonth] || { hanisarangData: null };
   
   const displayData = !currentEntry.hanisarangData ? {
@@ -334,25 +351,49 @@ export default function HanisarangPage() {
                   </div>
                 </div>
               </div>
-
-              <div>
-                <div className="bg-gradient-to-br from-[#0A2213] to-[#051109] border border-emerald-500/20 rounded-[2rem] p-8 shadow-2xl h-full flex flex-col">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="h-12 w-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-[#051109]"><BrainCircuit size={24} /></div>
-                    <h3 className="text-xl font-bold">한의사랑 AI 진단</h3>
-                  </div>
-                  <div className="flex-grow bg-black/40 rounded-2xl p-6 mb-6">
-                    {loadingInsight ? (
-                      <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" /></div>
-                    ) : (
-                      <div className="prose prose-invert prose-emerald max-w-none"><p className="text-zinc-300 leading-relaxed text-sm whitespace-pre-wrap">{insight || "한의사랑 데이터를 분석하여 경영 전략을 제안합니다."}</p></div>
-                    )}
-                  </div>
-                  <YoutubeVideoLink keyword={displayData.receivables > 5000000 ? "병원 미수금 관리 노하우" : "한의원 경영 안정화 전략"} />
-                </div>
-              </div>
             </div>
 
+            {/* Bottom CTA to AI Deep Analysis */}
+            <motion.section 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mt-12 mb-20 px-4"
+            >
+              <button 
+                onClick={() => router.push("/ai-intelligence?emr=hanisarang")}
+                className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 shadow-2xl shadow-emerald-500/20 active:scale-[0.98] transition-all"
+              >
+                <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+                  <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
+                    <BrainCircuit size={300} />
+                  </div>
+                  <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px]" />
+
+                  <div className="relative z-10 flex items-center gap-8 text-left">
+                    <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-[#0A0E1A] shadow-xl shadow-emerald-500/30 group-hover:rotate-6 transition-transform">
+                      <Sparkles size={40} />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-black text-white tracking-tight mb-2">한의사랑 AI 경영 심층 분석 리포트</h2>
+                      <p className="text-slate-400 font-light max-w-md">
+                        한의사랑 누적 데이터를 통합 분석하여 원장님께 가장 최적화된 맞춤형 경영 전략과 미래 예측을 제안합니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="flex flex-col items-end mr-4 hidden md:block">
+                      <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Upgrade Strategy</span>
+                      <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                    </div>
+                    <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-emerald-500 group-hover:border-emerald-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                      <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </motion.section>
           </div>
         </main>
       </div>

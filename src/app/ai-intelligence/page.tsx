@@ -4,46 +4,29 @@ import React, { useState, useEffect, useMemo } from "react";
 import { 
   Sparkles, 
   TrendingUp, 
-  TrendingDown, 
   Activity, 
   Zap, 
   Target, 
   ShieldCheck, 
   Calendar,
-  ChevronRight,
   ArrowUpRight,
   BrainCircuit,
   Rocket,
   ShieldAlert,
   BarChart3,
   Play,
-  Lightbulb,
   DollarSign,
-  ClipboardList
+  ClipboardList,
+  Users,
+  Search,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useData, DataMetrics } from "@/context/DataContext";
+import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
-import { generateStrategicBriefing, generateClinicInsightStream } from "@/lib/aiService";
+import { generateStrategicBriefing } from "@/lib/aiService";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area,
-  BarChart,
-  Bar,
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis
-} from "recharts";
+import { useSearchParams } from "next/navigation";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -51,110 +34,173 @@ const formatNumber = (num: number) => {
 
 export default function AiIntelligencePage() {
   const { monthlyData } = useData();
-  const [briefing, setBriefing] = useState<string>("");
-  const [loading, setLoading] = useState(false);
-
-  // 1. Data Aggregation
-  const history = useMemo(() => {
-    return Object.entries(monthlyData)
-      .map(([month, data]) => ({ month, metrics: data }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+  const searchParams = useSearchParams();
+  const emrType = searchParams.get("emr"); // 'hanchart' or 'okchart'
+  
+  const availableMonths = useMemo(() => {
+    return Object.keys(monthlyData).sort();
   }, [monthlyData]);
 
-  const chartData = useMemo(() => {
-    return history.map(h => ({
-      name: h.month.split("-")[1] + "월",
-      매출: Math.round(h.metrics.generatedRevenue.total / 10000), // 만원 단위
-      환자: h.metrics.patientMetrics.total,
-      신환: h.metrics.patientMetrics.new,
-      비급여: Math.round(h.metrics.generatedRevenue.nonCovered / 10000)
-    }));
-  }, [history]);
+  const [startMonth, setStartMonth] = useState<string>("");
+  const [endMonth, setEndMonth] = useState<string>("");
+  const [briefing, setBriefing] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [shouldAnalyze, setShouldAnalyze] = useState(false);
 
-  // 2. Intelligence Calculation
-  const latestMonth = history[history.length - 1];
-  const prevMonth = history[history.length - 2];
+  // Set initial range when data loads
+  useEffect(() => {
+    if (availableMonths.length > 0) {
+      if (!startMonth) setStartMonth(availableMonths[0]);
+      if (!endMonth) setEndMonth(availableMonths[availableMonths.length - 1]);
+    }
+  }, [availableMonths]);
 
-  const totalGrowth = useMemo(() => {
-    if (!latestMonth || !prevMonth) return 0;
-    const l = latestMonth.metrics.generatedRevenue.total;
-    const p = prevMonth.metrics.generatedRevenue.total;
-    return p > 0 ? ((l - p) / p) * 100 : 0;
-  }, [latestMonth, prevMonth]);
+  // 1. Data Aggregation (Filtered by Range & EMR Specificity)
+  const history = useMemo(() => {
+    const sorted = Object.entries(monthlyData)
+      .filter(([month, data]) => {
+        // EMR Availability Check
+        if (emrType === "hanchart") {
+          if (!data.hanchartData || data.hanchartData.length === 0) return false;
+        } else if (emrType === "okchart") {
+          if (!data.okchartData) return false;
+        } else if (emrType === "hanisarang") {
+          if (!data.hanisarangData) return false;
+        } else if (emrType === "donguibogam") {
+          if (!data.donguibogamData) return false;
+        }
+        
+        // Range Filter
+        if (startMonth && month < startMonth) return false;
+        if (endMonth && month > endMonth) return false;
+        
+        return true;
+      })
+      .map(([month, data]) => {
+        // Construct EMR-specific metrics to prevent data mixing
+        let specificMetrics = { ...data };
+        
+        if (emrType === "hanchart" && data.hanchartData) {
+          const totalRev = data.hanchartData.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0);
+          const nonCovered = data.hanchartData.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0);
+          const totalPat = data.hanchartData.reduce((acc, curr) => acc + parseInt(curr.type.match(/\(\s*(\d+)\s*\)/)?.[1] || "0"), 0);
+          const newPat = data.hanchartData.reduce((acc, curr) => acc + (curr.type.startsWith("초진") ? parseInt(curr.type.match(/\(\s*(\d+)\s*\)/)?.[1] || "0") : 0), 0);
+          
+          specificMetrics.generatedRevenue = {
+            ...data.generatedRevenue,
+            total: totalRev,
+            nonCovered: nonCovered
+          };
+          specificMetrics.patientMetrics = {
+            ...data.patientMetrics,
+            total: totalPat,
+            new: newPat
+          };
+        } else if (emrType === "okchart" && data.okchartData) {
+          specificMetrics.generatedRevenue = {
+            ...data.generatedRevenue,
+            total: data.okchartData.totalRevenue || 0,
+            nonCovered: data.okchartData.nonCovered || 0
+          };
+          specificMetrics.patientMetrics = {
+            ...data.patientMetrics,
+            total: data.okchartData.totalPatients || 0,
+            new: data.okchartData.newPatients || 0
+          };
+        } else if (emrType === "hanisarang" && data.hanisarangData) {
+          specificMetrics.generatedRevenue = {
+            ...data.generatedRevenue,
+            total: data.hanisarangData.totalRevenue || 0,
+            nonCovered: data.hanisarangData.nonCovered || 0
+          };
+          specificMetrics.patientMetrics = {
+            ...data.patientMetrics,
+            total: data.hanisarangData.totalPatients || 0,
+            new: data.hanisarangData.newPatients || 0
+          };
+        } else if (emrType === "donguibogam" && data.donguibogamData) {
+          specificMetrics.generatedRevenue = {
+            ...data.generatedRevenue,
+            total: data.donguibogamData.totalRevenue || 0,
+            nonCovered: data.donguibogamData.nonCovered || 0
+          };
+          specificMetrics.patientMetrics = {
+            ...data.patientMetrics,
+            total: (data.donguibogamData.newPatients || 0) + (data.donguibogamData.recurringPatients || 0),
+            new: data.donguibogamData.newPatients || 0
+          };
+        }
+
+        return { month, metrics: specificMetrics };
+      })
+      .sort((a, b) => a.month.localeCompare(b.month));
+    
+    return sorted;
+  }, [monthlyData, emrType, startMonth, endMonth]);
 
   const avgEfficiency = useMemo(() => {
     if (history.length === 0) return 0;
-    const sum = history.reduce((acc, curr) => acc + (curr.metrics.generatedRevenue.total / (curr.metrics.patientMetrics.total || 1)), 0);
-    return Math.round(sum / history.length);
+    const totalRev = history.reduce((acc, curr) => acc + curr.metrics.generatedRevenue.total, 0);
+    const totalPat = history.reduce((acc, curr) => acc + curr.metrics.patientMetrics.total, 0);
+    return totalPat > 0 ? Math.round(totalRev / totalPat) : 0;
   }, [history]);
 
-  // 3. AI Briefing Parsing & Effect
+  // AI Briefing Effect (Manual Trigger)
+  useEffect(() => {
+    async function fetchBriefing() {
+      if (history.length === 0 || !shouldAnalyze) return;
+      
+      const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
+      const cacheKey = `strategic_briefing_${emrType || 'all'}_${historyKey}`;
+      
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        setBriefing(cached);
+        setLoading(false);
+        setShouldAnalyze(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const res = await generateStrategicBriefing(history, emrType || undefined);
+        setBriefing(res);
+        if (res && !res.includes("Error")) {
+          localStorage.setItem(cacheKey, res);
+        }
+      } catch (err) {
+        console.error("Briefing error:", err);
+        setBriefing("데이터를 분석하는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+        setShouldAnalyze(false);
+      }
+    }
+
+    fetchBriefing();
+  }, [history, shouldAnalyze, emrType]);
+
   const aiData = useMemo(() => {
     if (!briefing) return null;
     try {
-      // JSON 코드 블록이 포함되어 있을 경우를 대비해 정규식으로 추출
       const jsonMatch = briefing.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : briefing;
-      return JSON.parse(jsonStr);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : briefing);
     } catch (e) {
-      console.error("JSON Parsing Error:", e);
-      return null;
+      return { detailedAnalysis: briefing };
     }
   }, [briefing]);
 
-  const radarData = useMemo(() => {
-    if (!aiData?.summary?.healthScores) return [];
-    const scores = aiData.summary.healthScores;
-    return [
-      { subject: '수익성', A: scores.profitability, fullMark: 100 },
-      { subject: '안정성', A: scores.stability, fullMark: 100 },
-      { subject: '성장성', A: scores.growth, fullMark: 100 },
-      { subject: '유입력', A: scores.patientFlow, fullMark: 100 },
-      { subject: '효율성', A: scores.efficiency, fullMark: 100 },
-    ];
-  }, [aiData]);
-
-  // AI Briefing Effect
-  useEffect(() => {
-    async function fetchBriefing() {
-      if (history.length > 0) {
-        // Create a unique key based on the months and their revenue to detect changes
-        const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
-        const cacheKey = `strategic_briefing_${historyKey}`;
-        const cached = localStorage.getItem(cacheKey);
-
-        if (cached) {
-          setBriefing(cached);
-          setLoading(false);
-          return;
-        }
-
-        setLoading(true);
-        try {
-          const res = await generateStrategicBriefing(history);
-          setBriefing(res);
-          // Cache the result
-          if (res && !res.includes("Error")) {
-            localStorage.setItem(cacheKey, res);
-          }
-        } catch (e) {
-          setBriefing("");
-        } finally {
-          setLoading(false);
-        }
-      }
-    }
-    fetchBriefing();
-  }, [history]);
-
-  if (history.length === 0) {
+  if (availableMonths.length === 0) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#0A0E1A] text-white flex items-center justify-center p-8">
-          <div className="text-center">
-            <Sparkles size={48} className="mx-auto mb-4 text-gold-500 animate-pulse" />
-            <h2 className="text-2xl font-bold mb-2">분석할 데이터가 없습니다.</h2>
-            <p className="text-slate-500">통계 메뉴에서 엑셀 데이터를 먼저 업로드해 주세요.</p>
+        <div className="min-h-screen bg-[#05080F] text-white flex items-center justify-center p-8">
+          <div className="text-center space-y-6">
+            <div className="relative inline-block">
+               <BrainCircuit size={80} className="text-blue-500/20" />
+               <Sparkles size={40} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 animate-pulse" />
+            </div>
+            <h2 className="text-3xl font-black">분석할 데이터가 부족합니다.</h2>
+            <p className="text-slate-500 max-w-sm mx-auto">한차트나 오케이차트 메뉴에서 월별 매출 통계 엑셀 파일을 먼저 업로드해 주세요.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -163,423 +209,244 @@ export default function AiIntelligencePage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#0A0E1A] text-white font-sans">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-24">
+      <div className="min-h-screen bg-[#05080F] text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 pt-28">
           
-          {/* Header */}
-          <div className="mb-12">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest">
-                AI Management Intelligence
-              </span>
-              <div className="h-px grow bg-gradient-to-r from-blue-500/20 to-transparent" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-4">
-              AI 경영 분석 <span className="text-slate-500 underline decoration-blue-500/30 underline-offset-8">인텔리전스 센터</span>
-            </h1>
-            <p className="text-slate-400 text-lg font-light max-w-2xl">
-              업로드된 모든 데이터를 통합 분석하여 원장님께 거시적 경영 트렌드와 미래 전략을 제안합니다.
-            </p>
-          </div>
-
-          {/* Top Scoreboard Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {/* Score 1: Growth Trend */}
-            <div className="bg-[#111624] rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <TrendingUp size={120} />
-              </div>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">전체 성장 추세</p>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className={`text-4xl font-black ${totalGrowth >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                  {totalGrowth >= 0 ? "+" : ""}{totalGrowth.toFixed(1)}%
-                </span>
-                <span className="text-slate-500 text-xs font-bold uppercase">vs Prev Month</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, Math.abs(totalGrowth) * 2)}%` }}
-                  className={`h-full ${totalGrowth >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                />
-              </div>
-            </div>
-
-            {/* Score 2: Efficiency */}
-            <div className="bg-[#111624] rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <Target size={120} />
-              </div>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">평균 운영 효율성 (ARPU)</p>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-4xl font-black text-blue-400">
-                  {formatNumber(avgEfficiency)}
-                </span>
-                <span className="text-slate-500 text-xs font-bold uppercase">원 / 명</span>
-              </div>
-              <div className="flex gap-1">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className={`h-1.5 grow rounded-full ${i <= 4 ? "bg-blue-500" : "bg-slate-800"}`} />
-                ))}
-              </div>
-            </div>
-
-            {/* Score 3: Reliability */}
-            <div className="bg-[#111624] rounded-[2.5rem] p-8 border border-white/5 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
-                <ShieldCheck size={120} />
-              </div>
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">데이터 신뢰도 및 정합성</p>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-4xl font-black text-gold-500">GOLD</span>
-                <span className="text-slate-500 text-xs font-bold uppercase">{history.length} Months Synced</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Real-time Data Active</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Visual Analysis Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            {/* Chart Area */}
-            <div className="lg:col-span-2 bg-[#111624] border border-white/5 rounded-[2.5rem] p-10">
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h3 className="text-xl font-black text-white">거시적 경영 트렌드 분석</h3>
-                  <p className="text-slate-500 text-xs mt-1">최근 {history.length}개월간의 매출 및 환자 유입 흐름</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-blue-500" />
-                    <span className="text-[10px] font-bold text-slate-400">매출액(만원)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-bold text-slate-400">환자수</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-80 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorPat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                    <XAxis 
-                      dataKey="name" 
-                      stroke="#ffffff30" 
-                      fontSize={10} 
-                      tickLine={false} 
-                      axisLine={false} 
-                    />
-                    <YAxis 
-                      stroke="#ffffff30" 
-                      fontSize={10} 
-                      tickLine={false} 
-                      axisLine={false} 
-                    />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0A0E1A', border: '1px solid #ffffff10', borderRadius: '16px' }}
-                      itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="매출" 
-                      stroke="#3B82F6" 
-                      strokeWidth={3} 
-                      fillOpacity={1} 
-                      fill="url(#colorRev)" 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="환자" 
-                      stroke="#10B981" 
-                      strokeWidth={3} 
-                      fillOpacity={1} 
-                      fill="url(#colorPat)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Strategic Symmetery Summary */}
-            <div className="flex flex-col gap-6">
-              <div className="bg-gradient-to-br from-blue-600/20 to-indigo-600/5 border border-blue-500/20 rounded-[2.5rem] p-8 grow group relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <Rocket size={80} />
-                </div>
-                <h4 className="text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <Rocket size={14} /> AI 성장 동력 분석
-                </h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-xs">최고 매출액</span>
-                    <span className="text-sm font-black text-white">{formatNumber(Math.max(...history.map(h => h.metrics.generatedRevenue.total)))}원</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-xs">최대 신환 유입</span>
-                    <span className="text-sm font-black text-white">{Math.max(...history.map(h => h.metrics.patientMetrics.new))}명</span>
-                  </div>
-                  <div className="h-px bg-white/5" />
-                  <p className="text-[11px] text-blue-200/60 leading-relaxed">
-                    지난 {history.length}개월간 매출 변동성은 <span className="text-blue-400 font-bold">안정적</span>인 범위 내에 있으며, 
-                    비급여 비중이 점진적으로 상승하며 수익 구조가 개선되고 있습니다.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-rose-600/20 to-orange-600/5 border border-rose-500/20 rounded-[2.5rem] p-8 grow group relative overflow-hidden">
-                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <ShieldAlert size={80} />
-                </div>
-                <h4 className="text-rose-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                  <ShieldAlert size={14} /> AI 잠재 리스크 진단
-                </h4>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-xs">유입 변동률</span>
-                    <span className="text-sm font-black text-white">±12.4%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-xs">최저 효율월</span>
-                    <span className="text-sm font-black text-rose-400">{history[0].month}</span>
-                  </div>
-                  <div className="h-px bg-white/5" />
-                  <p className="text-[11px] text-rose-200/60 leading-relaxed">
-                    환절기 대비 신환 유입 하락세가 관찰됩니다. 특정 EMR 데이터 누락 가능성이 감지되오니 데이터 정합성을 재확인하시기 바랍니다.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Strategic Situation Room Section (Visual Summary) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            {/* 1. Radar Chart: Clinic Health Index */}
-            <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-10 relative overflow-hidden group">
-               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
-                 <Activity size={100} />
-               </div>
-               <div className="relative z-10">
-                 <h3 className="text-xl font-black text-white mb-2">경영 건강도 지표 (Health Index)</h3>
-                 <p className="text-slate-500 text-xs mb-8 uppercase tracking-widest">5-Dimensional Strategic Balance</p>
-                 
-                 <div className="h-[300px] w-full flex items-center justify-center">
-                   {loading ? (
-                     <div className="w-12 h-12 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                   ) : radarData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                        <PolarGrid stroke="#ffffff10" />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                        <Radar
-                          name="Clinic Health"
-                          dataKey="A"
-                          stroke="#3B82F6"
-                          fill="#3B82F6"
-                          fillOpacity={0.5}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                   ) : (
-                     <div className="text-slate-600 text-sm">분석 데이터를 기다리는 중...</div>
-                   )}
-                 </div>
-               </div>
-            </div>
-
-            {/* 2. Executive Headline & Insights */}
-            <div className="lg:col-span-2 space-y-6">
-               <div className="bg-gradient-to-br from-blue-600/20 to-[#111624] border border-blue-500/30 rounded-[2.5rem] p-8 relative overflow-hidden group h-full flex flex-col">
-                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:rotate-12 transition-transform">
-                    <Sparkles size={150} />
-                  </div>
-                  
-                  <div className="relative z-10 flex-grow">
-                    <div className="flex items-center gap-3 mb-6">
-                      <span className="px-4 py-1.5 rounded-full bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest">
-                        {aiData?.summary?.statusPill || "Status Analyzing"}
-                      </span>
-                      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    </div>
-
-                    <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter mb-8 leading-tight">
-                      {aiData?.summary?.headline || "경영 데이터를 정밀 분석하여 핵심 전략을 도출하고 있습니다."}
-                    </h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
-                       {aiData?.executiveInsights?.map((insight: any, idx: number) => (
-                         <div key={idx} className="bg-black/40 border border-white/5 rounded-3xl p-6 hover:border-blue-500/30 transition-colors">
-                            <div className="flex justify-between items-start mb-3">
-                              <h4 className="text-blue-400 font-bold text-sm">{insight.title}</h4>
-                              <span className="text-[9px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-md font-bold">{insight.impact} IMPACT</span>
-                            </div>
-                            <p className="text-slate-400 text-xs leading-relaxed">{insight.content}</p>
-                         </div>
-                       )) || (
-                         <div className="col-span-2 py-12 flex items-center justify-center text-slate-600 italic text-sm">
-                            최고 경영진을 위한 핵심 통찰을 정리 중입니다...
-                         </div>
-                       )}
-                    </div>
-                  </div>
-               </div>
-            </div>
-          </div>
-
-          {/* AI Strategic Briefing Section (Detailed Narrative) */}
-          <div className="relative group overflow-hidden rounded-[3rem] bg-gradient-to-br from-[#1A1F35] to-[#0D1117] border border-white/5 shadow-2xl p-12 mb-12">
-            <div className="absolute top-0 right-0 p-12 opacity-[0.02] group-hover:scale-110 transition-transform duration-1000">
-              <BrainCircuit size={300} />
-            </div>
+          {/* Header & Controls */}
+          <section className="flex flex-col lg:flex-row items-start justify-between gap-12 mb-20 relative">
+            <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
             
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-12">
-                <div className="flex items-center gap-6">
-                  <div className="h-16 w-16 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400 border border-white/10">
-                    <BarChart3 size={32} />
+            <div className="relative z-10 space-y-6 max-w-3xl">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-3"
+              >
+                <span className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
+                  <BrainCircuit size={14} className="animate-pulse" /> 
+                  AI Management Intelligence
+                </span>
+              </motion.div>
+              
+              <motion.h1 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-slate-500"
+              >
+                {emrType === 'hanchart' ? '한차트' : emrType === 'okchart' ? '오케이차트' : '통합'} <br/>
+                <span className="text-blue-500">인텔리전스</span> 센터
+              </motion.h1>
+              
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-slate-400 text-xl font-light leading-relaxed max-w-xl"
+              >
+                분석을 원하는 기간을 설정하면 AI가 해당 기간의 경영 트렌드와 수익 구조를 정밀 진단합니다.
+              </motion.p>
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative z-10 w-full lg:w-[400px]"
+            >
+              <div className="bg-white/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl space-y-8">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Month</label>
+                    <select 
+                      value={startMonth} 
+                      onChange={(e) => setStartMonth(e.target.value)}
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-blue-500/50 transition-all outline-none hover:bg-white/5 cursor-pointer appearance-none"
+                    >
+                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">심층 경영 전략 브리핑</h2>
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mt-1">Full Detailed Intelligence Narrative</p>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">End Month</label>
+                    <select 
+                      value={endMonth} 
+                      onChange={(e) => setEndMonth(e.target.value)}
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-blue-500/50 transition-all outline-none hover:bg-white/5 cursor-pointer appearance-none"
+                    >
+                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </div>
                 </div>
-              </div>
-
-              <div className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-10 min-h-[400px]">
-                {loading ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-6 py-20">
-                    <div className="relative">
-                      <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-                      <Sparkles size={24} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 animate-pulse" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-blue-400 text-lg font-bold animate-pulse">인공지능이 병원 데이터를 정밀 분석하고 있습니다...</p>
-                      <p className="text-slate-600 text-xs mt-2 uppercase tracking-widest font-black">Synthesizing multi-month strategic trends</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:leading-relaxed prose-h3:text-blue-400 prose-h3:font-black prose-li:text-slate-400">
-                    <div className="whitespace-pre-wrap text-lg font-light leading-relaxed">
-                      {aiData?.detailedAnalysis || "충분한 데이터가 확보되면 AI가 심층 전략 브리핑을 제공합니다."}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 px-4">
-                 <div className="flex items-center gap-3">
-                   <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                   <p className="text-slate-500 text-xs font-medium italic">이 분석은 업로드된 실제 EMR 통계 수치를 기반으로 Gemini Pro AI가 생성한 경영 리포트입니다.</p>
-                 </div>
-                 <button className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 group">
-                   전체 리포트 PDF 다운로드
-                   <ArrowUpRight size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                 </button>
-              </div>
-            </div>
-          </div>
-          {/* Action Plan Grid: Visual Timeline */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12 mb-12">
-            <div className="lg:col-span-2 relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-900/40 to-blue-900/20 border border-blue-500/20 p-10 h-full flex flex-col">
-               <div className="absolute top-0 right-0 p-10 opacity-[0.05] group-hover:rotate-12 transition-transform">
-                  <ClipboardList size={200} />
-               </div>
-               <div className="relative z-10 flex-grow">
-                  <div className="flex items-center gap-4 mb-10">
-                    <div className="h-12 w-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                      <ClipboardList size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-black text-white">전략적 AI 실행 계획</h3>
-                      <p className="text-blue-400/60 text-xs font-bold uppercase tracking-widest">Step-by-Step Execution RoadMap</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                    {/* Vertical Line for Tablet/Desktop */}
-                    <div className="hidden md:block absolute top-1/2 left-0 w-full h-px bg-white/5 -z-10" />
-
-                    {aiData?.actionPlan?.map((plan: any, idx: number) => (
-                      <div key={idx} className="bg-black/40 border border-white/5 rounded-3xl p-6 hover:bg-blue-500/5 hover:border-blue-500/20 transition-all">
-                         <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-xs font-black mb-4 shadow-lg shadow-blue-500/20">
-                           {idx + 1}
-                         </div>
-                         <h4 className="text-white font-bold mb-2 text-sm">{plan.phase}</h4>
-                         <p className="text-slate-400 text-[11px] leading-relaxed mb-4">{plan.task}</p>
-                         <div className="h-px w-full bg-white/5 mb-3" />
-                         <p className="text-emerald-400 text-[10px] font-bold">🎯 {plan.expectedEffect}</p>
-                      </div>
-                    )) || (
-                      <div className="col-span-3 py-12 text-center text-slate-600 italic text-sm">
-                        데이터 분석이 완료되면 실행 계획이 도출됩니다.
-                      </div>
+                
+                <button 
+                  onClick={() => {
+                    const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
+                    localStorage.removeItem(`strategic_briefing_${emrType || 'all'}_${historyKey}`);
+                    setShouldAnalyze(true);
+                  }}
+                  disabled={loading || history.length === 0}
+                  className="w-full group py-6 bg-white text-[#05080F] font-black text-sm rounded-[2rem] transition-all hover:bg-blue-400 hover:scale-[1.02] active:scale-95 disabled:opacity-30 relative overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                >
+                  <div className="relative z-10 flex items-center justify-center gap-3">
+                    {loading ? (
+                      <RefreshCw size={20} className="animate-spin" />
+                    ) : (
+                      <Search size={20} className="group-hover:scale-110 transition-transform" />
                     )}
+                    {loading ? "분석 중..." : "AI 경영 분석 실행"}
                   </div>
-               </div>
-            </div>
+                </button>
+              </div>
+            </motion.div>
+          </section>
 
-            {/* YouTube Section: Single Best Recommendation */}
-            <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] overflow-hidden flex flex-col relative group p-8 h-full">
-               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-all">
-                 <Play size={100} />
-               </div>
-               <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="h-10 w-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500">
-                    <Play size={20} />
+          {/* Quick Metrics */}
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+             {[
+               { label: '분석 대상 기간', value: `${history.length}개월`, sub: `${startMonth} ~ ${endMonth}`, icon: Calendar, color: 'text-blue-400' },
+               { label: '기간 총 매출', value: `${formatNumber(history.reduce((acc, curr) => acc + curr.metrics.generatedRevenue.total, 0))}원`, sub: '선택 기간 발생 매출 총합', icon: DollarSign, color: 'text-emerald-400' },
+               { label: '기간 총 환자수', value: `${formatNumber(history.reduce((acc, curr) => acc + curr.metrics.patientMetrics.total, 0))}명`, sub: '내원 환자(초진+재진) 총합', icon: Users, color: 'text-indigo-400' },
+               { label: '평균 운영 효율', value: `${formatNumber(avgEfficiency)}원`, sub: '환자 1인당 평균 객단가', icon: Activity, color: 'text-gold-500' }
+             ].map((item, idx) => (
+               <motion.div 
+                 key={idx}
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ delay: 0.4 + (idx * 0.1) }}
+                 className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/[0.04] transition-all group"
+               >
+                 <div className="flex justify-between items-center mb-6">
+                   <div className={`p-3 bg-white/5 rounded-2xl ${item.color}`}><item.icon size={20} /></div>
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
+                 </div>
+                 <div className={`text-2xl font-black mb-1 tracking-tight ${item.color}`}>{item.value}</div>
+                 <p className="text-[10px] text-slate-600 font-bold uppercase">{item.sub}</p>
+               </motion.div>
+             ))}
+          </section>
+
+          {/* Strategic Analysis Content */}
+          <section className="relative">
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div 
+                  key="loading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="bg-white/[0.02] border border-white/5 rounded-[4rem] p-20 flex flex-col items-center justify-center space-y-8 min-h-[600px]"
+                >
+                  <div className="relative">
+                    <div className="w-24 h-24 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin" />
+                    <BrainCircuit size={32} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 animate-pulse" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black text-white">AI 맞춤 전략 솔루션</h3>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Recommended Strategic Content</p>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-2xl font-black text-white">AI 전략 데이터 큐레이션</h3>
+                    <p className="text-slate-500 font-medium italic">수만 건의 경영 지표를 바탕으로 최적의 전략을 도출하고 있습니다...</p>
                   </div>
-               </div>
-               
-               <div className="relative z-10 flex-grow flex flex-col justify-center">
-                 {aiData?.recommendedVideoKeyword ? (
-                   <div className="space-y-4">
-                     <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 mb-4">
-                        <p className="text-blue-400 text-[11px] font-bold mb-1">AI 분석 결과 현재 원장님께 가장 필요한 주제:</p>
-                        <p className="text-white text-sm font-black">"{aiData.recommendedVideoKeyword}"</p>
-                     </div>
-                     <YoutubeVideoLink 
-                       keyword={aiData.recommendedVideoKeyword} 
-                       mLabel="AI 맞춤형 솔루션"
-                       isUp={true}
-                       activeSolution={{ 
-                         title: "전략적 학습", 
-                         desc: `AI가 현재 데이터 분석 결과를 토대로 '${aiData.recommendedVideoKeyword}' 주제의 영상을 선정했습니다.` 
-                       }}
-                     />
-                   </div>
-                 ) : (
-                   <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                     <div className="w-10 h-10 border-2 border-white/5 border-t-blue-500 rounded-full animate-spin" />
-                     <p className="text-slate-600 text-xs italic">데이터를 분석하여 최적의 솔루션 영상을 찾는 중입니다...</p>
-                   </div>
-                 )}
-               </div>
+                </motion.div>
+              ) : briefing ? (
+                <motion.div 
+                  key="content"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-12"
+                >
+                  {/* Detailed Analysis Card */}
+                  <div className="bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 rounded-[4rem] p-12 lg:p-20 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-20 opacity-[0.02] group-hover:scale-110 transition-transform duration-[3s]">
+                      <BrainCircuit size={400} />
+                    </div>
+                    
+                    <div className="relative z-10">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 border-b border-white/5 pb-12">
+                        <div className="flex items-center gap-6">
+                           <div className="h-20 w-20 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                             <BarChart3 size={40} />
+                           </div>
+                           <div>
+                             <h2 className="text-3xl font-black text-white tracking-tight">심층 경영 전략 브리핑</h2>
+                             <p className="text-blue-500/60 text-sm font-black uppercase tracking-[0.3em] mt-1">Full Executive Intelligence</p>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <div className="text-right hidden md:block">
+                             <p className="text-[10px] font-black text-slate-500 uppercase">Analysis Precision</p>
+                             <p className="text-sm font-bold text-emerald-400">HIGH FIDELITY</p>
+                           </div>
+                           <div className="h-12 w-[1px] bg-white/10 hidden md:block" />
+                           <ShieldCheck size={32} className="text-blue-500/50" />
+                        </div>
+                      </div>
 
-               <div className="mt-8 pt-6 border-t border-white/5 relative z-10">
-                 <p className="text-[10px] text-slate-500 leading-relaxed italic">
-                   ※ 원장님이 지정하신 9가지 핵심 경영 키워드 중, 현재의 매출 및 환자 유입 패턴에 가장 큰 영향을 줄 수 있는 한 가지 주제를 AI가 엄선했습니다.
-                 </p>
-               </div>
-            </div>
-          </div>
+                      <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed prose-h3:text-blue-400 prose-h3:text-2xl prose-h3:font-black prose-li:text-slate-400">
+                        <div className="whitespace-pre-wrap font-light tracking-wide">
+                          {aiData?.detailedAnalysis || briefing}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Action Plan & Video Recommendation */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Action Plan */}
+                    <div className="lg:col-span-2 bg-[#111624]/60 border border-white/5 rounded-[3rem] p-12">
+                       <div className="flex items-center gap-4 mb-12">
+                          <div className="p-3 bg-white/5 rounded-2xl text-blue-400"><ClipboardList size={24} /></div>
+                          <h3 className="text-2xl font-black text-white">AI 전략 실행 로드맵</h3>
+                       </div>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {aiData?.actionPlan?.map((plan: any, idx: number) => (
+                            <div key={idx} className="bg-black/40 border border-white/5 rounded-[2rem] p-8 hover:border-blue-500/30 transition-all">
+                               <div className="text-4xl font-black text-blue-500/20 mb-4">0{idx + 1}</div>
+                               <h4 className="text-white font-bold mb-3">{plan.phase}</h4>
+                               <p className="text-slate-500 text-xs leading-relaxed mb-6">{plan.task}</p>
+                               <div className="pt-4 border-t border-white/5 text-emerald-400 text-[10px] font-black">🎯 {plan.expectedEffect}</div>
+                            </div>
+                          )) || <div className="col-span-3 text-slate-600 italic">추가 데이터 로딩 중...</div>}
+                       </div>
+                    </div>
+
+                    {/* Recommendation Card */}
+                    <div className="bg-gradient-to-br from-red-600/20 to-transparent border border-red-500/20 rounded-[3rem] p-10 flex flex-col justify-between">
+                       <div>
+                         <div className="flex items-center gap-3 mb-8">
+                            <div className="p-2 bg-red-500/20 rounded-xl text-red-500"><Play size={20} /></div>
+                            <span className="text-[10px] font-black text-red-400 uppercase tracking-widest">Recommended Insight</span>
+                         </div>
+                         <h3 className="text-2xl font-black text-white mb-4 leading-tight">AI가 제안하는 <br/>최적의 솔루션 교육</h3>
+                         <p className="text-slate-400 text-sm font-light">분석된 약점 보완을 위해 가장 필요한 전문 강의를 매칭해 드립니다.</p>
+                       </div>
+                       
+                       <div className="mt-8">
+                         {aiData?.recommendedVideoKeyword ? (
+                           <YoutubeVideoLink keyword={aiData.recommendedVideoKeyword} className="w-full bg-white text-[#05080F] font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all shadow-xl" />
+                         ) : (
+                           <div className="text-slate-600 text-xs italic">리포트 분석 완료 후 키워드가 생성됩니다.</div>
+                         )}
+                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="bg-white/[0.02] border border-white/5 rounded-[4rem] p-20 text-center space-y-6"
+                >
+                  <div className="mx-auto w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-slate-500">
+                    <Target size={40} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-slate-400">데이터 정밀 분석 준비 완료</h3>
+                    <p className="text-slate-600 text-sm">상단에서 기간을 설정한 후 'AI 경영 분석 실행' 버튼을 눌러주세요.</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
         </main>
       </div>
     </DashboardLayout>

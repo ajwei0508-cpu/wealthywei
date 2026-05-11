@@ -9,20 +9,27 @@ import { DataMetrics } from "@/context/DataContext";
  */
 export async function generateClinicInsightStream(data: DataMetrics, onChunk: (text: string) => void): Promise<void> {
   const isOkchart = !!data.okchartData;
+  const isHanchart = !!data.hanchartData && data.hanchartData.length > 0;
   const metrics = isOkchart ? data.okchartData : null;
+  const hanchartMetrics = isHanchart ? data.hanchartData : null;
+  
+  // 매출 데이터 보정 (EMR별 상이한 필드 대응)
+  const totalRev = data.generatedRevenue.total || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
+  const nonCoveredRev = data.generatedRevenue.nonCovered || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
   
   const prompt = `
     당신은 대한민국 최고의 한의원 경영 컨설턴트입니다. 
     제공된 한의원의 월간 경영 데이터를 분석하여 '원장님'에게 직접 말하는 듯한 전문적이고 실천적인 경영 진단을 작성해주세요.
 
     [데이터 정보]
-    - 모델: ${isOkchart ? "오케이차트 (OkChart)" : "일반 데이터"}
-    - 총 매출: ${data.generatedRevenue.total.toLocaleString()}원
+    - EMR 모델: ${isOkchart ? "오케이차트 (OkChart)" : isHanchart ? "한차트 (HanChart)" : "일반 데이터"}
+    - 총 매출: ${totalRev.toLocaleString()}원
     - 보험 매출: ${(data.generatedRevenue.insurance + data.generatedRevenue.copay).toLocaleString()}원
-    - 비급여 매출: ${data.generatedRevenue.nonCovered.toLocaleString()}원
+    - 비급여 매출: ${nonCoveredRev.toLocaleString()}원
     - 자동차보험: ${data.generatedRevenue.auto.toLocaleString()}원
     - 내원 환자수: ${data.patientMetrics.total}명
     - 신규 환자수: ${data.patientMetrics.new}명
+    ${isHanchart ? `- 비급여 비중: ${totalRev > 0 ? ((nonCoveredRev / totalRev) * 100).toFixed(1) : 0}%` : ""}
     ${metrics ? `
     - 미수금: ${metrics.receivables.toLocaleString()}원
     - 할인액: ${metrics.discountTotal.toLocaleString()}원
@@ -62,18 +69,28 @@ export async function generateClinicInsight(data: DataMetrics): Promise<string> 
 /**
  * 다중 월 데이터를 분석하여 거시적 전략 브리핑 생성 (JSON 기반 시각화 대응)
  */
-export async function generateStrategicBriefing(history: { month: string, metrics: DataMetrics }[]): Promise<string> {
+export async function generateStrategicBriefing(history: { month: string, metrics: DataMetrics }[], emrType?: string): Promise<string> {
   const sortedHistory = [...history].sort((a, b) => a.month.localeCompare(b.month));
   
-  const dataSummary = sortedHistory.map(h => `
-    - ${h.month}: 매출 ${h.metrics.generatedRevenue.total.toLocaleString()}원, 환자 ${h.metrics.patientMetrics.total}명 (신환 ${h.metrics.patientMetrics.new}명), 비급여 ${h.metrics.generatedRevenue.nonCovered.toLocaleString()}원
-  `).join("\n");
+  const dataSummary = sortedHistory.map(h => {
+    const isHanchart = !!h.metrics.hanchartData && h.metrics.hanchartData.length > 0;
+    const hanchartMetrics = isHanchart ? h.metrics.hanchartData : null;
+    const totalRev = h.metrics.generatedRevenue.total || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
+    const nonCoveredRev = h.metrics.generatedRevenue.nonCovered || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
+    
+    return `
+      - ${h.month}: 매출 ${totalRev.toLocaleString()}원, 환자 ${h.metrics.patientMetrics.total}명 (신환 ${h.metrics.patientMetrics.new}명), 비급여 ${nonCoveredRev.toLocaleString()}원
+    `;
+  }).join("\n");
 
   const prompt = `
     당신은 세계 최고의 병원 경영 컨설팅 그룹의 수석 파트너입니다. 
-    제공된 한의원의 시계열 경영 데이터를 정밀 분석하여, 원장님을 위한 '최고 등급 전략 보고서'를 JSON 형식으로 작성해주세요.
+    제공된 한의원의 ${history.length}개월간의 경영 데이터를 분석하여 병원장님께 드리는 '심층 경영 전략 리포트'를 작성해주세요.
 
-    [과거 데이터 추이]
+    [분석 대상 데이터]
+    - EMR 종류: ${emrType === 'hanchart' ? '한차트' : emrType === 'okchart' ? '오케이차트' : emrType === 'hanisarang' ? '한의사랑' : emrType === 'donguibogam' ? '동의보감' : '통합 데이터'}
+    - 분석 기간: ${sortedHistory[0].month} ~ ${sortedHistory[sortedHistory.length - 1].month}
+    - 월별 데이터 요약:
     ${dataSummary}
 
     [응답 JSON 형식]

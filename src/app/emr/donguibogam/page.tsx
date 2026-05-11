@@ -66,8 +66,22 @@ export default function DonguibogamPage() {
   const router = useRouter();
 
   const availableMonths = React.useMemo(() => {
-    return Object.keys(monthlyData).sort();
+    return Object.keys(monthlyData).filter(m => {
+      const entry = monthlyData[m];
+      return entry && entry.donguibogamData;
+    }).sort();
   }, [monthlyData]);
+
+  useEffect(() => {
+    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+      if (availableMonths.length > 1) {
+        setCompareMonth(availableMonths[availableMonths.length - 2]);
+      } else {
+        setCompareMonth("");
+      }
+    }
+  }, [availableMonths, selectedMonth, setSelectedMonth, setCompareMonth]);
 
   // Current & Previous Data for Comparison
   const currentEntry = monthlyData[selectedMonth] || EMPTY_DONGUIBOGAM_DATA;
@@ -562,8 +576,8 @@ export default function DonguibogamPage() {
           </div>
 
           {/* Treatment Breakdown List */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="mb-12">
+            <div className="space-y-8">
               <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
                 <div className="flex items-center justify-between mb-8 relative z-10">
                   <h2 className="text-2xl font-bold flex items-center gap-3">
@@ -602,38 +616,49 @@ export default function DonguibogamPage() {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* AI Insight */}
-            <div className="space-y-8">
-              <div className="bg-gradient-to-br from-amber-700/20 to-[#111624] border border-amber-500/20 rounded-[2.5rem] p-8 shadow-2xl flex flex-col h-full min-h-[500px]">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="h-12 w-12 rounded-2xl bg-amber-500 flex items-center justify-center text-[#0A0E1A]">
-                    <BrainCircuit size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">동의보감 AI 진단</h3>
-                    <p className="text-amber-500/60 text-[10px] font-black uppercase tracking-widest">Medical Analytics</p>
-                  </div>
+        {/* Bottom CTA to AI Deep Analysis */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 mb-20 px-4"
+        >
+          <button 
+            onClick={() => router.push("/ai-intelligence?emr=donguibogam")}
+            className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 shadow-2xl shadow-amber-500/20 active:scale-[0.98] transition-all"
+          >
+            <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+              <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
+                <BrainCircuit size={300} />
+              </div>
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px]" />
+
+              <div className="relative z-10 flex items-center gap-8 text-left">
+                <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-[#0A0E1A] shadow-xl shadow-amber-500/30 group-hover:rotate-6 transition-transform">
+                  <Sparkles size={40} />
                 </div>
-                <div className="flex-grow bg-black/40 backdrop-blur-sm border border-white/5 rounded-3xl p-6">
-                  {loadingInsight ? (
-                    <div className="flex flex-col items-center justify-center h-48 gap-4">
-                      <div className="w-10 h-10 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                    </div>
-                  ) : (
-                    <div className="prose prose-invert prose-amber max-w-none">
-                      <p className="text-slate-300 leading-relaxed font-light whitespace-pre-wrap text-sm">
-                        {insight || "동의보감 데이터를 업로드하시면 실시간 AI 경영 분석 리포트가 생성됩니다."}
-                      </p>
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-3xl font-black text-white tracking-tight mb-2">동의보감 AI 경영 심층 분석 리포트</h2>
+                  <p className="text-slate-400 font-light max-w-md">
+                    동의보감의 누적 데이터를 통합 분석하여 원장님께 가장 최적화된 맞춤형 경영 전략과 미래 예측을 제안합니다.
+                  </p>
                 </div>
-                <div className="mt-8">
-                  <YoutubeVideoLink keyword={displayData.totalRevenue > 60000000 ? "한의원 고부가가치 시술 마케팅" : "동의보감 차트 분석법"} />
+              </div>
+
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex flex-col items-end mr-4 hidden md:block">
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Upgrade Strategy</span>
+                  <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-amber-500 group-hover:border-amber-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                  <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </div>
               </div>
             </div>
-          </div>
+          </button>
+        </motion.section>
         </div>
 
         {/* Footer Info */}

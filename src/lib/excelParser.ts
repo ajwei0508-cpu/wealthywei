@@ -365,32 +365,39 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
     const row = jsonData[i].map(c => normalize(c));
     const rawRow = jsonData[i];
 
-    if (!isTableActive && (row.includes("구분") && (row.includes("비과세비급여") || row.includes("과세비급여")))) {
+    if (!isTableActive && (row.some(c => c.includes("구분")) && row.some(c => c.includes("비과세") || c.includes("매출") || c.includes("진료비") || c.includes("본인부담")))) {
       isTableActive = true;
-      headerIndexes = {
-        type: row.findIndex(c => c.includes("구분")),
-        nonTaxable: row.findIndex(c => c.includes("비과세")),
-        taxable: row.findIndex(c => c.includes("과세") && !c.includes("비과세")),
-        coveredCopay: row.findIndex(c => c.includes("급여본부금") || c.includes("본인부담금")),
-        coveredClaim: row.findIndex(c => c.includes("급여청구액")),
-        autoClaim: row.findIndex(c => c === "자보청구액"),
-        totalCopay: row.findIndex(c => c === "본부금합" || c === "수납할금액"),
-        supportFund: row.findIndex(c => c === "건생비" || c === "지원금"),
-        totalRevenue: row.findIndex(c => c === "총매출액"),
-        ratio: row.findIndex(c => c === "매출비율"),
-      };
-      continue;
+        headerIndexes = {
+          type: row.findIndex(c => c.includes("구분") || c.includes("분류")),
+          nonTaxable: row.findIndex(c => c.includes("비과세") || c.includes("비세")),
+          taxable: row.findIndex(c => c.includes("과세") && !c.includes("비과세")),
+          coveredCopay: row.findIndex(c => c.includes("급여본부금") || c.includes("본인부담") || c.includes("수납금")),
+          coveredClaim: row.findIndex(c => c.includes("급여청구") || c.includes("보험청구")),
+          autoClaim: row.findIndex(c => c.includes("자보청구")),
+          totalCopay: row.findIndex(c => c.includes("본부금합") || c.includes("수납합계") || c.includes("부담금")),
+          supportFund: row.findIndex(c => c.includes("건생비") || c.includes("지원금")),
+          totalRevenue: row.findIndex(c => c.includes("총매출") || c.includes("총진료비") || c.includes("매출계") || c.includes("진료비계")),
+          ratio: row.findIndex(c => c.includes("비율") || c.includes("%")),
+        };
+        
+        // If totalRevenue index not found, try to find the one that includes "합계" or just "진료비"
+        if (headerIndexes.totalRevenue === -1) {
+          headerIndexes.totalRevenue = row.findIndex(c => c.includes("진료비") || c.includes("합계"));
+        }
+        // If still not found, use the last numeric-looking column as a guess (handled in parseHanchart logic)
+        continue;
     }
 
     if (isTableActive) {
       if (!rawRow || rawRow.length === 0) continue;
-      const typeLabelRaw = rawRow[headerIndexes.type] || "";
+      const typeIdx = headerIndexes.type !== -1 ? headerIndexes.type : 0;
+      const typeLabelRaw = rawRow[typeIdx] || "";
       const typeLabel = normalize(typeLabelRaw);
       if (!typeLabel) continue;
 
-      const parseValue = (idx: number) => parseCleanNumber(rawRow[idx]);
+      const parseValue = (idx: number) => idx !== -1 ? parseCleanNumber(rawRow[idx]) : 0;
 
-      if (typeLabel.includes("합계")) {
+      if (typeLabel.includes("합계") || typeLabel === "계" || typeLabel === "총계") {
         extractedData.generatedRevenue.nonCovered = parseValue(headerIndexes.nonTaxable) + parseValue(headerIndexes.taxable);
         extractedData.generatedRevenue.copay = parseValue(headerIndexes.coveredCopay);
         extractedData.generatedRevenue.insurance = parseValue(headerIndexes.coveredClaim);
@@ -399,6 +406,12 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
         
         let newCount = 0;
         let totalCount = 0;
+        let aggNonCovered = 0;
+        let aggCopay = 0;
+        let aggInsurance = 0;
+        let aggAuto = 0;
+        let aggTotal = 0;
+
         extractedData.hanchartData?.forEach(hc => {
            const match = hc.type.match(/\((\d+)\)/);
            if (match) {
@@ -406,7 +419,22 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
              totalCount += count;
              if (hc.type.includes("초진")) newCount += count;
            }
+           aggNonCovered += (hc.nonTaxable || 0) + (hc.taxable || 0);
+           aggCopay += (hc.coveredCopay || 0);
+           aggInsurance += (hc.coveredClaim || 0);
+           aggAuto += (hc.autoClaim || 0);
+           aggTotal += (hc.totalRevenue || 0);
         });
+
+        // 합계 행 데이터가 부실할 경우(0일 경우) 집계 데이터로 보정
+        if (extractedData.generatedRevenue.total === 0) {
+          extractedData.generatedRevenue.total = aggTotal;
+          extractedData.generatedRevenue.nonCovered = aggNonCovered;
+          extractedData.generatedRevenue.copay = aggCopay;
+          extractedData.generatedRevenue.insurance = aggInsurance;
+          extractedData.generatedRevenue.auto = aggAuto;
+        }
+
         extractedData.patientMetrics.new = newCount;
         extractedData.patientMetrics.total = totalCount;
 
@@ -418,7 +446,7 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
       
       extractedData.hanchartData?.push({
         rank,
-        type: String(rawRow[headerIndexes.type]),
+        type: String(rawRow[headerIndexes.type] || ""),
         nonTaxable: parseValue(headerIndexes.nonTaxable),
         taxable: parseValue(headerIndexes.taxable),
         coveredCopay: parseValue(headerIndexes.coveredCopay),
