@@ -2,14 +2,27 @@
 
 import React from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import KakaoLogin from "@/components/KakaoLogin";
 import DashboardLayout from "@/components/DashboardLayout";
 import { TrendingUp, Stethoscope, Activity, FileText, BarChart2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const isChangeMode = searchParams.get("change") === "true";
+  const { data: session, status, update } = useSession();
+
+  const selectedEmr = (session?.user as any)?.selectedEmr;
+
+  // 만약 차트가 이미 귀속되어 있다면 해당 차트로 자동 리다이렉트
+  // 단, 'change' 파라미터가 있는 경우(변경 모드)는 제외
+  React.useEffect(() => {
+    if (status === "authenticated" && selectedEmr && !isChangeMode) {
+      router.push(`/emr/${selectedEmr}`);
+    }
+  }, [status, selectedEmr, router, isChangeMode]);
 
   if (status === "loading") {
     return (
@@ -96,7 +109,24 @@ export default function Home() {
           {emrs.map((emr) => (
             <button
               key={emr.id}
-              onClick={() => router.push(`/emr/${emr.id}`)}
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/user/emr", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ emrId: emr.id })
+                  });
+                  if (res.ok) {
+                    toast.success(`${emr.name}로 차트가 귀속되었습니다.`);
+                    await update(); // 세션 즉시 업데이트
+                    router.push(`/emr/${emr.id}`);
+                  } else {
+                    router.push(`/emr/${emr.id}`);
+                  }
+                } catch {
+                  router.push(`/emr/${emr.id}`);
+                }
+              }}
               className={`flex flex-col items-center text-center p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-105 active:scale-95 shadow-sm hover:shadow-xl ${emr.color}`}
             >
               <div className="p-4 bg-white/60 rounded-2xl shadow-sm mb-4">

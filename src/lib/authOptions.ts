@@ -111,7 +111,7 @@ export const authOptions: NextAuthOptions = {
           );
           const { data } = await supabase
             .from("user_permissions")
-            .select("approval_status, approved_category, approved_categories")
+            .select("approval_status, approved_category, approved_categories, selected_emr")
             .eq("user_email", token.email?.toLowerCase())
             .single();
 
@@ -120,6 +120,8 @@ export const authOptions: NextAuthOptions = {
             session.user.approvalStatus = data.approval_status;
             // @ts-ignore
             session.user.approvedCategories = data.approved_categories || (data.approved_category ? [data.approved_category] : []);
+            // @ts-ignore
+            session.user.selectedEmr = data.selected_emr;
           } else {
             // @ts-ignore
             session.user.approvalStatus = 'pending';

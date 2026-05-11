@@ -15,7 +15,8 @@ import {
   User,
   Crown,
   ClipboardList,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -147,7 +148,14 @@ export default function DashboardSidebar() {
             label="AI 경영 분석" 
             isLocked={!isConsultingApproved && !isMaster}
             isActive={pathname.startsWith("/emr")}
-            onClick={() => router.push("/")}
+            onClick={() => {
+              const selEmr = (session?.user as any)?.selectedEmr;
+              if (selEmr) {
+                router.push(`/emr/${selEmr}`);
+              } else {
+                router.push("/");
+              }
+            }}
           />
 
           {/* 2. 바른개원법 */}
@@ -201,13 +209,6 @@ export default function DashboardSidebar() {
         {isMaster && (
           <div className="flex flex-col gap-2 mt-4">
             <Link 
-              href="/survey/admin"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-amber-400/20 to-amber-500/10 border border-amber-400/20 hover:from-amber-400/30 hover:to-amber-500/20 hover:border-amber-400/40 text-amber-200 text-xs font-bold transition-all group shadow-lg shadow-amber-900/10 relative z-10 cursor-pointer active:scale-95"
-            >
-              <Crown size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-              마스터 워크북 관리 Dashboard
-            </Link>
-            <Link 
               href="/master"
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-blue-400/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-blue-400/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
             >
@@ -225,6 +226,15 @@ export default function DashboardSidebar() {
           <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
           경영 진단 워크북 작성
         </Link>
+
+        {/* EMR Change Button */}
+        <button 
+          onClick={() => router.push("/?change=true")}
+          className="w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl bg-amber-500/10 border border-amber-400/20 hover:bg-amber-500/20 hover:text-amber-400 text-amber-300 text-xs font-bold transition-all group relative z-10 cursor-pointer active:scale-95"
+        >
+          <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+          사용 차트(EMR) 변경
+        </button>
 
         <button 
           onClick={() => signOut()}
