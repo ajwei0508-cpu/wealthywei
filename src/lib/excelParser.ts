@@ -468,9 +468,9 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
 }
 
 function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResult[] {
-  const results: ParseExcelResult[] = [];
+  const resultsMap: Record<string, ParseExcelResult> = {};
 
-  // 연말결산:2025 형식 찾기
+  // 1. 컨텍스트 정보(연도 등) 추출
   let contextYear = "";
   for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
     const rowStr = jsonData[i].join(" ");
@@ -481,99 +481,155 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     }
   }
 
-  // "월"이라는 정확한 컬럼이 있는 행을 우선적으로 헤더로 인식 (연말결산 등 리스트 형태)
-  let headerRowIndex = jsonData.findIndex(row => row.some(cell => String(cell).trim() === "월"));
+  // 2. 헤더 행 찾기
+  let headerRowIndex = jsonData.findIndex(row => 
+    row.some(cell => {
+      const c = normalize(cell);
+      return c === "내원환자수" || c === "총진료비" || c === "수납총액";
+    })
+  );
   
-  // 못 찾으면 기존 방식대로 내원환자수나 총진료비가 있는 행 찾기
-  if (headerRowIndex === -1) {
-    headerRowIndex = jsonData.findIndex(row => 
-      row.some(cell => String(cell).includes("내원환자수")) || 
-      row.some(cell => String(cell).includes("총진료비"))
-    );
-  }
-
   if (headerRowIndex === -1) return [];
 
   const headers = jsonData[headerRowIndex].map(h => normalize(h));
-  
-  // 날짜/월 컬럼 인덱스 찾기
   const dateColIdx = headers.findIndex(h => 
     h === "월" || h === "월별" || h.includes("년월") || h.includes("일자") || h.includes("기간") || h.includes("구분") || h.includes("날짜")
   );
 
-  // 모든 데이터 행 순회
+  // 3. 모든 데이터 행 순회 및 '합산' 처리
   for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
     const dataRow = jsonData[i];
     if (!dataRow || dataRow.every(c => !c)) continue;
     
-    // 합계 행 건너뛰기
-    if (dataRow.some(cell => String(cell).includes("합계") || String(cell).includes("총계"))) continue;
+    const rowStr = dataRow.join("");
+    const isTotalRow = rowStr.includes("합계") || rowStr.includes("총계");
+
+    // 리스트 형태일 때 합계 행은 그 자체로 의미가 있으나, 개별 행들을 합산할 것이므로 건너뜀
+    // 단, 데이터가 합계 행 딱 하나뿐인 양식이라면 이를 수용
+    if (isTotalRow && jsonData.length > headerRowIndex + 2) continue;
 
     let rowMonth = targetMonth;
     if (dateColIdx !== -1 && dataRow[dateColIdx]) {
       const extracted = tryExtractMonth(dataRow[dateColIdx], contextYear);
       if (extracted) rowMonth = extracted;
     }
+    if (!rowMonth) continue;
 
-    const extractedData: DataMetrics = JSON.parse(JSON.stringify(initialDataMetrics));
-    const mappingResults: MappingResult[] = [];
+    // 해당 월의 결과 객체가 없으면 생성
+    if (!resultsMap[rowMonth]) {
+      resultsMap[rowMonth] = {
+        targetMonth: rowMonth,
+        extractedData: JSON.parse(JSON.stringify(initialDataMetrics)),
+        mappingResults: [{ original: "오케이차트 정밀 합산 분석", standard: "OKCHART_AGGREGATED" }]
+      };
+      // okchartData 초기화
+      resultsMap[rowMonth].extractedData.okchartData = {
+        totalPatients: 0, newPatients: 0, autoPatients: 0, avgDailyPatients: 0,
+        totalRevenue: 0, insuranceClaim: 0, copay: 0, autoClaim: 0, workerClaim: 0,
+        nonCovered: 0, patientTotal: 0, receivables: 0, discountTotal: 0,
+        roundOffTotal: 0, totalReceived: 0, totalRefund: 0, cashPayment: 0,
+        cardPayment: 0, giftPayment: 0,
+      };
+    }
+
+    const target = resultsMap[rowMonth].extractedData;
+    const ok = target.okchartData!;
 
     const findAndParse = (keywords: string[]) => {
-      const idx = headers.findIndex(h => keywords.some(k => h === normalize(k)));
+      const normalizedKeywords = keywords.map(k => normalize(k));
+      const idx = headers.findIndex(h => normalizedKeywords.some(nk => h === nk || h === nk.replace("청구", "")));
       return idx !== -1 ? parseCleanNumber(dataRow[idx]) : 0;
     };
 
-    extractedData.patientMetrics.total = findAndParse(["내원환자수"]);
-    extractedData.patientMetrics.new = findAndParse(["신규환자수"]);
-    extractedData.patientMetrics.auto = findAndParse(["자보환자수"]);
-    extractedData.patientMetrics.dailyAvg = findAndParse(["진료일평균환자수"]);
+    // 데이터 누적 합산 (Summation)
+    const valTotalPatients = findAndParse(["내원환자수"]);
+    target.patientMetrics.total += valTotalPatients;
+    ok.totalPatients += valTotalPatients;
 
-    extractedData.generatedRevenue.total = findAndParse(["총진료비"]);
-    extractedData.generatedRevenue.copay = findAndParse(["본인부담"]);
-    extractedData.generatedRevenue.insurance = findAndParse(["보험(청구)"]);
-    extractedData.generatedRevenue.auto = findAndParse(["자보(청구)"]);
-    extractedData.generatedRevenue.worker = findAndParse(["산재(청구)"]);
-    extractedData.generatedRevenue.nonCovered = findAndParse(["비급여"]);
-    extractedData.generatedRevenue.patientTotal = findAndParse(["환자부담계"]);
+    const valNewPatients = findAndParse(["신규환자수"]);
+    target.patientMetrics.new += valNewPatients;
+    ok.newPatients += valNewPatients;
 
-    extractedData.leakage.receivables = findAndParse(["미수금"]);
-    extractedData.leakage.discountTotal = findAndParse(["할인총액"]);
-    extractedData.leakage.roundOffTotal = findAndParse(["절사총액"]);
+    const valAutoPatients = findAndParse(["자보환자수"]);
+    target.patientMetrics.auto += valAutoPatients;
+    ok.autoPatients += valAutoPatients;
 
-    extractedData.cashFlow.totalReceived = findAndParse(["수납총액"]);
-    extractedData.cashFlow.totalRefund = findAndParse(["환불총액"]);
+    const valDailyAvg = findAndParse(["진료일평균환자수"]);
+    target.patientMetrics.dailyAvg = Math.max(target.patientMetrics.dailyAvg, valDailyAvg); // 평균은 최대값 혹은 나중에 재계산
+    ok.avgDailyPatients = Math.max(ok.avgDailyPatients, valDailyAvg);
 
-    extractedData.paymentMethods.cash = findAndParse(["현금수납"]);
-    extractedData.paymentMethods.card = findAndParse(["카드수납"]);
-    extractedData.paymentMethods.other = findAndParse(["건생수납"]);
+    const valTotalRevenue = findAndParse(["총진료비"]);
+    target.generatedRevenue.total += valTotalRevenue;
+    ok.totalRevenue += valTotalRevenue;
 
-    extractedData.okchartData = {
-      totalPatients: extractedData.patientMetrics.total,
-      newPatients: extractedData.patientMetrics.new,
-      autoPatients: extractedData.patientMetrics.auto,
-      avgDailyPatients: extractedData.patientMetrics.dailyAvg,
-      totalRevenue: extractedData.generatedRevenue.total,
-      insuranceClaim: extractedData.generatedRevenue.insurance,
-      copay: extractedData.generatedRevenue.copay,
-      autoClaim: extractedData.generatedRevenue.auto,
-      workerClaim: extractedData.generatedRevenue.worker,
-      nonCovered: extractedData.generatedRevenue.nonCovered,
-      patientTotal: extractedData.generatedRevenue.patientTotal,
-      receivables: extractedData.leakage.receivables,
-      discountTotal: extractedData.leakage.discountTotal,
-      roundOffTotal: extractedData.leakage.roundOffTotal,
-      totalReceived: extractedData.cashFlow.totalReceived,
-      totalRefund: extractedData.cashFlow.totalRefund,
-      cashPayment: extractedData.paymentMethods.cash,
-      cardPayment: extractedData.paymentMethods.card,
-      giftPayment: extractedData.paymentMethods.other,
-    };
+    const valCopay = findAndParse(["본인부담"]);
+    target.generatedRevenue.copay += valCopay;
+    ok.copay += valCopay;
 
-    mappingResults.push({ original: "오케이차트 수납통계", standard: "정밀 파싱" });
-    results.push({ targetMonth: rowMonth, extractedData, mappingResults });
+    const valInsurance = findAndParse(["보험(청구)", "보험청구"]);
+    target.generatedRevenue.insurance += valInsurance;
+    ok.insuranceClaim += valInsurance;
+
+    const valAutoClaim = findAndParse(["자보(청구)", "자보청구"]);
+    target.generatedRevenue.auto += valAutoClaim;
+    ok.autoClaim += valAutoClaim;
+
+    const valWorkerClaim = findAndParse(["산재(청구)", "산재청구"]);
+    target.generatedRevenue.worker += valWorkerClaim;
+    ok.workerClaim += valWorkerClaim;
+
+    const valNonCovered = findAndParse(["비급여"]);
+    target.generatedRevenue.nonCovered += valNonCovered;
+    ok.nonCovered += valNonCovered;
+
+    const valPatientTotal = findAndParse(["환자부담계"]);
+    target.generatedRevenue.patientTotal += valPatientTotal;
+    ok.patientTotal += valPatientTotal;
+
+    const valReceivables = findAndParse(["미수금"]);
+    target.leakage.receivables += valReceivables;
+    ok.receivables += valReceivables;
+
+    const valDiscount = findAndParse(["할인총액"]);
+    target.leakage.discountTotal += valDiscount;
+    ok.discountTotal += valDiscount;
+
+    const valRoundOff = findAndParse(["절사총액"]);
+    target.leakage.roundOffTotal += valRoundOff;
+    ok.roundOffTotal += valRoundOff;
+
+    const valReceived = findAndParse(["수납총액"]);
+    target.cashFlow.totalReceived += valReceived;
+    ok.totalReceived += valReceived;
+
+    const valRefund = findAndParse(["환불총액"]);
+    target.cashFlow.totalRefund += valRefund;
+    ok.totalRefund += valRefund;
+
+    const valCash = findAndParse(["현금수납"]);
+    target.paymentMethods.cash += valCash;
+    ok.cashPayment += valCash;
+
+    const valCard = findAndParse(["카드수납"]);
+    target.paymentMethods.card += valCard;
+    ok.cardPayment += valCard;
+
+    const valGift = findAndParse(["건생수납"]);
+    target.paymentMethods.other += valGift;
+    ok.giftPayment += valGift;
   }
 
-  return results;
+  // 최종 결과에서 총 매출이 0인데 수납액이 있는 경우 보정
+  Object.values(resultsMap).forEach(res => {
+    if (res.extractedData.generatedRevenue.total === 0 && res.extractedData.cashFlow.totalReceived > 0) {
+      res.extractedData.generatedRevenue.total = res.extractedData.cashFlow.totalReceived;
+      if (res.extractedData.okchartData) {
+        res.extractedData.okchartData.totalRevenue = res.extractedData.cashFlow.totalReceived;
+      }
+    }
+  });
+
+  return Object.values(resultsMap);
 }
 
 function parseHanisarang(jsonData: string[][], targetMonth: string): ParseExcelResult[] {

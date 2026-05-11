@@ -163,8 +163,6 @@ export default function DashboardSidebar() {
             icon={FileText} 
             label="바른개원법" 
             isLocked={!isOpeningApproved && !isMaster} 
-            isActive={pathname === "/survey"}
-            onClick={() => router.push("/survey")}
           />
           
           {/* 3. 바른진료법 */}
@@ -172,6 +170,8 @@ export default function DashboardSidebar() {
             icon={Stethoscope} 
             label="바른진료법" 
             isLocked={!isTreatmentApproved && !isMaster} 
+            isActive={pathname === "/treatment"}
+            onClick={() => router.push("/treatment")}
           />
           
           {/* 4. 바른처방법 */}

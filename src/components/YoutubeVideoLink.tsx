@@ -8,12 +8,13 @@ import { YoutubeSkeleton } from "./Skeleton";
 
 interface YoutubeVideoLinkProps {
   keyword: string;
-  mLabel: string;
-  isUp: boolean;
-  activeSolution: any;
+  mLabel?: string;
+  isUp?: boolean;
+  activeSolution?: any;
+  className?: string;
 }
 
-export function YoutubeVideoLink({ keyword, mLabel, isUp, activeSolution }: YoutubeVideoLinkProps) {
+export function YoutubeVideoLink({ keyword, mLabel = "AI 추천", isUp = false, activeSolution, className }: YoutubeVideoLinkProps) {
   const [video, setVideo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

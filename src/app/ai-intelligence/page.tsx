@@ -27,6 +27,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { generateStrategicBriefing } from "@/lib/aiService";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { useSearchParams } from "next/navigation";
+import AnalysisTimer from "@/components/AnalysisTimer";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -183,10 +184,17 @@ export default function AiIntelligencePage() {
   const aiData = useMemo(() => {
     if (!briefing) return null;
     try {
-      const jsonMatch = briefing.match(/\{[\s\S]*\}/);
-      return JSON.parse(jsonMatch ? jsonMatch[0] : briefing);
+      // 1. ```json ... ``` 형태의 마크다운 블록 제거 시도
+      let cleanBriefing = briefing.replace(/```json/g, "").replace(/```/g, "").trim();
+      
+      // 2. 가장 바깥쪽 { } 추출
+      const jsonMatch = cleanBriefing.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : cleanBriefing;
+      
+      return JSON.parse(jsonStr);
     } catch (e) {
-      return { detailedAnalysis: briefing };
+      console.warn("AI JSON Parse Error, falling back to raw text:", e);
+      return { detailedAnalysis: briefing, actionPlan: [], recommendedVideoKeyword: "" };
     }
   }, [briefing]);
 
@@ -344,6 +352,7 @@ export default function AiIntelligencePage() {
                     <h3 className="text-2xl font-black text-white">AI 전략 데이터 큐레이션</h3>
                     <p className="text-slate-500 font-medium italic">수만 건의 경영 지표를 바탕으로 최적의 전략을 도출하고 있습니다...</p>
                   </div>
+                  <AnalysisTimer isLoading={loading} estimatedSeconds={40} />
                 </motion.div>
               ) : briefing ? (
                 <motion.div 

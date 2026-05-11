@@ -39,6 +39,7 @@ import toast from "react-hot-toast";
 import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
+import AnalysisTimer from "@/components/AnalysisTimer";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -976,7 +977,117 @@ export default function OkchartPage() {
         </div>
 
 
-        {/* Bottom CTA to AI Deep Analysis */}
+        {/* AI Management Insight Section */}
+        <section className="mb-12">
+          {(() => {
+            let aiData: any = null;
+            if (insight) {
+              try {
+                let clean = insight.replace(/```json/g, "").replace(/```/g, "").trim();
+                const match = clean.match(/\{[\s\S]*\}/);
+                aiData = JSON.parse(match ? match[0] : clean);
+              } catch (e) {
+                aiData = { detailedAnalysis: insight };
+              }
+            }
+
+            if (loadingInsight || aiData) {
+              return (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-8"
+                >
+                  <div className="bg-gradient-to-br from-blue-500/10 via-transparent to-transparent border border-blue-500/20 rounded-[3rem] p-10 lg:p-16 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-12 opacity-[0.02] group-hover:scale-110 transition-transform duration-1000">
+                      <BrainCircuit size={300} />
+                    </div>
+                    
+                    <div className="relative z-10">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-10 border-b border-white/5 pb-10">
+                        <div className="flex items-center gap-5">
+                          <div className="h-14 w-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
+                            <Sparkles size={28} />
+                          </div>
+                          <div>
+                            <h2 className="text-2xl font-black text-white tracking-tight">AI 경영 진단 브리핑</h2>
+                            <p className="text-blue-500/60 text-[10px] font-black uppercase tracking-widest">Month Performance Intelligence</p>
+                          </div>
+                        </div>
+                        {aiData?.summary && (
+                          <div className="px-6 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold">
+                            {aiData.summary}
+                          </div>
+                        )}
+                      </div>
+
+                      {loadingInsight && !aiData ? (
+                        <div className="flex flex-col items-start gap-4">
+                          <div className="flex items-center gap-4 text-slate-500 animate-pulse">
+                            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            <p className="font-medium">실시간 경영 지표 분석 중...</p>
+                          </div>
+                          <AnalysisTimer isLoading={loadingInsight} estimatedSeconds={25} />
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                          <div className="lg:col-span-2 space-y-6">
+                            <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:leading-relaxed prose-li:text-slate-400">
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed font-light">
+                                {aiData?.detailedAnalysis || insight}
+                              </div>
+                            </div>
+                            
+                            {aiData?.actionPlan && aiData.actionPlan.length > 0 && (
+                              <div className="pt-8 space-y-4">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">즉각 실행 전략 로드맵</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {aiData.actionPlan.map((plan: any, idx: number) => (
+                                    <div key={idx} className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-blue-500/30 transition-all">
+                                      <div className="flex items-start gap-3">
+                                        <div className="text-blue-500/40 font-black text-xl leading-none">{idx + 1}</div>
+                                        <div>
+                                          <p className="text-xs font-bold text-white mb-1">{plan.task}</p>
+                                          <p className="text-[10px] text-emerald-400 font-black uppercase tracking-tighter">🎯 {plan.effect}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="bg-white/5 rounded-3xl p-8 border border-white/10 flex flex-col justify-between space-y-8">
+                            <div>
+                              <div className="flex items-center gap-2 mb-6">
+                                <div className="p-2 bg-red-500/20 rounded-lg text-red-500"><Play size={16} /></div>
+                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Recommend Education</span>
+                              </div>
+                              <h3 className="text-lg font-bold text-white leading-tight">AI가 제안하는 <br/>맞춤형 솔루션 학습</h3>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              {aiData?.recommendedVideoKeyword ? (
+                                <YoutubeVideoLink 
+                                  keyword={aiData.recommendedVideoKeyword} 
+                                  className="w-full bg-white text-[#0A0E1A] font-black py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-gold-500 transition-all shadow-xl"
+                                />
+                              ) : (
+                                <div className="text-slate-600 text-[10px] italic">데이터 분석 완료 후 최적의 강의를 매칭해 드립니다.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+            return null;
+          })()}
+        </section>
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
