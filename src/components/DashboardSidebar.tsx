@@ -88,6 +88,15 @@ export default function DashboardSidebar() {
   const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
   const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
 
+  const userStatus = (session?.user as any)?.approvalStatus || 'pending';
+  const approvedCategories = (session?.user as any)?.approvedCategories || [];
+  const userCategory = (session?.user as any)?.approvedCategory || '';
+
+  const isConsultingApproved = userStatus === 'approved' && (approvedCategories.includes('consulting') || userCategory === 'consulting');
+  const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
+  const isOpeningApproved = userStatus === 'approved' && (approvedCategories.includes('opening') || approvedCategories.includes('consulting') || userCategory === 'opening' || userCategory === 'consulting');
+  const isPrescriptionApproved = userStatus === 'approved' && (approvedCategories.includes('prescription') || userCategory === 'prescription');
+
   const consultingSubMenus = [
     "AI 차팅", "원장", "직원", "실비", "眞장부맥법", "바른 비급여", "마케팅"
   ];
@@ -114,6 +123,7 @@ export default function DashboardSidebar() {
           <NavItem 
             icon={LayoutDashboard} 
             label="바른컨설팅" 
+            isLocked={!isConsultingApproved && !isMaster}
             isOpen={isConsultingOpen} 
             onClick={() => setIsConsultingOpen(!isConsultingOpen)}
             isActive={pathname === "/" || pathname === "/details"}
@@ -131,22 +141,37 @@ export default function DashboardSidebar() {
             ))}
           </NavItem>
 
-          {/* 1.1 AI 경영 분석 (New) */}
+          {/* 1.1 AI 경영 분석 */}
           <NavItem 
             icon={Sparkles} 
             label="AI 경영 분석" 
-            isActive={pathname === "/emr/okchart"}
-            onClick={() => router.push("/emr/okchart")}
+            isLocked={!isConsultingApproved && !isMaster}
+            isActive={pathname.startsWith("/emr")}
+            onClick={() => router.push("/")}
           />
 
-          {/* 2. 바른개원법 (Locked) */}
-          <NavItem icon={FileText} label="바른개원법" isLocked />
+          {/* 2. 바른개원법 */}
+          <NavItem 
+            icon={FileText} 
+            label="바른개원법" 
+            isLocked={!isOpeningApproved && !isMaster} 
+            isActive={pathname === "/survey"}
+            onClick={() => router.push("/survey")}
+          />
           
-          {/* 3. 바른진료법 (Locked) */}
-          <NavItem icon={Stethoscope} label="바른진료법" isLocked />
+          {/* 3. 바른진료법 */}
+          <NavItem 
+            icon={Stethoscope} 
+            label="바른진료법" 
+            isLocked={!isTreatmentApproved && !isMaster} 
+          />
           
-          {/* 4. 바른처방법 (Locked) */}
-          <NavItem icon={Pill} label="바른처방법" isLocked />
+          {/* 4. 바른처방법 */}
+          <NavItem 
+            icon={Pill} 
+            label="바른처방법" 
+            isLocked={!isPrescriptionApproved && !isMaster} 
+          />
         </div>
 
         <div className="mt-10 mb-4 pt-10 border-t border-white/5">

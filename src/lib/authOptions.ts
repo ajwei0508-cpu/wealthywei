@@ -101,6 +101,34 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.name = token.name;
         session.user.image = token.picture;
+
+        // Fetch permissions from Supabase
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          const { data } = await supabase
+            .from("user_permissions")
+            .select("approval_status, approved_category, approved_categories")
+            .eq("user_email", token.email?.toLowerCase())
+            .single();
+
+          if (data) {
+            // @ts-ignore
+            session.user.approvalStatus = data.approval_status;
+            // @ts-ignore
+            session.user.approvedCategories = data.approved_categories || (data.approved_category ? [data.approved_category] : []);
+          } else {
+            // @ts-ignore
+            session.user.approvalStatus = 'pending';
+            // @ts-ignore
+            session.user.approvedCategories = [];
+          }
+        } catch (e) {
+          console.error("Session permission fetch error:", e);
+        }
       }
       return session;
     },

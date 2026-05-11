@@ -351,14 +351,28 @@ export default function SurveyPage() {
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (status === "unauthenticated") { router.push("/"); }
+    if (status === "unauthenticated") { router.push("/"); return; }
     if (status === "authenticated") {
+      const approvalStatus = (session?.user as any)?.approvalStatus;
+      const approvedCategories = (session?.user as any)?.approvedCategories || [];
+      const approvedCategory = (session?.user as any)?.approvedCategory;
+      
+      const hasPermission = approvedCategories.includes('opening') || 
+                          approvedCategories.includes('consulting') || 
+                          approvedCategory === 'opening' || 
+                          approvedCategory === 'consulting';
+
+      // 마스터가 아니고, 바른개원법(opening)이나 바른컨설팅(consulting) 권한이 없는 경우 접근 제한
+      if (!isMaster && (approvalStatus !== 'approved' || !hasPermission)) {
+        toast.error("바른개원법 또는 바른컨설팅 승인 권한이 필요합니다.");
+        router.push("/");
+        return;
+      }
+
       fetch("/api/survey").then(r => r.json()).then(({ data: saved }) => {
         if (saved?.data) {
-          // Deep merge logic to ensure new fields are initialized
           setData(prev => {
             const merged = { ...prev };
-            // Simple merge for chapters
             for (const chKey of ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6"] as const) {
               if (saved.data[chKey]) {
                 merged[chKey] = { ...prev[chKey], ...saved.data[chKey] };
@@ -370,7 +384,7 @@ export default function SurveyPage() {
         if (saved?.submitted) setSubmitted(true);
       }).catch(() => {});
     }
-  }, [status, router]);
+  }, [status, router, session, isMaster]);
 
   // ── Auto-save ──────────────────────────────────────────────────────────────
   const saveTimer = useRef<any>(null);

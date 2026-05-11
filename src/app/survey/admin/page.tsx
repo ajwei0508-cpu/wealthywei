@@ -27,8 +27,18 @@ export default function AdminSurveyPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<Submission | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+
+  // User Map for easy lookup
+  const userMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    allUsers.forEach(u => {
+      if (u.email) map.set(u.email.toLowerCase(), u.name);
+    });
+    return map;
+  }, [allUsers]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -44,11 +54,19 @@ export default function AdminSurveyPage() {
       return;
     }
 
-    fetchSubmissions();
+    fetchData();
   }, [status, session, router]);
 
-  const fetchSubmissions = async () => {
+  const fetchData = async () => {
     try {
+      // 1. Fetch Users first
+      const uRes = await fetch("/api/master/users");
+      if (uRes.ok) {
+        const { data } = await uRes.json();
+        setAllUsers(data || []);
+      }
+
+      // 2. Fetch Submissions
       const res = await fetch("/api/survey/admin");
       const data = await res.json();
       if (data.data) {
@@ -193,6 +211,7 @@ export default function AdminSurveyPage() {
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">사용자 이메일</th>
+                  <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">카카오 성함</th>
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">최종 업데이트</th>
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">제출 상태</th>
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">파일 수량</th>
@@ -214,11 +233,20 @@ export default function AdminSurveyPage() {
                       <tr key={idx} className="group hover:bg-slate-50/80 transition-all duration-300">
                         <td className="px-8 py-6 text-slate-700 font-bold">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                              <Users size={18} />
+                            <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 overflow-hidden border border-slate-200 shadow-sm">
+                              {allUsers.find(u => u.email?.toLowerCase() === sub.user_id.toLowerCase())?.image ? (
+                                <img src={allUsers.find(u => u.email?.toLowerCase() === sub.user_id.toLowerCase())?.image} alt="profile" className="w-full h-full object-cover" />
+                              ) : (
+                                <Users size={18} />
+                              )}
                             </div>
-                            <span>{sub.user_id}</span>
+                            <span className="text-sm">{sub.user_id}</span>
                           </div>
+                        </td>
+                        <td className="px-8 py-6">
+                           <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-lg border border-blue-100">
+                             {userMap.get(sub.user_id.toLowerCase()) || "이름 없음"}
+                           </span>
                         </td>
                         <td className="px-8 py-6 text-center text-slate-500 font-bold text-sm">
                           {formatDate(sub.updated_at)}
@@ -263,11 +291,17 @@ export default function AdminSurveyPage() {
             {/* Modal Header */}
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                  <Users size={24} />
+                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden border-2 border-white">
+                  {allUsers.find(u => u.email?.toLowerCase() === selectedUser.user_id.toLowerCase())?.image ? (
+                    <img src={allUsers.find(u => u.email?.toLowerCase() === selectedUser.user_id.toLowerCase())?.image} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <Users size={24} />
+                  )}
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">{selectedUser.user_id} 상세 전체 답변</h2>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                    {userMap.get(selectedUser.user_id.toLowerCase()) || "사용자"} ({selectedUser.user_id}) 상세 전체 답변
+                  </h2>
                   <p className="text-[11px] font-black text-slate-400 mt-1 uppercase tracking-widest italic">Updated: {formatDate(selectedUser.updated_at)}</p>
                 </div>
               </div>
