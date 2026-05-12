@@ -999,7 +999,7 @@ export default function OkchartPage() {
 
         {/* Daily Mission & Management Quotes */}
         <section className="mb-12">
-          <DailyMissionCard data={currentData as any} userName="원장" />
+          <DailyMissionCard data={currentData as any} userName="원장" emrType="okchart" />
         </section>
 
         <motion.section 

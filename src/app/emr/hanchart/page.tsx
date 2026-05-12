@@ -673,7 +673,7 @@ export default function HanchartPage() {
 
             {/* Daily Mission & Management Quotes */}
             <section className="mb-12">
-              <DailyMissionCard data={currentEntry as any || { patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, generatedRevenue: { total: 0, nonCovered: 0 }, leakage: { receivables: 0 } }} userName="원장" />
+              <DailyMissionCard data={currentEntry as any || { patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, generatedRevenue: { total: 0, nonCovered: 0 }, leakage: { receivables: 0 } }} userName="원장" emrType="hanchart" />
             </section>
 
 

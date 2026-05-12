@@ -8,6 +8,7 @@ import { DataMetrics } from "@/context/DataContext";
 interface DailyMissionCardProps {
   data: DataMetrics;
   userName: string;
+  emrType: "okchart" | "hanchart" | "donguibogam" | "hanisarang";
 }
 
 const QUOTES = [
@@ -20,10 +21,24 @@ const QUOTES = [
   { text: "리더십은 지위가 아니라 책임이다.", author: "피터 드러커" }
 ];
 
-export const DailyMissionCard = ({ data, userName }: DailyMissionCardProps) => {
-  // Use current date to pick a mission and quote so it changes daily
+export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardProps) => {
+  // Use current date and EMR type to pick a mission and quote so it's unique per EMR and changes daily
   const today = new Date();
-  const dateSeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  
+  // Create a stable seed based on date and EMR type
+  const emrSalt = useMemo(() => {
+    const salts: Record<string, number> = {
+      okchart: 100,
+      hanchart: 200,
+      donguibogam: 300,
+      hanisarang: 400
+    };
+    return salts[emrType] || 0;
+  }, [emrType]);
+
+  const dateSeed = useMemo(() => {
+    return (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) + emrSalt;
+  }, [today, emrSalt]);
 
   const currentQuote = useMemo(() => {
     return QUOTES[dateSeed % QUOTES.length];

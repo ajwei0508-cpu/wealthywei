@@ -621,7 +621,7 @@ export default function DonguibogamPage() {
 
           {/* Daily Mission & Management Quotes */}
           <section className="mb-12">
-            <DailyMissionCard data={currentEntry as any || { patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, generatedRevenue: { total: 0, nonCovered: 0 }, leakage: { receivables: 0 } }} userName="원장" />
+            <DailyMissionCard data={currentEntry as any || { patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, generatedRevenue: { total: 0, nonCovered: 0 }, leakage: { receivables: 0 } }} userName="원장" emrType="donguibogam" />
           </section>
 
         {/* Bottom CTA to AI Deep Analysis */}
