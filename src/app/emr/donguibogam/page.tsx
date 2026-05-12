@@ -40,6 +40,7 @@ import toast from "react-hot-toast";
 import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
+import { DailyMissionCard } from "@/components/DailyMissionCard";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -617,6 +618,11 @@ export default function DonguibogamPage() {
               </div>
             </div>
           </div>
+
+          {/* Daily Mission & Management Quotes */}
+          <section className="mb-12">
+            <DailyMissionCard data={currentEntry as any || { patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, generatedRevenue: { total: 0, nonCovered: 0 }, leakage: { receivables: 0 } }} userName="원장" />
+          </section>
 
         {/* Bottom CTA to AI Deep Analysis */}
         <motion.section 

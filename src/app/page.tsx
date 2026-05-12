@@ -22,6 +22,7 @@ import {
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
+import { DailyMissionCard } from "@/components/DailyMissionCard";
 
 export default function Home() {
   const router = useRouter();
@@ -234,76 +235,9 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Intelligent Snapshot Grid */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="md:col-span-2 bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[3rem] p-10 flex flex-col justify-between group hover:bg-white/[0.05] transition-all"
-            >
-              <div className="flex justify-between items-start mb-12">
-                <div>
-                  <h3 className="text-2xl font-black text-white mb-2 tracking-tight">이번 달 성과 요약</h3>
-                  <p className="text-slate-500 text-sm">현재까지 집계된 실시간 경영 지표입니다.</p>
-                </div>
-                <div className="p-4 bg-blue-500/10 rounded-2xl text-blue-400">
-                  <BarChart2 size={24} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                <div>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">총 매출</p>
-                  <p className="text-xl font-black text-white tracking-tighter">{formatNumber(currentData.generatedRevenue.total)}<span className="text-xs ml-1 text-slate-500">원</span></p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">내원 환자</p>
-                  <p className="text-xl font-black text-white tracking-tighter">{formatNumber(currentData.patientMetrics.total)}<span className="text-xs ml-1 text-slate-500">명</span></p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">신규 환자</p>
-                  <p className="text-xl font-black text-emerald-400 tracking-tighter">{formatNumber(currentData.patientMetrics.new)}<span className="text-xs ml-1 text-slate-500">명</span></p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">비급여 비중</p>
-                  <p className="text-xl font-black text-amber-400 tracking-tighter">
-                    {currentData.generatedRevenue.total > 0 ? ((currentData.generatedRevenue.nonCovered / currentData.generatedRevenue.total) * 100).toFixed(1) : 0}
-                    <span className="text-xs ml-1 text-slate-500">%</span>
-                  </p>
-                </div>
-              </div>
-
-              <button 
-                onClick={() => router.push(`/emr/${selectedEmr}`)}
-                className="mt-12 flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 group/link"
-              >
-                상세 경영 리포트 보러가기 
-                <ArrowRight size={16} className="group-hover/link:translate-x-1 transition-transform" />
-              </button>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="bg-blue-600 rounded-[3rem] p-10 flex flex-col justify-between shadow-2xl shadow-blue-600/20 relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer"
-              onClick={() => router.push('/survey')}
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
-                <BrainCircuit size={120} />
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-2xl font-black text-white mb-2 leading-tight">경영 진단 <br/>워크북 작성</h3>
-                <p className="text-blue-100 text-sm font-medium opacity-80">원장님의 주관적 진단을 AI 데이터와 매칭합니다.</p>
-              </div>
-              <div className="relative z-10 flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full">Recommended</span>
-                <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center text-blue-600 shadow-xl">
-                  <ArrowRight size={20} />
-                </div>
-              </div>
-            </motion.div>
+          {/* Daily Mission & Management Quotes */}
+          <section>
+            <DailyMissionCard data={currentData} userName={userName} />
           </section>
 
           {/* Quick Support Footer */}
