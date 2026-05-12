@@ -886,52 +886,79 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
       }
     }
   } else if (isTreatment) {
+    console.log("[Parser] Processing Treatment Data for Donguibogam...");
     let lastSeenMonthTr = baseMonth;
-    let headerIdx = jsonData.findIndex(row => row.some(cell => normalize(cell).includes(normalize("진료년월"))));
-    if (headerIdx !== -1) {
-      const headers = jsonData[headerIdx].map(h => normalize(h));
-      // 날짜가 들어있는 열(Column) 인덱스 찾기
-      const dateColIdx = headers.findIndex(h => h.includes("진료년월") || h.includes("내원일자"));
-      
-      for (let i = headerIdx + 1; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        if (!row || row.every(c => !c) || row.some(c => String(c).includes("합계"))) continue;
+    
+    const normalizedData = jsonData.map(row => {
+      if (row.length === 1 && String(row[0]).includes("\t")) return String(row[0]).split("\t");
+      if (row.length === 1 && String(row[0]).includes("  ")) return String(row[0]).split(/\s{2,}/);
+      return row;
+    });
 
-        // 지정된 열(dateColIdx)에서 우선적으로 날짜 추출 시도
-        let rowMonth = lastSeenMonthTr;
-        if (dateColIdx !== -1 && row[dateColIdx]) {
-           const found = getMonthFromRow([String(row[dateColIdx])], lastSeenMonthTr);
-           if (found && found !== lastSeenMonthTr) {
-             rowMonth = found;
-           }
-        } else {
-           rowMonth = getMonthFromRow(row, lastSeenMonthTr);
-        }
+    let headerIdx = normalizedData.findIndex(row => 
+      row.some(cell => {
+        const n = normalize(cell);
+        return n.includes("진료년월") || n.includes("외래진료") || n.includes("통계구분") || (n.includes("초진") && n.includes("재진"));
+      })
+    );
+
+    if (headerIdx !== -1) {
+      const headers = normalizedData[headerIdx].map(h => normalize(h));
+      const dateColIdx = headers.findIndex(h => h.includes("진료년월") || h.includes("내원일자") || h.includes("일자"));
+      const gubunColIdx = headers.findIndex(h => h === "구분" || h.includes("통계구분") || h.includes("항목"));
+      const countColIdx = headers.findIndex(h => h.includes("합계") || h.includes("인원") || h.includes("건수") || h.includes("수량"));
+      
+      console.log(`[Parser] Header found at index ${headerIdx}. Date Column: ${dateColIdx}`);
+
+      for (let i = headerIdx + 1; i < normalizedData.length; i++) {
+        const row = normalizedData[i];
+        if (!row || row.every(c => !c)) continue;
         
+        if (row.some(c => String(c).includes("합계") && (gubunColIdx === -1 || !normalize(row[gubunColIdx]).includes("합계")))) continue;
+
+        // 월 정보 감지 (현재 행에서 우선 찾기)
+        let rowMonth = getMonthFromRow(row, lastSeenMonthTr);
         lastSeenMonthTr = rowMonth;
 
         if (!resultsMap[rowMonth]) resultsMap[rowMonth] = createResult(rowMonth);
         const res = resultsMap[rowMonth];
         const d = res.extractedData.donguibogamData!;
-        const getVal = (ks: string[]) => {
+
+        const getValByHeader = (ks: string[]) => {
           const idx = headers.findIndex(h => ks.some(k => h === normalize(k)));
           return idx !== -1 ? parseCleanNumber(row[idx]) : 0;
         };
 
-        d.newPatients += getVal(["초진"]);
-        d.recurringPatients += getVal(["재진"]);
-        d.referralPatients += getVal(["협진", "협의"]);
+        const hNew = getValByHeader(["초진", "신환"]);
+        const hRec = getValByHeader(["재진", "구환"]);
+        const hRef = getValByHeader(["협진", "협의"]);
+
+        if (headers.includes("초진") || headers.includes("재진")) {
+          d.newPatients += hNew;
+          d.recurringPatients += hRec;
+          d.referralPatients += hRef;
+          
+          const commonHeaders = ["진료년월", "구분", "초진", "재진", "협진", "합계", "인원", "비고", "내원일자", "일자", "무진", "방문", "가족"];
+          headers.forEach((h, idx) => {
+            if (h && !commonHeaders.some(ch => h === ch)) {
+              const count = parseCleanNumber(row[idx]);
+              if (count > 0) d.treatments[h] = (d.treatments[h] || 0) + count;
+            }
+          });
+        } 
+        else if (gubunColIdx !== -1 && countColIdx !== -1) {
+          const gubunVal = normalize(row[gubunColIdx]);
+          const countVal = parseCleanNumber(row[countColIdx]);
+          if (gubunVal.includes("초진")) d.newPatients += countVal;
+          else if (gubunVal.includes("재진")) d.recurringPatients += countVal;
+          else if (gubunVal.includes("협진") || gubunVal.includes("협의")) d.referralPatients += countVal;
+          else if (countVal > 0 && gubunVal && !["합계", "총계"].includes(gubunVal)) {
+            d.treatments[gubunVal] = (d.treatments[gubunVal] || 0) + countVal;
+          }
+        }
+
         d.totalPatients = d.newPatients + d.recurringPatients + d.referralPatients;
         d.hasTreatmentData = true;
-
-        const commonHeaders = ["진료년월", "구분", "초진", "재진", "협진", "합계"];
-        headers.forEach((h, idx) => {
-          if (h && !commonHeaders.some(ch => h.includes(normalize(ch)))) {
-            const count = parseCleanNumber(row[idx]);
-            if (count > 0) d.treatments[h] = (d.treatments[h] || 0) + count;
-          }
-        });
-
         res.extractedData.patientMetrics.total = d.totalPatients;
         res.extractedData.patientMetrics.new = d.newPatients;
         res.mappingResults.push({ original: "진료 행", standard: "동의보감 진료 분석" });
@@ -953,16 +980,17 @@ export const parseExcelFile = (file: File, defaultMonth: string, vendor: string 
         const arrayBuffer = evt.target?.result as ArrayBuffer;
         let wb;
         
-        if (file.name.toLowerCase().endsWith(".csv")) {
-          // [본질적 해결] TextDecoder를 사용하여 인코딩을 직접 처리 루틴
+        if (file.name.toLowerCase().endsWith(".csv") || file.name.toLowerCase().endsWith(".txt")) {
+          // [본질적 해결] TextDecoder를 사용하여 인코딩을 직접 처리
           let text = "";
           const decoderUtf8 = new TextDecoder("utf-8");
           const decoderEucKr = new TextDecoder("euc-kr");
           
           try {
-            const tempText = decoderUtf8.decode(new Uint8Array(arrayBuffer));
+            const tempArray = new Uint8Array(arrayBuffer);
+            const tempText = decoderUtf8.decode(tempArray);
             // 한글 키워드가 포함되어 있는지 확인하여 인코딩 판별
-            if (tempText.includes("차트") || tempText.includes("수진") || tempText.includes("매출") || tempText.includes("진료")) {
+            if (tempText.includes("차트") || tempText.includes("수진") || tempText.includes("매출") || tempText.includes("진료") || tempText.includes("구분")) {
               text = tempText;
             } else {
               throw new Error("Maybe not UTF-8");
@@ -988,10 +1016,8 @@ export const parseExcelFile = (file: File, defaultMonth: string, vendor: string 
         else if (vendor === "okchart") type = "OKCHART";
         else if (vendor === "hanisarang") type = "HANISARANG";
         else if (vendor === "donguibogam") type = "DONGUIBOGAM"; 
-        else if (vendor === "hanuisarang") type = "HANISARANG";
         
-        // 데이터 정밀 로깅 (개발 모드)
-        console.log(`[Parser] Detected Type: ${type}, Vendor: ${vendor}`);
+        console.log(`[Parser] File: ${file.name}, Detected Type: ${type}, Vendor: ${vendor}`);
 
         let results: ParseExcelResult[] = [];
         switch (type) {
@@ -1023,6 +1049,8 @@ export const parseExcelFile = (file: File, defaultMonth: string, vendor: string 
             res.extractedData.cashFlow.totalReceived = (res.extractedData.paymentMethods.cash || 0) + (res.extractedData.paymentMethods.card || 0);
           }
         });
+
+        console.log(`[Parser] Success! Found ${results.length} months of data.`);
 
         if (results.length > 0) {
           resolve(results);

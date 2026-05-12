@@ -42,6 +42,7 @@ import { generateClinicInsightStream } from "@/lib/aiService";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import AnalysisTimer from "@/components/AnalysisTimer";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
+import { NoDataAlert } from "@/components/NoDataAlert";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -91,7 +92,8 @@ export default function HanchartPage() {
 
   const currentEntry = monthlyData[selectedMonth] || null;
   const isSampleData = !currentEntry || !currentEntry.hanchartData || currentEntry.hanchartData.length === 0;
-  const displayData = isSampleData ? mockHanchartData : currentEntry.hanchartData;
+  const isMock = isSampleData;
+  const displayData = isMock ? mockHanchartData : currentEntry.hanchartData;
 
   const prevMonthIndex = availableMonths.indexOf(selectedMonth) - 1;
   const prevMonthKey = prevMonthIndex >= 0 ? availableMonths[prevMonthIndex] : "";
@@ -240,6 +242,7 @@ export default function HanchartPage() {
     }
   };
 
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-[#0A0E1A] text-white font-sans selection:bg-gold-500/30">
@@ -382,6 +385,11 @@ export default function HanchartPage() {
                 ))}
               </div>
             </div>
+
+            {/* No Data Alert */}
+            {isMock && (
+              <NoDataAlert onUploadClick={() => fileInputRef.current?.click()} />
+            )}
 
             {/* Hero Card: Total Revenue */}
             <div className="relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1A1F35] to-[#0D1117] border border-gold-500/30 shadow-2xl p-10 mb-8">

@@ -232,41 +232,66 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setStateMonthlyData((prev) => {
       const existing = prev[month] || { ...initialDataMetrics, donguibogamData: undefined };
       
-      const mergeSubset = (target: any, source: any) => {
+      const mergeSubset = (target: any, source: any, isDonguibogam: boolean = false) => {
         if (!source) return target;
         const result = { ...(target || {}) };
         Object.keys(source).forEach(key => {
-          if (source[key] !== undefined && source[key] !== 0 && source[key] !== "") {
-            result[key] = source[key];
-          } else if (result[key] === undefined) {
-             result[key] = source[key];
+          const val = source[key];
+          const prevVal = result[key];
+
+          // 동의보감이고 둘 다 숫자인 경우 합산 (단, 비율이나 version 등은 제외)
+          if (isDonguibogam && typeof val === "number" && typeof prevVal === "number" && !["version"].includes(key)) {
+            result[key] = prevVal + val;
+          } 
+          // 그 외에는 값이 있을 때만 덮어쓰기 (Upsert)
+          else if (val !== undefined && val !== 0 && val !== "" && val !== false) {
+            result[key] = val;
+          } 
+          else if (result[key] === undefined) {
+            result[key] = val;
           }
         });
         return result;
       };
 
+      const isDonguibogam = !!newData.donguibogamData;
+
       const updatedMetrics: DataMetrics = {
         ...existing,
         ...newData,
-        patientMetrics: mergeSubset(existing.patientMetrics, newData.patientMetrics),
-        generatedRevenue: mergeSubset(existing.generatedRevenue, newData.generatedRevenue),
-        leakage: mergeSubset(existing.leakage, newData.leakage),
-        cashFlow: mergeSubset(existing.cashFlow, newData.cashFlow),
-        paymentMethods: mergeSubset(existing.paymentMethods, newData.paymentMethods),
+        patientMetrics: mergeSubset(existing.patientMetrics, newData.patientMetrics, isDonguibogam),
+        generatedRevenue: mergeSubset(existing.generatedRevenue, newData.generatedRevenue, isDonguibogam),
+        leakage: mergeSubset(existing.leakage, newData.leakage, isDonguibogam),
+        cashFlow: mergeSubset(existing.cashFlow, newData.cashFlow, isDonguibogam),
+        paymentMethods: mergeSubset(existing.paymentMethods, newData.paymentMethods, isDonguibogam),
       };
 
       if (newData.donguibogamData) {
         const eD = existing.donguibogamData || { treatments: {} };
         const nD = newData.donguibogamData;
+        
+        // 동의보감 데이터 내부 필드 합산 병합
+        const mergedDongui = mergeSubset(eD, nD, true);
+        
         updatedMetrics.donguibogamData = {
-          ...mergeSubset(eD, nD), 
+          ...mergedDongui,
           treatments: {
             ...(eD.treatments || {}),
             ...(nD.treatments || {})
           },
+          // 플래그는 합집합(OR) 처리
           hasFinancialData: eD.hasFinancialData || nD.hasFinancialData,
           hasTreatmentData: eD.hasTreatmentData || nD.hasTreatmentData,
         };
+        
+        // 진료 항목(treatments) 수치도 합산 처리
+        if (nD.treatments) {
+          Object.keys(nD.treatments).forEach(k => {
+            const newVal = nD.treatments[k] || 0;
+            const oldVal = eD.treatments[k] || 0;
+            updatedMetrics.donguibogamData!.treatments[k] = oldVal + newVal;
+          });
+        }
       }
 
       finalMetrics = updatedMetrics;

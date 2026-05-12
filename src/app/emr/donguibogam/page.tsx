@@ -40,13 +40,22 @@ import toast from "react-hot-toast";
 import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
+import AnalysisTimer from "@/components/AnalysisTimer";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
+import { NoDataAlert } from "@/components/NoDataAlert";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
 };
 
-const EMPTY_DONGUIBOGAM_DATA = { donguibogamData: null };
+const EMPTY_DONGUIBOGAM_DATA = { 
+  patientMetrics: { total: 0, new: 0, auto: 0, dailyAvg: 0 },
+  generatedRevenue: { total: 0, copay: 0, insurance: 0, totalCovered: 0, auto: 0, worker: 0, nonCovered: 0, patientTotal: 0 },
+  leakage: { receivables: 0, discountTotal: 0, roundOffTotal: 0 },
+  cashFlow: { totalReceived: 0, totalRefund: 0 },
+  paymentMethods: { cash: 0, card: 0, other: 0 },
+  donguibogamData: null 
+};
 
 export default function DonguibogamPage() {
   const { 
@@ -130,15 +139,30 @@ export default function DonguibogamPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    
     toast.loading("동의보감 파일 분석 중...", { id: "excel-parse" });
     try {
+      let financialCount = 0;
+      let treatmentCount = 0;
+      
       for (let i = 0; i < files.length; i++) {
         const resList = await parseExcelFile(files[i], selectedMonth, "donguibogam");
         for (const res of resList) {
+          if (res.extractedData.donguibogamData?.hasFinancialData) financialCount++;
+          if (res.extractedData.donguibogamData?.hasTreatmentData) treatmentCount++;
           await setMonthlyData(res.targetMonth, res.extractedData);
         }
       }
-      toast.success("분석 완료", { id: "excel-parse" });
+
+      if (financialCount > 0 && treatmentCount > 0) {
+        toast.success("매출 및 진료 데이터 분석 완료!", { id: "excel-parse" });
+      } else if (financialCount > 0) {
+        toast.success("매출 통계 분석 완료! (환자수 파일도 업로드해 주세요)", { id: "excel-parse", duration: 5000 });
+      } else if (treatmentCount > 0) {
+        toast.success("진료 통계 분석 완료! (매출 파일도 업로드해 주세요)", { id: "excel-parse", duration: 5000 });
+      } else {
+        toast.success("데이터 분석 완료", { id: "excel-parse" });
+      }
     } catch (err: any) {
       toast.error(err.message, { id: "excel-parse" });
     }
@@ -218,6 +242,28 @@ export default function DonguibogamPage() {
     );
   };
 
+  const toggleSelectAll = () => {
+    if (selectedMonthsForDelete.length === availableMonths.length) {
+      setSelectedMonthsForDelete([]);
+    } else {
+      setSelectedMonthsForDelete(availableMonths);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedMonthsForDelete.length === 0) return;
+    if (!confirm(`${selectedMonthsForDelete.length}개의 데이터를 삭제하시겠습니까?`)) return;
+    toast.loading("데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of selectedMonthsForDelete) await deleteMonthlyData(m);
+      setSelectedMonthsForDelete([]);
+      setIsManageMode(false);
+      toast.success("삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
   // Treatment Sorting Logic: Top 10 First
   const sortedTreatments = Object.entries(displayData.treatments)
     .sort((a, b) => (b[1] as number) - (a[1] as number));
@@ -283,6 +329,40 @@ export default function DonguibogamPage() {
             </div>
           </div>
 
+          {/* No Data Alert */}
+          {isMock && (
+            <NoDataAlert onUploadClick={() => fileInputRef.current?.click()} />
+          )}
+
+          {/* Data Integrity Status */}
+          {!isMock && (
+            <div className="flex flex-wrap gap-4 mb-8">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${displayData.hasFinancialData ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"}`}>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${displayData.hasFinancialData ? "bg-emerald-500" : "bg-rose-500"}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  매출 통계 {displayData.hasFinancialData ? "연동됨" : "미등록"}
+                </span>
+              </div>
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${displayData.hasTreatmentData ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-rose-500/10 border-rose-500/30 text-rose-400"}`}>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${displayData.hasTreatmentData ? "bg-emerald-500" : "bg-rose-500"}`} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  진료 통계 {displayData.hasTreatmentData ? "연동됨" : "미등록"}
+                </span>
+              </div>
+              {!displayData.hasFinancialData || !displayData.hasTreatmentData ? (
+                <p className="text-slate-500 text-[10px] font-medium flex items-center gap-2 animate-pulse">
+                  <AlertTriangle size={14} className="text-amber-500" />
+                  동의보감은 두 종류의 파일을 모두 업로드해야 정확한 분석이 가능합니다.
+                </p>
+              ) : (
+                <p className="text-emerald-500/60 text-[10px] font-medium flex items-center gap-2">
+                  <ShieldCheck size={14} />
+                  데이터 정합성이 확인되었습니다.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Year Tabs */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -310,12 +390,27 @@ export default function DonguibogamPage() {
                   <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
                 </button>
               ) : (
-                <button 
-                  onClick={() => setIsManageMode(false)}
-                  className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
-                >
-                  닫기
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={toggleSelectAll}
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
+                  >
+                    {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
+                  </button>
+                  <button 
+                    onClick={handleDeleteSelected}
+                    disabled={selectedMonthsForDelete.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 size={14} /> {selectedMonthsForDelete.length}개 삭제
+                  </button>
+                  <button 
+                    onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
+                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                  >
+                    닫기
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -329,7 +424,7 @@ export default function DonguibogamPage() {
                   onClick={() => isManageMode ? toggleMonthSelection(m) : handleMonthClick(m)}
                   className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center justify-center relative ${
                     isManageMode && selectedMonthsForDelete.includes(m)
-                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 scale-95"
+                    ? "bg-rose-500/20 border-rose-500/50 text-rose-400 scale-95 shadow-[0_0_15px_rgba(244,63,94,0.2)]"
                     : selectedMonth === m && !isManageMode
                     ? "bg-amber-500 border-amber-600 text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                     : compareMonth === m && !isManageMode
@@ -337,6 +432,11 @@ export default function DonguibogamPage() {
                     : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
                   }`}
                 >
+                  {isManageMode && (
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#0A0E1A] border-white/20"}`}>
+                       {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
+                    </div>
+                  )}
                   <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
                     {m.split("-")[0].slice(2)}년
                   </span>
@@ -354,37 +454,43 @@ export default function DonguibogamPage() {
           </div>
 
           {/* Hero Row: Total Revenue */}
-          <div className="relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1F1D1A] to-[#0D1117] border border-amber-500/30 shadow-2xl p-10 mb-8">
-            <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-1000">
-              <DollarSign size={300} />
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-6 px-4">
+              <div className="h-6 w-1.5 bg-amber-500 rounded-full" />
+              <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Financial Statistics</h3>
             </div>
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div>
-                <p className="text-amber-500/80 text-xs font-black uppercase tracking-[0.2em] mb-3">Target Month Performance</p>
-                <h2 className="text-white text-xl font-medium mb-1">
-                  <span className="text-amber-400 font-black">{formatMonth(selectedMonth)}</span> 총 진료비 매출액
-                </h2>
-                <p className="text-slate-500 text-sm">동의보감 시스템에서 집계된 전체 발생 매출입니다.</p>
+            <div className="relative group overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#1F1D1A] to-[#0D1117] border border-amber-500/30 shadow-2xl p-10">
+              <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-1000">
+                <DollarSign size={300} />
               </div>
               
-              <div className="text-center md:text-right">
-                <div className="inline-flex items-baseline gap-2 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-3xl border border-white/10 shadow-2xl">
-                  <RollingNumber value={displayData.totalRevenue} color="amber" />
-                  <span className="text-2xl font-black text-slate-500">원</span>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div>
+                  <p className="text-amber-500/80 text-xs font-black uppercase tracking-[0.2em] mb-3">Target Month Performance</p>
+                  <h2 className="text-white text-xl font-medium mb-1">
+                    <span className="text-amber-400 font-black">{formatMonth(selectedMonth)}</span> 총 진료비 매출액
+                  </h2>
+                  <p className="text-slate-500 text-sm">동의보감 시스템에서 집계된 전체 발생 매출입니다.</p>
                 </div>
-                {compareMonth && (
-                  <div className={`mt-4 flex items-center justify-center md:justify-end gap-2 font-bold ${displayData.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
-                    <span className="text-lg">
-                      {displayData.totalRevenue >= pData.totalRevenue ? "▲" : "▼"} 
-                      {formatNumber(Math.abs(displayData.totalRevenue - pData.totalRevenue))}원
-                    </span>
-                    <span className="text-slate-600 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
+                
+                <div className="text-center md:text-right">
+                  <div className="inline-flex items-baseline gap-2 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-3xl border border-white/10 shadow-2xl">
+                    <RollingNumber value={displayData.totalRevenue} color="amber" />
+                    <span className="text-2xl font-black text-slate-500">원</span>
                   </div>
-                )}
+                  {compareMonth && (
+                    <div className={`mt-4 flex items-center justify-center md:justify-end gap-2 font-bold ${displayData.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
+                      <span className="text-lg">
+                        {displayData.totalRevenue >= pData.totalRevenue ? "▲" : "▼"} 
+                        {formatNumber(Math.abs(displayData.totalRevenue - pData.totalRevenue))}원
+                      </span>
+                      <span className="text-slate-600 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Monthly Trend Mini Chart */}
           <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
@@ -557,7 +663,11 @@ export default function DonguibogamPage() {
           </div>
 
           {/* Patient Metrics Summary Bar */}
-          <div className="mb-12">
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-6 px-4">
+              <div className="h-6 w-1.5 bg-blue-500 rounded-full" />
+              <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Patient Flow Statistics</h3>
+            </div>
             <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
               <div className="flex flex-col items-end">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">총 내원 환자</p>
@@ -574,7 +684,7 @@ export default function DonguibogamPage() {
                 <p className="text-2xl font-black text-emerald-400 leading-none">{formatNumber(displayData.recurringPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Treatment Breakdown List */}
           <div className="mb-12">

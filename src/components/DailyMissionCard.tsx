@@ -48,28 +48,28 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
     const missions = [
       {
         title: "신규 환자 사후 관리",
-        description: `이번 달 신규 환자가 ${data.patientMetrics.new}명입니다. 오늘 그 중 3분께 안부 문자를 보내보세요.`,
+        description: `이번 달 신규 환자가 ${data?.patientMetrics?.new || 0}명입니다. 오늘 그 중 3분께 안부 문자를 보내보세요.`,
         icon: <Users size={20} />,
         color: "text-blue-400",
         bg: "bg-blue-500/10"
       },
       {
         title: "미수금 점검",
-        description: `현재 미수금이 ${new Intl.NumberFormat("ko-KR").format(data.leakage.receivables)}원입니다. 가장 오래된 미수 환자 1명에게 확인 전화를 해볼까요?`,
+        description: `현재 미수금이 ${new Intl.NumberFormat("ko-KR").format(data?.leakage?.receivables || 0)}원입니다. 가장 오래된 미수 환자 1명에게 확인 전화를 해볼까요?`,
         icon: <DollarSign size={20} />,
         color: "text-amber-400",
         bg: "bg-amber-500/10"
       },
       {
         title: "진료 효율성 체크",
-        description: `일평균 환자 수가 ${data.patientMetrics.dailyAvg.toFixed(1)}명입니다. 오늘 점심시간 5분만 할애하여 대기 시간을 줄일 수 있는 동선을 점검해보세요.`,
+        description: `일평균 환자 수가 ${(data?.patientMetrics?.dailyAvg || 0).toFixed(1)}명입니다. 오늘 점심시간 5분만 할애하여 대기 시간을 줄일 수 있는 동선을 점검해보세요.`,
         icon: <TrendingUp size={20} />,
         color: "text-emerald-400",
         bg: "bg-emerald-500/10"
       },
       {
         title: "비급여 상담 매뉴얼",
-        description: `비급여 비중이 현재 ${data.generatedRevenue.total > 0 ? ((data.generatedRevenue.nonCovered / data.generatedRevenue.total) * 100).toFixed(1) : 0}%입니다. 오늘 가장 많이 나가는 비급여 항목의 상담 멘트 하나만 고쳐보세요.`,
+        description: `비급여 비중이 현재 ${(data?.generatedRevenue?.total || 0) > 0 ? (((data?.generatedRevenue?.nonCovered || 0) / (data?.generatedRevenue?.total || 1)) * 100).toFixed(1) : 0}%입니다. 오늘 가장 많이 나가는 비급여 항목의 상담 멘트 하나만 고쳐보세요.`,
         icon: <Sparkles size={20} />,
         color: "text-purple-400",
         bg: "bg-purple-500/10"

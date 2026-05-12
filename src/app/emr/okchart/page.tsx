@@ -42,6 +42,7 @@ import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import AnalysisTimer from "@/components/AnalysisTimer";
 import { PROVIDED_OKCHART_DATA } from "@/lib/providedData";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
+import { NoDataAlert } from "@/components/NoDataAlert";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -344,6 +345,11 @@ export default function OkchartPage() {
               </button>
             </div>
           </div>
+
+          {/* No Data Alert */}
+          {isMock && (
+            <NoDataAlert onUploadClick={() => fileInputRef.current?.click()} />
+          )}
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
             <div>
