@@ -48,10 +48,7 @@ const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
 };
 
-const mockHanchartData = [
-  { rank: 1, type: "초진(64)", nonTaxable: 4460100, taxable: 1360000, coveredCopay: 707690, coveredClaim: 1862610, autoClaim: 1388750, totalCopay: 6527790, supportFund: 6000, totalRevenue: 9779150, ratio: 14.2 },
-  { rank: 2, type: "재진(937)", nonTaxable: 19670600, taxable: 1788000, coveredCopay: 7931130, coveredClaim: 21176800, autoClaim: 8792730, totalCopay: 29014730, supportFund: 5500, totalRevenue: 58984260, ratio: 85.8 },
-];
+const mockHanchartData: any[] = [];
 
 export default function HanchartPage() {
   const router = useRouter();

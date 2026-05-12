@@ -108,15 +108,10 @@ export default function DonguibogamPage() {
 
   // Mock data for demonstration when no real data is present
   const displayData = !currentEntry.donguibogamData ? {
-    totalRevenue: 68400000, insuranceClaim: 24500000, copay: 8200000, fullCopay: 3500000,
-    nonCovered: 32200000, discount: 450000, receivables: 1200000, totalReceived: 42500000,
-    cashTotal: 15400000, cardTotal: 27100000, newPatients: 78, recurringPatients: 1150,
-    referralPatients: 15, totalPatients: 1228,
-    treatments: {
-      "의보한약": 125, "경혈": 450, "척추": 85, "습식부항": 320, "침전": 510,
-      "오행": 45, "사암": 32, "화침": 15, "방문": 120, "관절": 65,
-    },
-    hasFinancialData: false, hasTreatmentData: false
+    totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0,
+    discount: 0, receivables: 0, totalReceived: 0, cashTotal: 0, cardTotal: 0,
+    newPatients: 0, recurringPatients: 0, referralPatients: 0, totalPatients: 0,
+    treatments: {}, hasFinancialData: false, hasTreatmentData: false
   } : data;
 
   const pData = prevEntry.donguibogamData || {

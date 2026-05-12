@@ -34,6 +34,8 @@ import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
+import { NoDataAlert } from "@/components/NoDataAlert";
+import AnalysisTimer from "@/components/AnalysisTimer";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -56,6 +58,7 @@ export default function HanisarangPage() {
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
+  const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
 
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData).filter(m => {
@@ -77,11 +80,11 @@ export default function HanisarangPage() {
   const currentEntry = monthlyData[selectedMonth] || { hanisarangData: null };
   
   const displayData = !currentEntry.hanisarangData ? {
-    totalRevenue: 75200000, insuranceClaim: 28400000, copay: 12500000, nonCovered: 34300000,
-    receivables: 2100000, discountTotal: 650000, roundOffTotal: 45000,
-    totalReceived: 48500000, totalRefund: 120000,
-    cashPayment: 12400000, cardPayment: 35200000, transferPayment: 900000,
-    totalPatients: 1450, newPatients: 92
+    totalRevenue: 0, insuranceClaim: 0, copay: 0, nonCovered: 0,
+    receivables: 0, discountTotal: 0, roundOffTotal: 0,
+    totalReceived: 0, totalRefund: 0,
+    cashPayment: 0, cardPayment: 0, transferPayment: 0,
+    totalPatients: 0, newPatients: 0
   } : currentEntry.hanisarangData;
 
   const prevMonthIndex = availableMonths.indexOf(selectedMonth) - 1;
@@ -145,6 +148,36 @@ export default function HanisarangPage() {
     return `${year.slice(2)}년 ${month}월`;
   };
 
+  const toggleMonthSelection = (m: string) => {
+    setSelectedMonthsForDelete(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedMonthsForDelete.length === availableMonths.length) {
+      setSelectedMonthsForDelete([]);
+    } else {
+      setSelectedMonthsForDelete(availableMonths);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedMonthsForDelete.length === 0) return;
+    if (!confirm(`${selectedMonthsForDelete.length}개의 데이터를 삭제하시겠습니까?`)) return;
+    toast.loading("데이터 삭제 중...", { id: "bulk-delete" });
+    try {
+      for (const m of selectedMonthsForDelete) await deleteMonthlyData(m);
+      setSelectedMonthsForDelete([]);
+      setIsManageMode(false);
+      toast.success("삭제되었습니다.", { id: "bulk-delete" });
+    } catch (e) {
+      toast.error("삭제 중 오류가 발생했습니다.", { id: "bulk-delete" });
+    }
+  };
+
+  const isMock = !currentEntry.hanisarangData;
+
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-[#051109] text-white font-sans selection:bg-emerald-500/30">
@@ -163,6 +196,12 @@ export default function HanisarangPage() {
                   className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-[#051109] px-6 py-3 rounded-2xl text-xs font-black transition-all shadow-lg active:scale-95 group"
                 >
                   <Upload size={18} /> 한의사랑 데이터 업로드
+                </button>
+                <button
+                  onClick={() => setIsManageMode(!isManageMode)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black transition-all border ${isManageMode ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "bg-white/5 border-white/10 text-emerald-800 hover:bg-white/10"}`}
+                >
+                  <Activity size={18} /> {isManageMode ? "관리 종료" : "데이터 관리"}
                 </button>
                 <button
                   onClick={() => { if(confirm("초기화할까요?")) deleteMonthlyData(selectedMonth); }}
@@ -187,6 +226,50 @@ export default function HanisarangPage() {
               </div>
             </div>
 
+            {/* No Data Alert */}
+            {isMock && (
+              <NoDataAlert onUploadClick={() => fileInputRef.current?.click()} />
+            )}
+
+            {/* Manage Mode Header */}
+            <AnimatePresence>
+              {isManageMode && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mb-6"
+                >
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-emerald-500/20 rounded-2xl text-emerald-500">
+                        <Trash2 size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white uppercase tracking-tight">Bulk Data Management</h4>
+                        <p className="text-xs text-emerald-800 font-medium">삭제하고 싶은 달을 선택해주세요. ({selectedMonthsForDelete.length}개 선택됨)</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                      <button 
+                        onClick={toggleSelectAll}
+                        className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-emerald-400 hover:bg-white/10 transition-all"
+                      >
+                        {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
+                      </button>
+                      <button 
+                        onClick={handleDeleteSelected}
+                        disabled={selectedMonthsForDelete.length === 0}
+                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all ${selectedMonthsForDelete.length > 0 ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600" : "bg-white/5 text-slate-500 cursor-not-allowed border border-white/5"}`}
+                      >
+                        선택 삭제
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Year Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -208,9 +291,14 @@ export default function HanisarangPage() {
                 {filteredMonths.map((m) => (
                   <button
                     key={m}
-                    onClick={() => handleMonthClick(m)}
-                    className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center ${selectedMonth === m ? "bg-emerald-500 text-[#051109] shadow-lg" : "bg-white/5 border-white/10 text-emerald-900 hover:border-emerald-500/30"}`}
+                    onClick={() => isManageMode ? toggleMonthSelection(m) : handleMonthClick(m)}
+                    className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center relative group ${selectedMonth === m ? "bg-emerald-500 text-[#051109] shadow-lg" : "bg-white/5 border-white/10 text-emerald-900 hover:border-emerald-500/30"} ${selectedMonthsForDelete.includes(m) ? "ring-2 ring-emerald-400 border-emerald-400" : ""}`}
                   >
+                    {isManageMode && (
+                      <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all shadow-lg ${selectedMonthsForDelete.includes(m) ? "bg-emerald-500 border-emerald-400 text-[#051109]" : "bg-[#051109] border-white/20"}`}>
+                        {selectedMonthsForDelete.includes(m) && <ShieldCheck size={14} />}
+                      </div>
+                    )}
                     <span className="text-[8px] font-black uppercase opacity-60">{m.split("-")[0].slice(2)}년</span>
                     <span className="text-sm font-black">{m.split("-")[1]}월</span>
                   </button>

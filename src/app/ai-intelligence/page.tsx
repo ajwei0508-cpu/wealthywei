@@ -19,7 +19,8 @@ import {
   ClipboardList,
   Users,
   Search,
-  RefreshCw
+  RefreshCw,
+  ArrowDownCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
@@ -39,14 +40,40 @@ export default function AiIntelligencePage() {
   const emrType = searchParams.get("emr"); // 'hanchart' or 'okchart'
   
   const availableMonths = useMemo(() => {
-    return Object.keys(monthlyData).sort();
-  }, [monthlyData]);
+    return Object.keys(monthlyData)
+      .filter(month => {
+        const data = monthlyData[month];
+        if (!data) return false;
+        
+        if (emrType === "hanchart") {
+          return data.hanchartData && data.hanchartData.length > 0;
+        } else if (emrType === "okchart") {
+          return !!data.okchartData;
+        } else if (emrType === "hanisarang") {
+          return !!data.hanisarangData;
+        } else if (emrType === "donguibogam") {
+          return !!data.donguibogamData;
+        } else {
+          // 통합 분석 모드일 경우 어떤 데이터라도 하나 있으면 포함
+          return !!(data.hanchartData?.length || data.okchartData || data.hanisarangData || data.donguibogamData);
+        }
+      })
+      .sort();
+  }, [monthlyData, emrType]);
 
   const [startMonth, setStartMonth] = useState<string>("");
   const [endMonth, setEndMonth] = useState<string>("");
+  const [isStartOpen, setIsStartOpen] = useState(false);
+  const [isEndOpen, setIsEndOpen] = useState(false);
   const [briefing, setBriefing] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [shouldAnalyze, setShouldAnalyze] = useState(false);
+
+  const formatMonthDisplay = (m: string) => {
+    if (!m) return "선택";
+    const [y, mm] = m.split("-");
+    return `${y}년 ${mm}월`;
+  };
 
   // Set initial range when data loads
   useEffect(() => {
@@ -242,7 +269,10 @@ export default function AiIntelligencePage() {
                 transition={{ delay: 0.1 }}
                 className="text-6xl md:text-8xl font-black tracking-tight leading-[0.9] text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-slate-500"
               >
-                {emrType === 'hanchart' ? '한차트' : emrType === 'okchart' ? '오케이차트' : '통합'} <br/>
+                {emrType === 'hanchart' ? '한차트' : 
+                 emrType === 'okchart' ? '오케이차트' : 
+                 emrType === 'hanisarang' ? '한의사랑' : 
+                 emrType === 'donguibogam' ? '동의보감' : '통합'} <br/>
                 <span className="text-blue-500">인텔리전스</span> 센터
               </motion.h1>
               
@@ -264,25 +294,68 @@ export default function AiIntelligencePage() {
             >
               <div className="bg-white/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl space-y-8">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 relative">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Month</label>
-                    <select 
-                      value={startMonth} 
-                      onChange={(e) => setStartMonth(e.target.value)}
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-blue-500/50 transition-all outline-none hover:bg-white/5 cursor-pointer appearance-none"
+                    <button 
+                      onClick={() => { setIsStartOpen(!isStartOpen); setIsEndOpen(false); }}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
-                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                      {formatMonthDisplay(startMonth)}
+                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isStartOpen ? "rotate-180 text-blue-400" : ""}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {isStartOpen && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#1A1F35] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
+                        >
+                          {availableMonths.map(m => (
+                            <button
+                              key={m}
+                              onClick={() => { setStartMonth(m); setIsStartOpen(false); }}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-blue-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                            >
+                              {formatMonthDisplay(m)}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <div className="space-y-2">
+
+                  <div className="space-y-2 relative">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">End Month</label>
-                    <select 
-                      value={endMonth} 
-                      onChange={(e) => setEndMonth(e.target.value)}
-                      className="w-full bg-black/40 border border-white/5 rounded-2xl px-5 py-4 text-sm font-bold text-white focus:border-blue-500/50 transition-all outline-none hover:bg-white/5 cursor-pointer appearance-none"
+                    <button 
+                      onClick={() => { setIsEndOpen(!isEndOpen); setIsStartOpen(false); }}
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
-                      {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
+                      {formatMonthDisplay(endMonth)}
+                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isEndOpen ? "rotate-180 text-blue-400" : ""}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {isEndOpen && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#1A1F35] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
+                        >
+                          {availableMonths.map(m => (
+                            <button
+                              key={m}
+                              onClick={() => { setEndMonth(m); setIsEndOpen(false); }}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-blue-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                            >
+                              {formatMonthDisplay(m)}
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
                 
