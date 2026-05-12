@@ -308,30 +308,6 @@ export default function AiIntelligencePage() {
             </motion.div>
           </section>
 
-          {/* Quick Metrics */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
-             {[
-               { label: '분석 대상 기간', value: `${history.length}개월`, sub: `${startMonth} ~ ${endMonth}`, icon: Calendar, color: 'text-blue-400' },
-               { label: '기간 총 매출', value: `${formatNumber(history.reduce((acc, curr) => acc + curr.metrics.generatedRevenue.total, 0))}원`, sub: '선택 기간 발생 매출 총합', icon: DollarSign, color: 'text-emerald-400' },
-               { label: '기간 총 환자수', value: `${formatNumber(history.reduce((acc, curr) => acc + curr.metrics.patientMetrics.total, 0))}명`, sub: '내원 환자(초진+재진) 총합', icon: Users, color: 'text-indigo-400' },
-               { label: '평균 운영 효율', value: `${formatNumber(avgEfficiency)}원`, sub: '환자 1인당 평균 객단가', icon: Activity, color: 'text-gold-500' }
-             ].map((item, idx) => (
-               <motion.div 
-                 key={idx}
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ delay: 0.4 + (idx * 0.1) }}
-                 className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/[0.04] transition-all group"
-               >
-                 <div className="flex justify-between items-center mb-6">
-                   <div className={`p-3 bg-white/5 rounded-2xl ${item.color}`}><item.icon size={20} /></div>
-                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
-                 </div>
-                 <div className={`text-2xl font-black mb-1 tracking-tight ${item.color}`}>{item.value}</div>
-                 <p className="text-[10px] text-slate-600 font-bold uppercase">{item.sub}</p>
-               </motion.div>
-             ))}
-          </section>
 
           {/* Strategic Analysis Content */}
           <section className="relative">
