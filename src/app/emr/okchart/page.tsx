@@ -47,7 +47,12 @@ const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
 };
 
-const EMPTY_OKCHART_DATA = { okchartData: null };
+const EMPTY_OKCHART_DATA = { 
+  okchartData: null,
+  patientMetrics: { total: 0, new: 0, auto: 0, dailyAvg: 0 },
+  generatedRevenue: { total: 0, copay: 0, insurance: 0, totalCovered: 0, auto: 0, worker: 0, nonCovered: 0, patientTotal: 0 },
+  leakage: { receivables: 0, discountTotal: 0, roundOffTotal: 0 }
+};
 
 export default function OkchartPage() {
   const { 
@@ -999,7 +1004,15 @@ export default function OkchartPage() {
 
         {/* Daily Mission & Management Quotes */}
         <section className="mb-12">
-          <DailyMissionCard data={currentData as any} userName="원장" emrType="okchart" />
+          <DailyMissionCard 
+            data={currentData as any || { 
+              patientMetrics: { new: 0, auto: 0, total: 0, dailyAvg: 0 }, 
+              generatedRevenue: { total: 0, nonCovered: 0 }, 
+              leakage: { receivables: 0 } 
+            }} 
+            userName="원장" 
+            emrType="okchart" 
+          />
         </section>
 
         <motion.section 

@@ -8,13 +8,27 @@ import { DataMetrics } from "@/context/DataContext";
  * 전담 한의원 경영 진단 AI 서비스 (스트리밍 지원)
  */
 export async function generateClinicInsightStream(data: DataMetrics, onChunk: (text: string) => void): Promise<void> {
+  if (!data) {
+    onChunk(JSON.stringify({
+      summary: "데이터 없음",
+      detailedAnalysis: "분석할 데이터가 없습니다. 먼저 엑셀 파일을 업로드해 주세요.",
+      actionPlan: [],
+      recommendedVideoKeyword: ""
+    }));
+    return;
+  }
+
   const isOkchart = !!data.okchartData;
   const isHanchart = !!data.hanchartData && data.hanchartData.length > 0;
   const metrics = isOkchart ? data.okchartData : null;
   const hanchartMetrics = isHanchart ? data.hanchartData : null;
   
-  const totalRev = data.generatedRevenue.total || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
-  const nonCoveredRev = data.generatedRevenue.nonCovered || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
+  const totalRev = (data.generatedRevenue?.total || 0) || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
+  const nonCoveredRev = (data.generatedRevenue?.nonCovered || 0) || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
+  const insuranceRev = (data.generatedRevenue?.insurance || 0) + (data.generatedRevenue?.copay || 0);
+  const autoRev = data.generatedRevenue?.auto || 0;
+  const totalPatients = data.patientMetrics?.total || 0;
+  const newPatients = data.patientMetrics?.new || 0;
   
   const prompt = `
     당신은 대한민국 최고의 한의원 경영 컨설턴트입니다. 
@@ -23,11 +37,11 @@ export async function generateClinicInsightStream(data: DataMetrics, onChunk: (t
     [데이터 정보]
     - EMR 모델: ${isOkchart ? "오케이차트 (OkChart)" : isHanchart ? "한차트 (HanChart)" : "일반 데이터"}
     - 총 매출: ${totalRev.toLocaleString()}원
-    - 보험 매출: ${(data.generatedRevenue.insurance + data.generatedRevenue.copay).toLocaleString()}원
+    - 보험 매출: ${insuranceRev.toLocaleString()}원
     - 비급여 매출: ${nonCoveredRev.toLocaleString()}원
-    - 자동차보험: ${data.generatedRevenue.auto.toLocaleString()}원
-    - 내원 환자수: ${data.patientMetrics.total}명
-    - 신규 환자수: ${data.patientMetrics.new}명
+    - 자동차보험: ${autoRev.toLocaleString()}원
+    - 내원 환자수: ${totalPatients}명
+    - 신규 환자수: ${newPatients}명
     ${isHanchart ? `- 비급여 비중: ${totalRev > 0 ? ((nonCoveredRev / totalRev) * 100).toFixed(1) : 0}%` : ""}
     ${metrics ? `
     - 미수금: ${metrics.receivables.toLocaleString()}원
@@ -83,11 +97,13 @@ export async function generateStrategicBriefing(history: { month: string, metric
   const dataSummary = sortedHistory.map(h => {
     const isHanchart = !!h.metrics.hanchartData && h.metrics.hanchartData.length > 0;
     const hanchartMetrics = isHanchart ? h.metrics.hanchartData : null;
-    const totalRev = h.metrics.generatedRevenue.total || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
-    const nonCoveredRev = h.metrics.generatedRevenue.nonCovered || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
+    const totalRev = (h.metrics.generatedRevenue?.total || 0) || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.totalRevenue || 0), 0) : 0) || 0;
+    const nonCoveredRev = (h.metrics.generatedRevenue?.nonCovered || 0) || (isHanchart ? hanchartMetrics?.reduce((acc, curr) => acc + (curr.nonTaxable || 0) + (curr.taxable || 0), 0) : 0) || 0;
+    const totalPatients = h.metrics.patientMetrics?.total || 0;
+    const newPatients = h.metrics.patientMetrics?.new || 0;
     
     return `
-      - ${h.month}: 매출 ${totalRev.toLocaleString()}원, 환자 ${h.metrics.patientMetrics.total}명 (신환 ${h.metrics.patientMetrics.new}명), 비급여 ${nonCoveredRev.toLocaleString()}원
+      - ${h.month}: 매출 ${totalRev.toLocaleString()}원, 환자 ${totalPatients}명 (신환 ${newPatients}명), 비급여 ${nonCoveredRev.toLocaleString()}원
     `;
   }).join("\n");
 
