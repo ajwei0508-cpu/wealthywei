@@ -99,37 +99,36 @@ export default function HanchartPage() {
 
   // Calculation Logic
   const getSummary = (dataArr: any[]) => {
-    if (!dataArr || dataArr.length === 0) return { 
+    const emptyResult = { 
       total: 0, nhis: 0, nonCovered: 0, auto: 0, 
       breakdown: { copay: 0, claim: 0, nonTax: 0, tax: 0 },
       count: { total: 0, new: 0 } 
     };
+
+    if (!dataArr || dataArr.length === 0) return emptyResult;
     
     return dataArr.reduce((acc, curr) => {
-      const patientCount = parseInt(curr.type.match(/\(\s*(\d+)\s*\)/)?.[1] || "0");
-      const isNewPatient = curr.type.startsWith("초진");
+      if (!curr) return acc;
+      const patientCount = parseInt(curr.type?.match(/\(\s*(\d+)\s*\)/)?.[1] || "0");
+      const isNewPatient = curr.type?.startsWith("초진") || false;
       
       return {
-        total: acc.total + (curr.totalRevenue || 0),
-        nhis: acc.nhis + ((curr.coveredCopay || 0) + (curr.coveredClaim || 0)),
-        nonCovered: acc.nonCovered + ((curr.nonTaxable || 0) + (curr.taxable || 0)),
-        auto: acc.auto + (curr.autoClaim || 0),
+        total: acc.total + (Number(curr.totalRevenue) || 0),
+        nhis: acc.nhis + ((Number(curr.coveredCopay) || 0) + (Number(curr.coveredClaim) || 0)),
+        nonCovered: acc.nonCovered + ((Number(curr.nonTaxable) || 0) + (Number(curr.taxable) || 0)),
+        auto: acc.auto + (Number(curr.autoClaim) || 0),
         breakdown: {
-          copay: acc.breakdown.copay + (curr.coveredCopay || 0),
-          claim: acc.breakdown.claim + (curr.coveredClaim || 0),
-          nonTax: acc.breakdown.nonTax + (curr.nonTaxable || 0),
-          tax: acc.breakdown.tax + (curr.taxable || 0),
+          copay: acc.breakdown.copay + (Number(curr.coveredCopay) || 0),
+          claim: acc.breakdown.claim + (Number(curr.coveredClaim) || 0),
+          nonTax: acc.breakdown.nonTax + (Number(curr.nonTaxable) || 0),
+          tax: acc.breakdown.tax + (Number(curr.taxable) || 0),
         },
         count: {
           total: acc.count.total + patientCount,
           new: acc.count.new + (isNewPatient ? patientCount : 0),
         }
       };
-    }, { 
-      total: 0, nhis: 0, nonCovered: 0, auto: 0, 
-      breakdown: { copay: 0, claim: 0, nonTax: 0, tax: 0 },
-      count: { total: 0, new: 0 } 
-    });
+    }, emptyResult);
   };
 
   const summary = useMemo(() => getSummary(displayData), [displayData]);
