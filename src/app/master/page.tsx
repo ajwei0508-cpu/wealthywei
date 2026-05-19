@@ -59,6 +59,35 @@ function calcFill(data: Record<string, any>) {
   return Math.round((vals.reduce((a,b)=>a+b,0)/6)*100);
 }
 
+const getFlatMetrics = (metrics: any) => {
+  const fallback = {
+    totalRevenue: 0,
+    nonBenefit: 0,
+    patientPay: 0,
+    insuranceClaim: 0,
+    autoInsuranceClaim: 0,
+    newPatientCount: 0,
+    patientCount: 0,
+    receivables: 0
+  };
+  if (!metrics) return fallback;
+  
+  const genRev = metrics.generatedRevenue || {};
+  const patMet = metrics.patientMetrics || {};
+  const leak = metrics.leakage || {};
+  
+  return {
+    totalRevenue: genRev.total || metrics.totalRevenue || 0,
+    nonBenefit: genRev.nonCovered || metrics.nonBenefit || 0,
+    patientPay: genRev.copay || metrics.patientPay || 0,
+    insuranceClaim: genRev.insurance || metrics.insuranceClaim || 0,
+    autoInsuranceClaim: genRev.auto || metrics.autoInsuranceClaim || 0,
+    newPatientCount: patMet.new || metrics.newPatientCount || 0,
+    patientCount: patMet.total || metrics.patientCount || 0,
+    receivables: leak.receivables || metrics.receivables || 0
+  };
+};
+
 export default function MasterDashboardPortal() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -124,11 +153,13 @@ export default function MasterDashboardPortal() {
         arpu: { latest: 0, prev: 0, rate: 0, type: "none" }
       };
 
+      const latestFlat = getFlatMetrics(rev?.latest?.metrics);
+
       if (rev && rev.records.length > 1) {
         const latestRecord = rev.records[0];
         const prevRecord = rev.records[1];
-        const latestMetrics = latestRecord.metrics || {};
-        const prevMetrics = prevRecord.metrics || {};
+        const latestMetrics = getFlatMetrics(latestRecord.metrics);
+        const prevMetrics = getFlatMetrics(prevRecord.metrics);
 
         // 1. 건강보험 = patientPay + insuranceClaim
         const latestHealthIns = (latestMetrics.patientPay || 0) + (latestMetrics.insuranceClaim || 0);
@@ -172,8 +203,8 @@ export default function MasterDashboardPortal() {
         });
 
         // Overall totalRevenue change
-        const latestRev = latestRecord.metrics?.totalRevenue || 0;
-        const prevRev = prevRecord.metrics?.totalRevenue || 0;
+        const latestRev = latestMetrics.totalRevenue;
+        const prevRev = prevMetrics.totalRevenue;
         if (prevRev > 0) {
           const diff = latestRev - prevRev;
           changeRate = (diff / prevRev) * 100;
@@ -190,8 +221,8 @@ export default function MasterDashboardPortal() {
         workbookName: wb?.data?.ch1?.name || "-",
         revenue: {
           latestMonth: rev?.latest?.month || "N/A",
-          totalRevenue: rev?.latest?.metrics?.totalRevenue || 0,
-          nonBenefit: rev?.latest?.metrics?.nonBenefit || 0,
+          totalRevenue: latestFlat.totalRevenue,
+          nonBenefit: latestFlat.nonBenefit,
           count: rev?.records.length || 0,
           lastUpload: rev?.latest?.created_at,
           changeType,
