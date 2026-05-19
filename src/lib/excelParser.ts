@@ -514,10 +514,26 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     if (isTotalRow && jsonData.length > headerRowIndex + 2) continue;
 
     let rowMonth = targetMonth;
+    
+    // 1차 시도: 명시적 날짜 컬럼(dateColIdx)에서 추출
     if (dateColIdx !== -1 && dataRow[dateColIdx]) {
       const extracted = tryExtractMonth(dataRow[dateColIdx], contextYear);
       if (extracted) rowMonth = extracted;
     }
+
+    // 2차 시도 (강화된 폴백): 헤더가 없거나(빈 칸) 특이한 이름이라 dateColIdx를 못 찾았을 경우, 첫 3개 셀을 직접 스캔하여 연/월을 유추
+    if (rowMonth === targetMonth) {
+      for (let j = 0; j < Math.min(dataRow.length, 3); j++) {
+        if (dataRow[j] === undefined || dataRow[j] === null || dataRow[j] === "") continue;
+        const extracted = tryExtractMonth(dataRow[j], contextYear);
+        // 발견된 extracted 값이 2020~2035 범위 내의 유효한 연월 형식이라면 즉시 채택
+        if (extracted && extracted.match(/^202\d|203[0-5]/)) {
+          rowMonth = extracted;
+          break;
+        }
+      }
+    }
+    
     if (!rowMonth) continue;
 
     // 해당 월의 결과 객체가 없으면 생성
