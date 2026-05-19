@@ -10,6 +10,7 @@ export interface DataMetrics {
     new: number;
     auto: number;
     dailyAvg: number;
+    returning?: number;
   };
   generatedRevenue: {
     total: number;
@@ -104,6 +105,8 @@ export interface DataMetrics {
     hasFinancialData: boolean;
     hasTreatmentData: boolean;
   };
+  emrSpecific?: Record<string, any>;
+  emrType?: string;
   version: string; // 스키마 버전 관리 ('v3')
 }
 
@@ -113,7 +116,8 @@ export const initialDataMetrics: DataMetrics = {
   leakage: { receivables: 0, discountTotal: 0, roundOffTotal: 0 },
   cashFlow: { totalReceived: 0, totalRefund: 0 },
   paymentMethods: { cash: 0, card: 0, other: 0 },
-  version: 'v3'
+  version: 'v3',
+  emrSpecific: {}
 };
 
 interface DataContextType {

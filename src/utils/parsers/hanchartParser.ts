@@ -9,6 +9,7 @@ import { normalize, parseCleanNumber, extractDiscount } from "./parserUtils";
  */
 export const parseHanChart = (rows: any[][]): DataMetrics => {
   const extractedData: DataMetrics = JSON.parse(JSON.stringify(initialDataMetrics));
+  extractedData.emrSpecific = {};
   extractedData.emrType = "hanchart";
 
   // 포맷 감지
