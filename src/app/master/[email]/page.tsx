@@ -119,6 +119,8 @@ export default function MasterUserDetailsPage() {
   const [monthlyData, setMonthlyData] = React.useState<Record<string, DataMetrics>>({});
   const [selectedMonth, setSelectedMonth] = React.useState<string>("");
   const [compareMonth, setCompareMonth] = React.useState<string>("");
+  const [activeSelectedMonth, setActiveSelectedMonth] = React.useState<string>("");
+  const [activeCompareMonth, setActiveCompareMonth] = React.useState<string>("");
   const [multiCompareMonths, setMultiCompareMonths] = React.useState<string[]>([]);
   const [selectedYear, setSelectedYear] = React.useState<string>("");
   const [analysisPeriodMode, setAnalysisPeriodMode] = React.useState<'1m' | '3m' | '6m' | '1y' | 'custom'>('3m');
@@ -156,10 +158,13 @@ export default function MasterUserDetailsPage() {
         if (months.length > 0) {
           const latest = months[months.length - 1];
           setSelectedMonth(latest);
+          setActiveSelectedMonth(latest);
           
           const currentIndex = months.indexOf(latest);
           const targetIndex = Math.max(0, currentIndex - 2);
-          setCompareMonth(months[targetIndex]);
+          const initialCompare = months[targetIndex];
+          setCompareMonth(initialCompare);
+          setActiveCompareMonth(initialCompare);
           setSelectedYear(latest.split('-')[0]);
         }
       } else {
@@ -194,6 +199,8 @@ export default function MasterUserDetailsPage() {
     const calculatedCompareMonth = sortedMonths[targetIndex];
     if (calculatedCompareMonth) {
       setCompareMonth(calculatedCompareMonth);
+      setActiveCompareMonth(calculatedCompareMonth);
+      setActiveSelectedMonth(endMonth);
     }
   };
 
@@ -234,11 +241,12 @@ export default function MasterUserDetailsPage() {
     }
   };
 
-  const rawData = monthlyData[selectedMonth] || initialDataMetrics;
-  const rawCompareData = monthlyData[compareMonth] || initialDataMetrics;
+  const rawData = monthlyData[activeSelectedMonth] || initialDataMetrics;
+  const rawCompareData = monthlyData[activeCompareMonth] || initialDataMetrics;
 
   const data = getFlatMetrics(rawData);
   const compareData = getFlatMetrics(rawCompareData);
+  const isDirty = selectedMonth !== activeSelectedMonth || compareMonth !== activeCompareMonth;
 
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData || {}).sort().reverse();
@@ -325,7 +333,7 @@ export default function MasterUserDetailsPage() {
 
   // Analysis Insights Logic (Best/Worst)
   const insights = useMemo(() => {
-    if (!compareMonth || !data || !compareData) return null;
+    if (!activeCompareMonth || !data || !compareData) return null;
 
     const results = metrics.map(m => {
       let valB = 0;
@@ -354,7 +362,7 @@ export default function MasterUserDetailsPage() {
       best: sortedByDelta[0],
       worst: sortedByDelta[sortedByDelta.length - 1],
     };
-  }, [data, compareData, compareMonth, metrics]);
+  }, [data, compareData, activeCompareMonth, metrics]);
 
   // 맞춤 전문 키워드 맵 (사용자 요청 반영)
   const expertKeywords = useMemo(() => ({
@@ -366,9 +374,9 @@ export default function MasterUserDetailsPage() {
   const trendChartData = useMemo(() => {
     const sortedMonths = Object.keys(monthlyData || {}).sort();
     
-    // Find index of start (compareMonth) and end (selectedMonth)
-    const startIndex = sortedMonths.indexOf(compareMonth);
-    const endIndex = sortedMonths.indexOf(selectedMonth);
+    // Find index of start (activeCompareMonth) and end (activeSelectedMonth)
+    const startIndex = sortedMonths.indexOf(activeCompareMonth);
+    const endIndex = sortedMonths.indexOf(activeSelectedMonth);
 
     let filtered = sortedMonths;
     if (startIndex !== -1 && endIndex !== -1) {
@@ -384,11 +392,11 @@ export default function MasterUserDetailsPage() {
       "총매출": getFlatMetrics(monthlyData[month])?.totalRevenue || 0,
       rawMonth: month
     }));
-  }, [monthlyData, compareMonth, selectedMonth]);
+  }, [monthlyData, activeCompareMonth, activeSelectedMonth]);
 
   // Calculate Representative Worst Metric among the Top 3 (보험, 비급여, 신규환자)
   const representativeMetric = useMemo(() => {
-    if (!compareMonth || !data || !compareData) return null;
+    if (!activeCompareMonth || !data || !compareData) return null;
 
     const keyTargets = ["basicRevenue", "newPatientCount", "nonBenefit"];
     const results = metrics
@@ -412,11 +420,11 @@ export default function MasterUserDetailsPage() {
 
     // Sort by growth rate (percent), ASC (lowest first)
     return results.sort((a, b) => parseFloat(a.delta!.percent) - parseFloat(b.delta!.percent))[0];
-  }, [data, compareData, compareMonth, metrics]);
+  }, [data, compareData, activeCompareMonth, metrics]);
 
   // Fetch AI Recommendations Batch
   useEffect(() => {
-    if (!compareMonth || !data || !compareData) return;
+    if (!activeCompareMonth || !data || !compareData) return;
 
     const fetchAnalysis = async () => {
       setLoadingAnalysis(true);
@@ -455,8 +463,8 @@ export default function MasterUserDetailsPage() {
               name: session?.user?.name,
               email: session?.user?.email
             },
-            targetMonth: selectedMonth,
-            compareMonth: compareMonth,
+            targetMonth: activeSelectedMonth,
+            compareMonth: activeCompareMonth,
             expertKeywords: expertKeywords
           })
         });
@@ -496,7 +504,7 @@ export default function MasterUserDetailsPage() {
 
     fetchAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, compareMonth, data, compareData]);
+  }, [activeSelectedMonth, activeCompareMonth, data, compareData]);
 
   if (!dataLoaded) {
     return (
@@ -645,6 +653,25 @@ export default function MasterUserDetailsPage() {
                   ))}
                 </div>
               </div>
+
+              {/* 직접선택 분석 실행 버튼 */}
+              {analysisPeriodMode === 'custom' && (
+                <button
+                  onClick={() => {
+                    setActiveSelectedMonth(selectedMonth);
+                    setActiveCompareMonth(compareMonth);
+                    toast.success("경영 진단 분석이 실행되었습니다.");
+                  }}
+                  className={`flex items-center gap-1.5 text-white px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 active:scale-95 shadow-md shadow-indigo-100 hover:shadow-lg hover:shadow-indigo-200 ${
+                    isDirty 
+                      ? "bg-indigo-600 hover:bg-indigo-700 ring-2 ring-indigo-400 ring-offset-2 animate-bounce" 
+                      : "bg-indigo-500 hover:bg-indigo-600"
+                  }`}
+                >
+                  <Play size={13} className="fill-white animate-pulse" />
+                  분석 실행 {isDirty && <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping ml-1" />}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -696,9 +723,9 @@ export default function MasterUserDetailsPage() {
                     <div>
                       <h3 className="text-lg font-black text-slate-900">🩺 AI 병원 체질 종합 진단 스코어</h3>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                        <span className="text-[10px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">진단 분석월: {formatMonth(selectedMonth)}</span>
+                        <span className="text-[10px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">진단 분석월: {formatMonth(activeSelectedMonth)}</span>
                         <span className="text-[10px] font-bold text-zinc-400">vs</span>
-                        <span className="text-[10px] font-black text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">비교 기준월: {formatMonth(compareMonth)}</span>
+                        <span className="text-[10px] font-black text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">비교 기준월: {formatMonth(activeCompareMonth)}</span>
                       </div>
                     </div>
                     <span className="text-[10px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-1 rounded-md">실시간 처방</span>
