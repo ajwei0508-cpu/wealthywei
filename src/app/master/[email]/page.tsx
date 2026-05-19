@@ -616,7 +616,11 @@ export default function MasterUserDetailsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-black text-slate-900">🩺 AI 병원 체질 종합 진단 스코어</h3>
-                      <p className="text-xs text-zinc-500 font-medium mt-1">종합 점수 기반 체질 판정 및 맞춤형 처방</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        <span className="text-[10px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">진단 분석월: {formatMonth(selectedMonth)}</span>
+                        <span className="text-[10px] font-bold text-zinc-400">vs</span>
+                        <span className="text-[10px] font-black text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">비교 기준월: {formatMonth(compareMonth)}</span>
+                      </div>
                     </div>
                     <span className="text-[10px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-1 rounded-md">실시간 처방</span>
                   </div>
