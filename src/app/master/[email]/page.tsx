@@ -37,6 +37,8 @@ import { AnimatedNumber, AnimatedPercent } from "@/components/AnimatedNumber";
 import {
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -819,31 +821,105 @@ export default function MasterUserDetailsPage() {
               </div>
             </div>
 
-            {/* 연간 통계 서머리 카드 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">누적 연간 매출액</span>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-2xl font-black text-slate-950">{formatNumber(yearlyTrendData.totalYearRevenue)}</span>
-                  <span className="text-xs font-extrabold text-slate-500">원</span>
-                </div>
-              </div>
-              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">월평균 매출액 (운영월 기준)</span>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-2xl font-black text-slate-950">{formatNumber(yearlyTrendData.avgYearRevenue)}</span>
-                  <span className="text-xs font-extrabold text-slate-500">원/월</span>
-                </div>
-              </div>
-              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">데이터 집계 / 진료 예정</span>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xl font-black text-indigo-600">{yearlyTrendData.activeMonthCount}개월 집계</span>
-                  <span className="text-zinc-300 font-bold">|</span>
-                  <span className="text-sm font-extrabold text-teal-600">{12 - yearlyTrendData.activeMonthCount}개월 진료예정</span>
-                </div>
-              </div>
-            </div>
+            {(() => {
+              const chartData = yearlyTrendData.trend.map(t => ({
+                name: t.monthLabel,
+                "매출액": t.hasData ? t.revenue : 0,
+                hasData: t.hasData
+              }));
+
+              return (
+                <>
+                  {/* 연간 통계 서머리 카드 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">누적 연간 매출액</span>
+                      <div className="mt-2 flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-955">{formatNumber(yearlyTrendData.totalYearRevenue)}</span>
+                        <span className="text-xs font-extrabold text-slate-500">원</span>
+                      </div>
+                    </div>
+                    <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">월평균 매출액 (운영월 기준)</span>
+                      <div className="mt-2 flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-955">{formatNumber(yearlyTrendData.avgYearRevenue)}</span>
+                        <span className="text-xs font-extrabold text-slate-500">원/월</span>
+                      </div>
+                    </div>
+                    <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">데이터 집계 / 진료 예정</span>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xl font-black text-indigo-600">{yearlyTrendData.activeMonthCount}개월 집계</span>
+                        <span className="text-zinc-300 font-bold">|</span>
+                        <span className="text-sm font-extrabold text-teal-600">{12 - yearlyTrendData.activeMonthCount}개월 진료예정</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 연간 매출 시각화 차트 */}
+                  <div className="h-64 w-full bg-slate-50/30 border border-zinc-100 rounded-3xl p-6 mb-8 relative overflow-hidden">
+                    <div className="absolute top-4 left-6 z-10">
+                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">월별 매출 추이 곡선 (Trend Curve)</span>
+                    </div>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 25, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3182f6" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#3182f6" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis 
+                          dataKey="name" 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                        />
+                        <YAxis 
+                          tickLine={false} 
+                          axisLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                          tickFormatter={(v) => v > 0 ? `${(v / 10000).toFixed(0)}만` : '0'}
+                        />
+                        <RechartsTooltip 
+                          cursor={{ stroke: '#e2e8f0', strokeWidth: 1.5, strokeDasharray: '3 3' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const dataPoint = payload[0].payload;
+                              return (
+                                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800 text-xs font-bold space-y-1">
+                                  <p className="text-zinc-400 font-extrabold">{selectedYear}년 {dataPoint.name}</p>
+                                  {dataPoint.hasData ? (
+                                    <p className="text-sm font-black text-blue-400">
+                                      매출액: {new Intl.NumberFormat("ko-KR").format(dataPoint["매출액"])}원
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm font-black text-teal-400 flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></span>
+                                      진료 예정
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="매출액" 
+                          stroke="#3182f6" 
+                          strokeWidth={3} 
+                          fillOpacity={1} 
+                          fill="url(#colorRevenue)" 
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              );
+            })()}
 
             {/* 12개월 타임라인 및 프로그레스 그리드 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
