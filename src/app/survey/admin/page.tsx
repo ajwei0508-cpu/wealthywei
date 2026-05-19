@@ -162,7 +162,7 @@ export default function AdminSurveyPage() {
                   </div>
                 ) : item.type === "kv" ? (
                   <div className="flex flex-wrap gap-2 pt-1 pl-1">
-                    {Object.entries(item.value).map(([k, v]) => v && (
+                    {(Object.entries(item.value) as [string, any][]).map(([k, v]) => v && (
                       <span key={k} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black border border-blue-100 shadow-sm">
                         {k}
                       </span>

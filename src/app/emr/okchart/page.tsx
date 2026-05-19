@@ -63,7 +63,7 @@ export default function OkchartPage() {
     setSelectedMonth, 
     setCompareMonth,
     setMonthlyData, 
-    clearData,
+    resetData: clearData,
     deleteMonthlyData 
   } = useData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -117,7 +117,8 @@ export default function OkchartPage() {
   };
 
   const pData = prevDataEntry.okchartData || {
-    totalPatients: 0, newPatients: 0, totalRevenue: 0, insuranceClaim: 0, copay: 0, nonCovered: 0, autoClaim: 0,
+    totalPatients: 0, newPatients: 0, autoPatients: 0, avgDailyPatients: 0,
+    totalRevenue: 0, insuranceClaim: 0, copay: 0, nonCovered: 0, autoClaim: 0, workerClaim: 0,
   };
 
   const isMock = !currentData.okchartData;
@@ -166,17 +167,7 @@ export default function OkchartPage() {
     }
   };
 
-  const handleLoadProvidedData = async () => {
-    toast.loading("데이터 불러오는 중...", { id: "data-load" });
-    try {
-      for (const [month, metrics] of Object.entries(PROVIDED_OKCHART_DATA)) {
-        await setMonthlyData(month, metrics as any);
-      }
-      toast.success("데이터가 정상적으로 로드되었습니다.", { id: "data-load" });
-    } catch (e) {
-      toast.error("데이터 로드 중 오류가 발생했습니다.", { id: "data-load" });
-    }
-  };
+
 
   const handleDeleteSelected = async () => {
     if (selectedMonthsForDelete.length === 0) return;
@@ -353,13 +344,6 @@ export default function OkchartPage() {
               >
                 <Upload size={18} className="group-hover:bounce-y transition-transform" /> 
                 <span className="tracking-tight">신규 데이터 업로드</span>
-              </button>
-              <button
-                onClick={handleLoadProvidedData}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl text-xs font-black transition-all shadow-lg active:scale-95 group"
-              >
-                <Sparkles size={18} className="group-hover:rotate-12 transition-transform" /> 
-                <span className="tracking-tight">제공 데이터 자동입력</span>
               </button>
               <button
                 onClick={() => { if(confirm("현재 보고 계신 월의 데이터를 초기화할까요?")) deleteMonthlyData(selectedMonth); }}

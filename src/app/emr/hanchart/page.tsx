@@ -98,7 +98,7 @@ export default function HanchartPage() {
   const prevDisplayData = (!prevEntry.hanchartData || prevEntry.hanchartData.length === 0) ? [] : prevEntry.hanchartData;
 
   // Calculation Logic
-  const getSummary = (dataArr: any[]) => {
+  const getSummary = (dataArr: any[] | undefined) => {
     const emptyResult = { 
       total: 0, nhis: 0, nonCovered: 0, auto: 0, 
       breakdown: { copay: 0, claim: 0, nonTax: 0, tax: 0 },

@@ -70,7 +70,7 @@ type SurveyData = {
     staffDiscount: string;          // 41. 직원 할인
     idealStaff: string;             // 46. 인재상
     expectations: { manager: string; regular: string; communication: string; }; // 47. 역할 기대 + 소통 주기
-    chatSystem: { program: string; channels: string; files: string[]; }; // 48, 49 채팅 소통 + 증빙 자료들
+    chatSystem: { program: string; channels: string; capture1?: string; capture2?: string; guideFile?: string; files: string[]; }; // 48, 49 채팅 소통 + 증빙 자료들
     eduMeeting: string;             // 50. 교육/회의 시스템
     eduMaterials: string[];         // 51. 교육 자료 목록 (최대 3개 파일)
   };
@@ -116,7 +116,7 @@ const initialData: SurveyData = {
   ch2: { addressHours: "", clinicSize: "", patientFlow: "", consultScript: "", herbConsultProcess: "", happyCallSystem: "", herbInstructions: "", herbInstructionsFile: [], herbManagementSystem: "" },
   ch3: { equipmentDetail: "", treatmentDefinition: "", patientQna: "", patientQnaFile: [], diseasePlans: "", mskExample: "", charting: [{ disease: "대표 질환 1 (예: 경추통)", case1: "", case2: "", case3: "" }, { disease: "대표 질환 2 (예: 요통)", case1: "", case2: "", case3: "" }, { disease: "대표 질환 3 (예: 슬통)", case1: "", case2: "", case3: "" }], billingRoutine: "", chunaRoutine: "", herbRecommendation: "", acupointRecommendation: "" },
   ch4: { targetMetrics: { revenue: "", profit: "", nonBenefit: "", autoInsurance: "", dailyPatients: "" }, workingDays: "", profitUsage: "", growthInvestment: "", immediateInvestment: "", indicators: "", indicatorsFile: [], investmentHistory: "", expenses: [{ item: "임대료", amount: "" }, { item: "인건비", amount: "" }, { item: "소모품", amount: "" }] },
-  ch5: { staff: [{ role: "실장", salary: "", days: "", hours: "", incentive: "" }, { role: "간호", salary: "", days: "", hours: "", incentive: "" }], staffCounts: { desk: "", treatment: "", decoction: "", other: "" }, mealSnack: { nightMeal: "", snack: "", lunch: "", eatTogether: "" }, welfare: "", staffDiscount: "", idealStaff: "", expectations: { manager: "", regular: "", communication: "" }, chatSystem: { program: "카카오톡", channels: "", files: [] }, eduMeeting: "", eduMaterials: [] },
+  ch5: { staff: [{ role: "실장", salary: "", days: "", hours: "", incentive: "" }, { role: "간호", salary: "", days: "", hours: "", incentive: "" }], staffCounts: { desk: "", treatment: "", decoction: "", other: "" }, mealSnack: { nightMeal: "", snack: "", lunch: "", eatTogether: "" }, welfare: "", staffDiscount: "", idealStaff: "", expectations: { manager: "", regular: "", communication: "" }, chatSystem: { program: "카카오톡", channels: "", capture1: "", capture2: "", guideFile: "", files: [] }, eduMeeting: "", eduMaterials: [] },
   ch6: { safetyEducation: "", safetyItems: Object.fromEntries(SAFETY_ITEMS.map(q => [q, false])), safetyFiles: {}, marketingStatus: { channels: "", cost: "", goal: "" }, promoMaterials: "", promoPhotos: [], finalGoal: "" },
 };
 
@@ -459,11 +459,11 @@ export default function SurveyPage() {
     } catch { toast.error("제출 실패"); }
   };
 
-  const upd1 = (f: string, v: string) => setData(d => ({ ...d, ch1: { ...d.ch1, [f]: v } }));
-  const upd2 = (f: string, v: string) => setData(d => ({ ...d, ch2: { ...d.ch2, [f]: v } }));
-  const upd3 = (f: string, v: string) => setData(d => ({ ...d, ch3: { ...d.ch3, [f]: v } }));
-  const upd4 = (f: string, v: string) => setData(d => ({ ...d, ch4: { ...d.ch4, [f]: v } }));
-  const upd5 = (f: string, v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, [f]: v } }));
+  const upd1 = (f: string, v: any) => setData(d => ({ ...d, ch1: { ...d.ch1, [f]: v } }));
+  const upd2 = (f: string, v: any) => setData(d => ({ ...d, ch2: { ...d.ch2, [f]: v } }));
+  const upd3 = (f: string, v: any) => setData(d => ({ ...d, ch3: { ...d.ch3, [f]: v } }));
+  const upd4 = (f: string, v: any) => setData(d => ({ ...d, ch4: { ...d.ch4, [f]: v } }));
+  const upd5 = (f: string, v: any) => setData(d => ({ ...d, ch5: { ...d.ch5, [f]: v } }));
 
   // ── Renders ────────────────────────────────────────────────────────────────
   const renderCh1 = () => (
@@ -598,7 +598,7 @@ export default function SurveyPage() {
           </div>
           <div className="flex flex-col gap-8">
             <FileUpload label="복용 안내문/가이드 파일 제출 (Q32)" value={data.ch2.herbInstructionsFile} 
-                        onUpload={(url: string) => upd2("herbInstructionsFile", url)} 
+                        onUpload={(urls: string[]) => upd2("herbInstructionsFile", urls)} 
                         hint="실제 환자에게 나가는 안내 파일을 업로드해주세요." disabled={isReadOnly} />
             <div>
               <Lbl hint="[Q33] 현재 이용 중인 한약 관리/수납 관리 프로그램">한약 관리 시스템 종류</Lbl>
@@ -634,7 +634,7 @@ export default function SurveyPage() {
             </div>
             <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center">
               <FileUpload label="환자 Q&A 리스트 파일 제출 (Q10)" value={data.ch3.patientQnaFile} 
-                          onUpload={(url: string) => upd3("patientQnaFile", url)} 
+                          onUpload={(urls: string[]) => upd3("patientQnaFile", urls)} 
                           hint="워드, 엑셀, 이미지 등 매뉴얼 파일을 업로드해주세요." disabled={isReadOnly} />
             </div>
           </div>
@@ -760,7 +760,7 @@ export default function SurveyPage() {
           </div>
           <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center">
             <FileUpload label="지표 관리 양식/자료 제출 (Q27)" value={data.ch4.indicatorsFile} 
-                        onUpload={(url: string) => upd4("indicatorsFile", url)} 
+                        onUpload={(urls: string[]) => upd4("indicatorsFile", urls)} 
                         hint="평소 기록하시는 대시보드나 엑셀 양식을 업로드해주세요." disabled={isReadOnly} />
           </div>
         </div>
@@ -907,14 +907,14 @@ export default function SurveyPage() {
         <div className="p-8 bg-slate-100 rounded-3xl border border-slate-200">
           <Lbl hint="[Q49] 원내 채팅 채널 구분 사진 및 실제 대화 내용 캡처, 가이드라인 파일을 제출해주세요.">채팅 시스템 증빙 자료 (파일 3개 세트)</Lbl>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-            <FileUpload label="캡처1: 전체 채널 구분" value={data.ch5.chatSystem.capture1} 
-                        onUpload={(url: string) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, capture1: url } } }))} 
+            <FileUpload label="캡처1: 전체 채널 구분" value={data.ch5.chatSystem.capture1 || ""} 
+                        onUpload={(urls: string[]) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, capture1: urls[0] || "" } } }))} 
                         disabled={isReadOnly} />
-            <FileUpload label="캡처2: 대화 내용 예시" value={data.ch5.chatSystem.capture2} 
-                        onUpload={(url: string) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, capture2: url } } }))} 
+            <FileUpload label="캡처2: 대화 내용 예시" value={data.ch5.chatSystem.capture2 || ""} 
+                        onUpload={(urls: string[]) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, capture2: urls[0] || "" } } }))} 
                         disabled={isReadOnly} />
-            <FileUpload label="소통 가이드라인 (문서)" value={data.ch5.chatSystem.guideFile} 
-                        onUpload={(url: string) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, guideFile: url } } }))} 
+            <FileUpload label="소통 가이드라인 (문서)" value={data.ch5.chatSystem.guideFile || ""} 
+                        onUpload={(urls: string[]) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, guideFile: urls[0] || "" } } }))} 
                         disabled={isReadOnly} />
           </div>
         </div>
@@ -932,9 +932,9 @@ export default function SurveyPage() {
               {[0, 1, 2].map(idx => (
                 <FileUpload key={idx} label={`교육 자료 ${idx + 1}`} 
                             value={data.ch5.eduMaterials[idx] || ""} 
-                            onUpload={(url: string) => {
+                            onUpload={(urls: string[]) => {
                               const a = [...data.ch5.eduMaterials];
-                              a[idx] = url;
+                              a[idx] = urls[0] || "";
                               setData(d => ({ ...d, ch5: { ...d.ch5, eduMaterials: a } }));
                             }} disabled={isReadOnly} />
               ))}
@@ -970,8 +970,8 @@ export default function SurveyPage() {
                     </button>
                     {isChecked && (
                       <div className="md:w-72">
-                        <FileUpload label="" value={fileUrl || ""} 
-                                    onUpload={(url: string) => setData(d => ({ ...d, ch6: { ...d.ch6, safetyFiles: { ...d.ch6.safetyFiles, [item]: url } } }))} 
+                        <FileUpload label="" value={fileUrl || []} 
+                                    onUpload={(urls: string[]) => setData(d => ({ ...d, ch6: { ...d.ch6, safetyFiles: { ...d.ch6.safetyFiles, [item]: urls } } }))} 
                                     hint="매뉴얼 사진/문서" disabled={isReadOnly} />
                       </div>
                     )}
@@ -1022,9 +1022,9 @@ export default function SurveyPage() {
               {[0, 1, 2, 3, 4].map(idx => (
                 <FileUpload key={idx} label={`사진 ${idx + 1}`} 
                             value={data.ch6.promoPhotos[idx] || ""} 
-                            onUpload={(url: string) => {
+                            onUpload={(urls: string[]) => {
                               const a = [...(data.ch6.promoPhotos || [])];
-                              a[idx] = url;
+                              a[idx] = urls[0] || "";
                               setData(d => ({ ...d, ch6: { ...d.ch6, promoPhotos: a } }));
                             }} disabled={isReadOnly} />
               ))}

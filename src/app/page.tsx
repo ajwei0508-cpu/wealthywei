@@ -237,7 +237,7 @@ export default function Home() {
 
           {/* Daily Mission & Management Quotes */}
           <section>
-            <DailyMissionCard data={currentData} userName={userName} />
+            <DailyMissionCard data={currentData} userName={userName} emrType={(selectedEmr as any) || "okchart"} />
           </section>
 
           {/* Quick Support Footer */}

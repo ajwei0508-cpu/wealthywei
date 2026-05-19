@@ -364,12 +364,12 @@ export default function HanChartDashboard() {
                      <tr>
                        <td className="px-6 py-4"></td>
                        <td className="px-6 py-4 text-zinc-500">ㄴ 비과세비급여</td>
-                       <td className="px-6 py-4 text-right font-medium">{formatNumber(data.emrSpecific["비과세비급여"] || 0)}</td>
+                       <td className="px-6 py-4 text-right font-medium">{formatNumber(data.emrSpecific?.["비과세비급여"] || 0)}</td>
                      </tr>
                      <tr>
                        <td className="px-6 py-4"></td>
                        <td className="px-6 py-4 text-zinc-500">ㄴ 과세비급여</td>
-                       <td className="px-6 py-4 text-right font-medium">{formatNumber(data.emrSpecific["과세비급여"] || 0)}</td>
+                       <td className="px-6 py-4 text-right font-medium">{formatNumber(data.emrSpecific?.["과세비급여"] || 0)}</td>
                      </tr>
                      <tr className="bg-rose-50/20">
                        <td className="px-6 py-4 font-bold text-rose-900">손실 분석</td>

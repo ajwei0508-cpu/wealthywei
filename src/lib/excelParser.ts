@@ -511,7 +511,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
   let headerRowIndex = jsonData.findIndex(row => 
     row.some(cell => {
       const c = normalize(cell);
-      return c === "내원환자수" || c === "총진료비" || c === "수납총액";
+      return c.includes("환자수") || c.includes("총진료비") || c.includes("수납총액") || c.includes("실인원") || c.includes("진료비계") || c.includes("총계");
     })
   );
   
@@ -519,7 +519,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
 
   const headers = jsonData[headerRowIndex].map(h => normalize(h));
   const dateColIdx = headers.findIndex(h => 
-    h === "월" || h === "월별" || h.includes("년월") || h.includes("일자") || h.includes("기간") || h.includes("구분") || h.includes("날짜")
+    h === "월" || h === "월별" || h.includes("년월") || h.includes("일자") || h.includes("기간") || h.includes("구분") || h.includes("날짜") || h.includes("진료월") || h.includes("연월")
   );
 
   // 3. 모든 데이터 행 순회 및 '합산' 처리
@@ -555,8 +555,14 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
       }
     }
     
-    // 유효한 월 정보를 전혀 찾을 수 없는 행(평균, 합계, 비고, 빈 칸 등)은 데이터 수집에서 제외
-    if (!rowMonth) continue;
+    // 3차 시도: 단일 월 리스트(일별 통계 등)라서 월 정보가 아예 없다면, 업로드 시 지정한 targetMonth를 사용
+    if (!rowMonth) {
+      if (targetMonth) {
+        rowMonth = targetMonth;
+      } else {
+        continue;
+      }
+    }
 
     // 해당 월의 결과 객체가 없으면 생성
     if (!resultsMap[rowMonth]) {
@@ -578,18 +584,30 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     const target = resultsMap[rowMonth].extractedData;
     const ok = target.okchartData!;
 
+    // 헤더에는 구분/월 열이 없는데, 데이터 행에는 앞에 월 정보가 들어있는 경우 (인덱스 시프트 발생 방지)
+    let dataOffset = 0;
+    if (dateColIdx === -1 && dataRow.length > headers.length && dataRow[0] !== undefined) {
+      const extracted = tryExtractMonth(dataRow[0], contextYear);
+      if (extracted) {
+        dataOffset = 1;
+      }
+    }
+
     const findAndParse = (keywords: string[]) => {
       const normalizedKeywords = keywords.map(k => normalize(k));
-      const idx = headers.findIndex(h => normalizedKeywords.some(nk => h === nk || h === nk.replace("청구", "")));
-      return idx !== -1 ? parseCleanNumber(dataRow[idx]) : 0;
+      const idx = headers.findIndex(h => normalizedKeywords.some(nk => h.includes(nk) || h.includes(nk.replace("청구", ""))));
+      if (idx === -1) return 0;
+      
+      const targetIdx = idx + dataOffset;
+      return targetIdx < dataRow.length ? parseCleanNumber(dataRow[targetIdx]) : 0;
     };
 
     // 데이터 누적 합산 (Summation)
-    const valTotalPatients = findAndParse(["내원환자수"]);
+    const valTotalPatients = findAndParse(["내원환자수", "총내원", "수납인원", "실인원", "환자수", "실인원수"]);
     target.patientMetrics.total += valTotalPatients;
     ok.totalPatients += valTotalPatients;
 
-    const valNewPatients = findAndParse(["신규환자수"]);
+    const valNewPatients = findAndParse(["신규환자수", "신환", "초진", "처음"]);
     target.patientMetrics.new += valNewPatients;
     ok.newPatients += valNewPatients;
 
@@ -601,27 +619,27 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     target.patientMetrics.dailyAvg = Math.max(target.patientMetrics.dailyAvg, valDailyAvg); // 평균은 최대값 혹은 나중에 재계산
     ok.avgDailyPatients = Math.max(ok.avgDailyPatients, valDailyAvg);
 
-    const valTotalRevenue = findAndParse(["총진료비"]);
+    const valTotalRevenue = findAndParse(["총진료비", "진료비계", "총매출액", "총계", "진료비합계"]);
     target.generatedRevenue.total += valTotalRevenue;
     ok.totalRevenue += valTotalRevenue;
 
-    const valCopay = findAndParse(["본인부담"]);
+    const valCopay = findAndParse(["본인부담", "본부금", "보험급여본인", "본인"]);
     target.generatedRevenue.copay += valCopay;
     ok.copay += valCopay;
 
-    const valInsurance = findAndParse(["보험(청구)", "보험청구"]);
+    const valInsurance = findAndParse(["보험(청구)", "보험청구", "공단청구", "급여청구", "공단부담", "청구액", "보험급여청구"]);
     target.generatedRevenue.insurance += valInsurance;
     ok.insuranceClaim += valInsurance;
 
-    const valAutoClaim = findAndParse(["자보(청구)", "자보청구"]);
+    const valAutoClaim = findAndParse(["자보(청구)", "자보청구", "자동차보험"]);
     target.generatedRevenue.auto += valAutoClaim;
     ok.autoClaim += valAutoClaim;
 
-    const valWorkerClaim = findAndParse(["산재(청구)", "산재청구"]);
+    const valWorkerClaim = findAndParse(["산재(청구)", "산재청구", "산재"]);
     target.generatedRevenue.worker += valWorkerClaim;
     ok.workerClaim += valWorkerClaim;
 
-    const valNonCovered = findAndParse(["비급여"]);
+    const valNonCovered = findAndParse(["비급여", "일반", "비보험"]);
     target.generatedRevenue.nonCovered += valNonCovered;
     ok.nonCovered += valNonCovered;
 
@@ -641,7 +659,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     target.leakage.roundOffTotal += valRoundOff;
     ok.roundOffTotal += valRoundOff;
 
-    const valReceived = findAndParse(["수납총액"]);
+    const valReceived = findAndParse(["수납총액", "수납금액", "수납합계", "실수납액", "수납액"]);
     target.cashFlow.totalReceived += valReceived;
     ok.totalReceived += valReceived;
 
@@ -779,6 +797,7 @@ function parseHanisarang(jsonData: string[][], targetMonth: string): ParseExcelR
     cashPayment: extractedData.paymentMethods.cash,
     cardPayment: extractedData.paymentMethods.card,
     transferPayment: extractedData.paymentMethods.other,
+    generalCopay: extractedData.generatedRevenue.copay,
   };
 
   mappingResults.push({ original: "한의사랑 통계 리스트", standard: "리스트 합산 분석" });
@@ -810,7 +829,7 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
 
   const baseMonth = globalMonth || defaultMonth;
 
-  const getMonthFromRow = (row: string[], fallback: string) => {
+  const getMonthFromRow = (row: any[], fallback: string) => {
     // [강화] 모든 열을 전수 스캔하여 날짜 후보를 찾음
     for (let i = 0; i < row.length; i++) {
       let rawVal = row[i];

@@ -83,6 +83,7 @@ export interface DataMetrics {
     totalReceived: number;
     totalRefund: number;
     cashPayment: number;
+    cardPayment: number;
     transferPayment: number;
     generalCopay: number;
   };
@@ -271,7 +272,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       };
 
       if (newData.donguibogamData) {
-        const eD = existing.donguibogamData || { treatments: {} };
+        const eD = existing.donguibogamData || {
+          totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0, discount: 0, receivables: 0,
+          totalReceived: 0, cashTotal: 0, cardTotal: 0, newPatients: 0, recurringPatients: 0, referralPatients: 0,
+          totalPatients: 0, treatments: {}, hasFinancialData: false, hasTreatmentData: false
+        };
         const nD = newData.donguibogamData;
         
         // 동의보감 데이터 내부 필드 합산 병합
@@ -290,9 +295,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         
         // 진료 항목(treatments) 수치도 합산 처리
         if (nD.treatments) {
-          Object.keys(nD.treatments).forEach(k => {
-            const newVal = nD.treatments[k] || 0;
-            const oldVal = eD.treatments[k] || 0;
+          const eTreatments = (eD.treatments || {}) as Record<string, number>;
+          const nTreatments = (nD.treatments || {}) as Record<string, number>;
+          Object.keys(nTreatments).forEach(k => {
+            const newVal = nTreatments[k] || 0;
+            const oldVal = eTreatments[k] || 0;
             updatedMetrics.donguibogamData!.treatments[k] = oldVal + newVal;
           });
         }

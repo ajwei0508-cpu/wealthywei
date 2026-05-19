@@ -65,7 +65,7 @@ export default function DonguibogamPage() {
     setSelectedMonth, 
     setCompareMonth,
     setMonthlyData, 
-    clearData,
+    resetData,
     deleteMonthlyData 
   } = useData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -116,7 +116,9 @@ export default function DonguibogamPage() {
 
   const pData = prevEntry.donguibogamData || {
     totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0,
-    totalReceived: 0, newPatients: 0, recurringPatients: 0, referralPatients: 0
+    discount: 0, receivables: 0, totalReceived: 0, cashTotal: 0, cardTotal: 0,
+    newPatients: 0, recurringPatients: 0, referralPatients: 0, totalPatients: 0,
+    treatments: {}, hasFinancialData: false, hasTreatmentData: false
   };
 
   const isMock = !currentEntry.donguibogamData;
