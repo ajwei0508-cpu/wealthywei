@@ -125,7 +125,25 @@ export default function MasterUserDetailsPage() {
   const [dataLoaded, setDataLoaded] = React.useState(false);
   const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
   const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
+  const [analysisSeconds, setAnalysisSeconds] = React.useState<number>(0);
   const { watchHistory, convertToWatchUrl, removeFromHistory } = useVideoHistory();
+
+  React.useEffect(() => {
+    let intervalId: any;
+    if (loadingAnalysis) {
+      setAnalysisSeconds(0);
+      const startTime = Date.now();
+      intervalId = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        setAnalysisSeconds(elapsed);
+      }, 100);
+    } else {
+      setAnalysisSeconds(0);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [loadingAnalysis]);
 
   const handleRemoveHistory = (id: string, title: string) => {
     removeFromHistory(id, title);
@@ -542,11 +560,17 @@ export default function MasterUserDetailsPage() {
         {/* 분석 주기 통합 컨트롤 패널 */}
         <div className="bg-white border border-zinc-100 p-6 rounded-[32px] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-md">PERIOD SELECTOR</span>
               {analysisPeriodMode !== 'custom' && (
-                <span className="text-[10px] font-black text-teal-600 bg-teal-50 border border-teal-100 px-2.5 py-0.5 rounded-md animate-pulse">
+                <span className="text-[10px] font-black text-teal-600 bg-teal-50 border border-teal-100 px-2.5 py-0.5 rounded-md">
                   {analysisPeriodMode === '1m' ? '1개월 자동 분석' : analysisPeriodMode === '3m' ? '3개월 자동 분석' : analysisPeriodMode === '6m' ? '6개월 자동 분석' : '1년 자동 분석'}
+                </span>
+              )}
+              {loadingAnalysis && (
+                <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-0.5 rounded-md animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                  AI 정밀 분석 진행 중... ({analysisSeconds.toFixed(1)}초 경과)
                 </span>
               )}
             </div>
@@ -702,7 +726,14 @@ export default function MasterUserDetailsPage() {
                         <span className="text-[10px] font-black text-slate-500 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">비교 기준월: {formatMonth(compareMonth)}</span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-1 rounded-md">실시간 처방</span>
+                    {loadingAnalysis ? (
+                      <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-md animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                        AI 분석 중 ({analysisSeconds.toFixed(1)}초)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-black text-primary bg-primary/5 border border-primary/10 px-2 py-1 rounded-md">실시간 처방 완료</span>
+                    )}
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-slate-50/50 rounded-3xl border border-zinc-100">
