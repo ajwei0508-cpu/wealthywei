@@ -10,6 +10,7 @@ import {
   Database, 
   ShieldCheck, 
   TrendingUp,
+  TrendingDown,
   Search,
   FileText,
   ArrowRight,
@@ -111,6 +112,76 @@ export default function MasterDashboardPortal() {
       const rev = revenueMap.get(email);
       const wb = workbookMap.get(email);
       const kakaoName = userMap.get(email) || "카카오 이름 없음";
+
+      let changeType: "up" | "down" | "none" = "none";
+      let changeRate = 0;
+
+      const indicators: Record<string, { latest: number; prev: number; rate: number; type: "up" | "down" | "none" }> = {
+        healthIns: { latest: 0, prev: 0, rate: 0, type: "none" },
+        nonBenefit: { latest: 0, prev: 0, rate: 0, type: "none" },
+        autoIns: { latest: 0, prev: 0, rate: 0, type: "none" },
+        newPatient: { latest: 0, prev: 0, rate: 0, type: "none" },
+        arpu: { latest: 0, prev: 0, rate: 0, type: "none" }
+      };
+
+      if (rev && rev.records.length > 1) {
+        const latestRecord = rev.records[0];
+        const prevRecord = rev.records[1];
+        const latestMetrics = latestRecord.metrics || {};
+        const prevMetrics = prevRecord.metrics || {};
+
+        // 1. 건강보험 = patientPay + insuranceClaim
+        const latestHealthIns = (latestMetrics.patientPay || 0) + (latestMetrics.insuranceClaim || 0);
+        const prevHealthIns = (prevMetrics.patientPay || 0) + (prevMetrics.insuranceClaim || 0);
+        indicators.healthIns.latest = latestHealthIns;
+        indicators.healthIns.prev = prevHealthIns;
+
+        // 2. 비급여 = nonBenefit
+        const latestNonBenefit = latestMetrics.nonBenefit || 0;
+        const prevNonBenefit = prevMetrics.nonBenefit || 0;
+        indicators.nonBenefit.latest = latestNonBenefit;
+        indicators.nonBenefit.prev = prevNonBenefit;
+
+        // 3. 자보 = autoInsuranceClaim
+        const latestAutoIns = latestMetrics.autoInsuranceClaim || 0;
+        const prevAutoIns = prevMetrics.autoInsuranceClaim || 0;
+        indicators.autoIns.latest = latestAutoIns;
+        indicators.autoIns.prev = prevAutoIns;
+
+        // 4. 초진 = newPatientCount
+        const latestNewPatient = latestMetrics.newPatientCount || 0;
+        const prevNewPatient = prevMetrics.newPatientCount || 0;
+        indicators.newPatient.latest = latestNewPatient;
+        indicators.newPatient.prev = prevNewPatient;
+
+        // 5. 객단가 = totalRevenue / patientCount
+        const latestArpu = (latestMetrics.totalRevenue || 0) / Math.max(latestMetrics.patientCount || 1, 1);
+        const prevArpu = (prevMetrics.totalRevenue || 0) / Math.max(prevMetrics.patientCount || 1, 1);
+        indicators.arpu.latest = latestArpu;
+        indicators.arpu.prev = prevArpu;
+
+        // Calculate rates
+        Object.keys(indicators).forEach(key => {
+          const item = indicators[key];
+          if (item.prev > 0) {
+            item.rate = ((item.latest - item.prev) / item.prev) * 100;
+            if (Math.abs(item.rate) >= 0.1) {
+              item.type = item.rate > 0 ? "up" : "down";
+            }
+          }
+        });
+
+        // Overall totalRevenue change
+        const latestRev = latestRecord.metrics?.totalRevenue || 0;
+        const prevRev = prevRecord.metrics?.totalRevenue || 0;
+        if (prevRev > 0) {
+          const diff = latestRev - prevRev;
+          changeRate = (diff / prevRev) * 100;
+          if (Math.abs(changeRate) >= 0.1) {
+            changeType = changeRate > 0 ? "up" : "down";
+          }
+        }
+      }
       
       return {
         email,
@@ -122,7 +193,10 @@ export default function MasterDashboardPortal() {
           totalRevenue: rev?.latest?.metrics?.totalRevenue || 0,
           nonBenefit: rev?.latest?.metrics?.nonBenefit || 0,
           count: rev?.records.length || 0,
-          lastUpload: rev?.latest?.created_at
+          lastUpload: rev?.latest?.created_at,
+          changeType,
+          changeRate,
+          indicators
         },
         workbook: {
           fill: wb ? calcFill(wb.data) : 0,
@@ -284,8 +358,8 @@ export default function MasterDashboardPortal() {
                 <tr>
                   <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">병원 정보</th>
                   <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">최근 매출현황</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">5대 지표 증감 요약 (전월비)</th>
                   <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase text-center">워크북 상태</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase text-right">매출/비급여</th>
                   <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase text-center">액션</th>
                 </tr>
               </thead>
@@ -301,6 +375,18 @@ export default function MasterDashboardPortal() {
                             {item.email?.toLowerCase() === masterEmail.toLowerCase() && (
                               <Crown size={14} className="text-amber-500 fill-amber-500" />
                             )}
+                            {item.revenue.changeType === "up" && (
+                              <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                <TrendingUp size={10} />
+                                +{item.revenue.changeRate.toFixed(1)}%
+                              </span>
+                            )}
+                            {item.revenue.changeType === "down" && (
+                              <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                <TrendingDown size={10} />
+                                {item.revenue.changeRate.toFixed(1)}%
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             <span className="text-[10px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-black border border-primary/10">{item.kakaoName}</span>
@@ -309,9 +395,53 @@ export default function MasterDashboardPortal() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-8 py-5"><div className="flex flex-col gap-1"><span className="text-xs font-bold text-slate-700">{item.revenue.latestMonth} 매출</span><span className="text-[10px] text-emerald-600 font-black px-1.5 py-0.5 bg-emerald-50 rounded-md w-fit">누적 {item.revenue.count}개월 데이터</span></div></td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-700">{item.revenue.latestMonth}</span>
+                          <span className="text-[10px] text-emerald-600 font-black px-1.5 py-0.5 bg-emerald-50 rounded-md w-fit">누적 {item.revenue.count}개월</span>
+                        </div>
+                        <span className="text-sm font-black text-slate-900">{formatNumber(item.revenue.totalRevenue)}원</span>
+                        <span className="text-[10px] font-bold text-primary">비급여: {formatNumber(item.revenue.nonBenefit)}원</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-wrap gap-2 max-w-[400px]">
+                        {(() => {
+                          const indicatorLabels = {
+                            healthIns: "건강보험",
+                            nonBenefit: "비급여",
+                            autoIns: "자보",
+                            newPatient: "초진",
+                            arpu: "객단가"
+                          };
+                          return Object.entries(indicatorLabels).map(([key, label]) => {
+                            const ind = item.revenue.indicators?.[key];
+                            if (!ind || ind.type === "none") {
+                              return (
+                                <span key={key} className="bg-zinc-50/50 text-zinc-400/80 border border-zinc-200/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
+                                  {label} -
+                                </span>
+                              );
+                            }
+                            const isUp = ind.type === "up";
+                            return (
+                              <span 
+                                key={key} 
+                                className={`px-2 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 border shadow-sm transition-all hover:scale-105 ${
+                                  isUp 
+                                    ? "bg-rose-50 text-rose-600 border-rose-100" 
+                                    : "bg-blue-50 text-blue-600 border-blue-100"
+                                }`}
+                              >
+                                {label} {isUp ? "+" : ""}{ind.rate.toFixed(1)}% {isUp ? "▲" : "▼"}
+                              </span>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </td>
                     <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-blue-100">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
-                    <td className="px-8 py-5 text-right"><div className="flex flex-col"><span className="text-sm font-black text-slate-900">{formatNumber(item.revenue.totalRevenue)}원</span><span className="text-[10px] font-bold text-primary">비급여: {formatNumber(item.revenue.nonBenefit)}원</span></div></td>
                     <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
                   </tr>
                 ))}

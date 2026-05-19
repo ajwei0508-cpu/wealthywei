@@ -45,6 +45,70 @@ import {
   Cell
 } from "recharts";
 
+interface FlatMetrics {
+  basicRevenue: number;
+  nonBenefit: number;
+  newPatientCount: number;
+  totalTreatmentFee: number;
+  arpu: number;
+  patientCount: number;
+  patientPay: number;
+  insuranceClaim: number;
+  autoInsuranceClaim: number;
+  autoInsuranceCount: number;
+  industrialAccidentClaim: number;
+  accountsReceivable: number;
+  cashCollection: number;
+  cardCollection: number;
+  totalRevenue: number;
+}
+
+const getFlatMetrics = (dm: DataMetrics | null | undefined): FlatMetrics => {
+  const fallback: FlatMetrics = {
+    basicRevenue: 0,
+    nonBenefit: 0,
+    newPatientCount: 0,
+    totalTreatmentFee: 0,
+    arpu: 0,
+    patientCount: 0,
+    patientPay: 0,
+    insuranceClaim: 0,
+    autoInsuranceClaim: 0,
+    autoInsuranceCount: 0,
+    industrialAccidentClaim: 0,
+    accountsReceivable: 0,
+    cashCollection: 0,
+    cardCollection: 0,
+    totalRevenue: 0
+  };
+  if (!dm) return fallback;
+  const rev = dm.generatedRevenue || {};
+  const pat = dm.patientMetrics || {};
+  const leak = dm.leakage || {};
+  const pm = dm.paymentMethods || {};
+  
+  const totalRevenue = rev.total || 0;
+  const patientCount = pat.total || 0;
+
+  return {
+    basicRevenue: (rev.copay || 0) + (rev.insurance || 0) + (rev.auto || 0),
+    nonBenefit: rev.nonCovered || 0,
+    newPatientCount: pat.new || 0,
+    totalTreatmentFee: totalRevenue,
+    arpu: totalRevenue / Math.max(patientCount || 1, 1),
+    patientCount: patientCount,
+    patientPay: rev.copay || 0,
+    insuranceClaim: rev.insurance || 0,
+    autoInsuranceClaim: rev.auto || 0,
+    autoInsuranceCount: pat.auto || 0,
+    industrialAccidentClaim: rev.worker || 0,
+    accountsReceivable: leak.receivables || 0,
+    cashCollection: pm.cash || 0,
+    cardCollection: pm.card || 0,
+    totalRevenue: totalRevenue
+  };
+};
+
 export default function MasterUserDetailsPage() {
   const router = useRouter();
   const params = useParams();
@@ -131,8 +195,11 @@ export default function MasterUserDetailsPage() {
     }
   };
 
-  const data = monthlyData[selectedMonth] || initialDataMetrics;
-  const compareData = monthlyData[compareMonth] || initialDataMetrics;
+  const rawData = monthlyData[selectedMonth] || initialDataMetrics;
+  const rawCompareData = monthlyData[compareMonth] || initialDataMetrics;
+
+  const data = getFlatMetrics(rawData);
+  const compareData = getFlatMetrics(rawCompareData);
 
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData || {}).sort().reverse();
@@ -206,15 +273,27 @@ export default function MasterUserDetailsPage() {
   }), []);
 
   const trendChartData = useMemo(() => {
-    return Object.keys(monthlyData || {})
-      .sort()
-      .slice(-6)
-      .map(month => ({
-        name: month.split("-")[1] + "월",
-        "총매출": monthlyData[month]?.totalRevenue || 0,
-        rawMonth: month
-      }));
-  }, [monthlyData]);
+    const sortedMonths = Object.keys(monthlyData || {}).sort();
+    
+    // Find index of start (compareMonth) and end (selectedMonth)
+    const startIndex = sortedMonths.indexOf(compareMonth);
+    const endIndex = sortedMonths.indexOf(selectedMonth);
+
+    let filtered = sortedMonths;
+    if (startIndex !== -1 && endIndex !== -1) {
+      const start = Math.min(startIndex, endIndex);
+      const end = Math.max(startIndex, endIndex);
+      filtered = sortedMonths.slice(start, end + 1);
+    } else {
+      filtered = sortedMonths.slice(-6); // fallback to last 6 months
+    }
+
+    return filtered.map(month => ({
+      name: month.split("-")[1] + "월",
+      "총매출": getFlatMetrics(monthlyData[month])?.totalRevenue || 0,
+      rawMonth: month
+    }));
+  }, [monthlyData, compareMonth, selectedMonth]);
 
   // Calculate Representative Worst Metric among the Top 3 (보험, 비급여, 신규환자)
   const representativeMetric = useMemo(() => {
@@ -360,21 +439,22 @@ export default function MasterUserDetailsPage() {
               <ArrowLeft size={20} />
             </button>
             <div className="hidden sm:block">
-              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">[{decodedEmail}] 리포트</h2>
+              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">[{decodedEmail}] 분석 리포트</h2>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">{formatMonth(compareMonth)}</span>
-                <span className="text-zinc-300 px-1 font-medium">vs</span>
-                <span className="text-sm font-bold text-primary">{formatMonth(selectedMonth)}</span>
+                <span className="text-sm font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">{formatMonth(compareMonth)}</span>
+                <span className="text-zinc-400 font-bold">~</span>
+                <span className="text-sm font-extrabold text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">{formatMonth(selectedMonth)}</span>
+                <span className="text-xs font-bold text-zinc-400 ml-1">상세 분석 기간</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Base Month A Selector */}
+            {/* Start Month Selector */}
             <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 transition-colors border border-zinc-200">
+              <button className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 transition-colors border border-zinc-200 shadow-sm">
                 <Calendar size={14} className="text-zinc-400" />
-                <span className="text-[10px] text-zinc-400 mr-0.5 font-bold">A</span>
+                <span className="text-[10px] text-zinc-400 mr-0.5 font-black uppercase">시작월</span>
                 {compareMonth || "선택"}
                 <ChevronDown size={14} className="text-zinc-300" />
               </button>
@@ -383,7 +463,7 @@ export default function MasterUserDetailsPage() {
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setCompareMonth(m)} 
-                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100/50 text-zinc-900" : "hover:bg-zinc-50/50 text-zinc-600"}`}
+                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100/50 text-zinc-900 font-black" : "hover:bg-zinc-50/50 text-zinc-600"}`}
                     >
                       {formatMonth(m)}
                     </button>
@@ -401,13 +481,13 @@ export default function MasterUserDetailsPage() {
               </div>
             </div>
 
-            <ArrowRight size={14} className="text-zinc-300" />
+            <span className="text-zinc-400 font-bold">~</span>
 
-            {/* Target Month B Selector */}
+            {/* End Month Selector */}
             <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-primary transition-colors border border-primary/20">
+              <button className="flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-primary transition-colors border border-primary/20 shadow-sm">
                 <Calendar size={14} className="text-primary/60" />
-                <span className="text-[10px] text-primary/40 mr-0.5 font-bold">B</span>
+                <span className="text-[10px] text-primary/40 mr-0.5 font-black uppercase">종료월</span>
                 {selectedMonth}
                 <ChevronDown size={14} className="text-primary/30" />
               </button>
@@ -416,7 +496,7 @@ export default function MasterUserDetailsPage() {
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setSelectedMonth(m)} 
-                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-zinc-50/50 text-zinc-600"}`}
+                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white font-black" : "hover:bg-zinc-50/50 text-zinc-600"}`}
                     >
                       {formatMonth(m)}
                     </button>

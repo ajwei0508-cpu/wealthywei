@@ -99,8 +99,27 @@ export default function DashboardSidebar() {
   const isPrescriptionApproved = userStatus === 'approved' && (approvedCategories.includes('prescription') || userCategory === 'prescription');
 
   const consultingSubMenus = [
-    "AI 차팅", "원장", "직원", "실비", "眞장부맥법", "바른 비급여", "마케팅"
+    { label: "AI 차팅", soon: true },
+    { label: "원장", soon: true },
+    { label: "직원", soon: true },
+    { label: "실비", soon: true },
+    { label: "眞장부맥법", soon: true },
+    { 
+      label: "바른 비급여", 
+      items: [
+        { label: "바른복용법", url: "https://naver.me/FJOi4ygo" }
+      ] 
+    },
+    { label: "마케팅", soon: true }
   ];
+
+  const [openSubMenus, setOpenSubMenus] = useState<string[]>(["바른 비급여"]);
+
+  const toggleSubMenu = (label: string) => {
+    setOpenSubMenus(prev => 
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
 
   return (
     <aside className="w-72 h-screen bg-[#1A365D] flex flex-col fixed left-0 top-0 z-50 text-white shadow-2xl overflow-hidden border-r border-white/5">
@@ -129,17 +148,65 @@ export default function DashboardSidebar() {
             onClick={() => setIsConsultingOpen(!isConsultingOpen)}
             isActive={pathname === "/" || pathname === "/details"}
           >
-            {consultingSubMenus.map((sub, idx) => (
-              <div 
-                key={idx} 
-                className="text-[13px] font-medium py-2 text-white/40 cursor-not-allowed flex items-center gap-2 group/sub"
-                title={`${sub} 서비스는 현재 준비 중입니다.`}
-              >
-                <div className="w-1 h-1 bg-white/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
-                {sub}
-                <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
-              </div>
-            ))}
+            {consultingSubMenus.map((sub, idx) => {
+              if (typeof sub === "string") return null; // Old format fallback
+              
+              const isActualMenu = sub.items && sub.items.length > 0;
+              const isSubOpen = openSubMenus.includes(sub.label);
+
+              if (isActualMenu) {
+                return (
+                  <div key={idx} className="mb-1">
+                    <button 
+                      onClick={() => toggleSubMenu(sub.label)}
+                      className="w-full flex items-center justify-between py-2 text-[13px] font-bold text-blue-200/80 hover:text-white transition-colors group/sub"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                        {sub.label}
+                      </div>
+                      <ChevronDown size={12} className={`transition-transform ${isSubOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    <AnimatePresence>
+                      {isSubOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden pl-4 space-y-1"
+                        >
+                          {sub.items?.map((item, i) => (
+                            <a 
+                              key={i}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
+                            >
+                              <div className="w-1 h-[1px] bg-white/20"></div>
+                              {item.label}
+                              <Sparkles size={10} className="text-blue-400 opacity-50" />
+                            </a>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              }
+
+              return (
+                <div 
+                  key={idx} 
+                  className="text-[13px] font-medium py-2 text-white/40 cursor-not-allowed flex items-center gap-2 group/sub"
+                  title={`${sub.label} 서비스는 현재 준비 중입니다.`}
+                >
+                  <div className="w-1 h-1 bg-white/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
+                  {sub.label}
+                  <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
+                </div>
+              );
+            })}
           </NavItem>
 
           {/* 1.1 AI 경영 분석 */}
