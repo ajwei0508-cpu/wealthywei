@@ -534,7 +534,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     // 단, 데이터가 합계 행 딱 하나뿐인 양식이라면 이를 수용
     if (isTotalRow && jsonData.length > headerRowIndex + 2) continue;
 
-    let rowMonth = targetMonth;
+    let rowMonth = "";
     
     // 1차 시도: 명시적 날짜 컬럼(dateColIdx)에서 추출
     if (dateColIdx !== -1 && dataRow[dateColIdx]) {
@@ -543,7 +543,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     }
 
     // 2차 시도 (강화된 폴백): 헤더가 없거나(빈 칸) 특이한 이름이라 dateColIdx를 못 찾았을 경우, 첫 3개 셀을 직접 스캔하여 연/월을 유추
-    if (rowMonth === targetMonth) {
+    if (!rowMonth) {
       for (let j = 0; j < Math.min(dataRow.length, 3); j++) {
         if (dataRow[j] === undefined || dataRow[j] === null || dataRow[j] === "") continue;
         const extracted = tryExtractMonth(dataRow[j], contextYear);
@@ -555,6 +555,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
       }
     }
     
+    // 유효한 월 정보를 전혀 찾을 수 없는 행(평균, 합계, 비고, 빈 칸 등)은 데이터 수집에서 제외
     if (!rowMonth) continue;
 
     // 해당 월의 결과 객체가 없으면 생성
