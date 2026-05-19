@@ -515,7 +515,7 @@ export default function MasterUserDetailsPage() {
 
     fetchAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth, compareMonth, data, compareData]);
+  }, [selectedMonth, compareMonth]);
 
   if (!dataLoaded) {
     return (
