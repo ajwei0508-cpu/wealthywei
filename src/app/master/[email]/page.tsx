@@ -813,7 +813,7 @@ export default function MasterUserDetailsPage() {
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">🗂️ 다중 선택 월별 데이터 교차 분석 (Multi-Selector)</h3>
                 <p className="text-xs text-zinc-500 font-medium mt-1">
-                  비교 분석할 개월들을 아래 체크박스에서 다중 선택(최대 3개)하면 즉시 시계열 비교표가 생성됩니다.
+                  비교 분석할 개월들을 아래 체크박스에서 자유롭게 다중 선택하면 즉시 시계열 교차 비교표가 생성됩니다. 각 항목별 최고 수치는 <span className="text-blue-600 font-black">블루</span>, 최저 수치는 <span className="text-rose-600 font-black">레드</span>로 하이라이트됩니다.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -850,10 +850,6 @@ export default function MasterUserDetailsPage() {
                         if (isChecked) {
                           updated = updated.filter(item => item !== m);
                         } else {
-                          if (updated.length >= 3) {
-                            toast.error("최대 3개 월까지만 비교 가능합니다.");
-                            return;
-                          }
                           updated.push(m);
                         }
                         setMultiCompareMonths(updated.sort());
@@ -886,29 +882,66 @@ export default function MasterUserDetailsPage() {
                       { label: "내원 환자수", key: "patientCount", unit: "명" },
                       { label: "신규 환자수", key: "newPatientCount", unit: "명" },
                       { label: "평균 객단가", key: "arpu", isWon: true }
-                    ].map(row => (
-                      <tr key={row.key} className="hover:bg-zinc-50/50 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-slate-700">{row.label}</td>
-                        {multiCompareMonths.map(m => {
-                          const flat = getFlatMetrics(monthlyData[m]);
-                          let val = (flat as any)[row.key] || 0;
-                          if (row.key === "basicRevenue") {
-                            val = (flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0);
-                          }
-                          return (
-                            <td key={m} className="py-3.5 px-4 text-center font-extrabold text-slate-900">
-                              {row.isWon ? `${formatNumber(Math.round(val))}원` : `${formatNumber(Math.round(val))}${row.unit}`}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    ].map(row => {
+                      // 최고 / 최저 연산용 임시 배열 빌드
+                      const valList = multiCompareMonths.map(m => {
+                        const flat = getFlatMetrics(monthlyData[m]);
+                        let val = (flat as any)[row.key] || 0;
+                        if (row.key === "basicRevenue") {
+                          val = (flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0);
+                        }
+                        return val;
+                      });
+
+                      const maxVal = Math.max(...valList);
+                      const minVal = Math.min(...valList);
+                      const allEqual = valList.every(v => v === valList[0]);
+
+                      return (
+                        <tr key={row.key} className="hover:bg-zinc-50/50 transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-slate-700">{row.label}</td>
+                          {multiCompareMonths.map(m => {
+                            const flat = getFlatMetrics(monthlyData[m]);
+                            let val = (flat as any)[row.key] || 0;
+                            if (row.key === "basicRevenue") {
+                              val = (flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0);
+                            }
+
+                            // 최고/최저 데코레이션 스타일
+                            let textClass = "text-slate-900";
+                            let cellBg = "";
+                            let indicator = null;
+
+                            if (multiCompareMonths.length > 1 && !allEqual) {
+                              if (val === maxVal) {
+                                textClass = "text-blue-600 font-black";
+                                cellBg = "bg-blue-50/40";
+                                indicator = <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full ml-1.5"></span>;
+                              } else if (val === minVal) {
+                                textClass = "text-rose-600 font-black";
+                                cellBg = "bg-rose-50/40";
+                                indicator = <span className="inline-block w-1.5 h-1.5 bg-rose-500 rounded-full ml-1.5"></span>;
+                              }
+                            }
+
+                            return (
+                              <td key={m} className={`py-3.5 px-4 text-center font-extrabold transition-all duration-300 ${textClass} ${cellBg}`}>
+                                <span className="inline-flex items-center justify-center">
+                                  {row.isWon ? `${formatNumber(Math.round(val))}원` : `${formatNumber(Math.round(val))}${row.unit}`}
+                                  {indicator}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             ) : (
               <div className="py-12 text-center text-xs text-zinc-400 font-bold border border-dashed border-zinc-200 rounded-2xl">
-                비교 분석할 월을 위 체크박스에서 선택해 주세요. (최대 3개 가능)
+                비교 분석할 월을 위 체크박스에서 선택해 주세요.
               </div>
             )}
           </Card>
