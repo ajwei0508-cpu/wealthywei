@@ -118,6 +118,7 @@ export default function MasterUserDetailsPage() {
   const [selectedMonth, setSelectedMonth] = React.useState<string>("");
   const [compareMonth, setCompareMonth] = React.useState<string>("");
   const [multiCompareMonths, setMultiCompareMonths] = React.useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = React.useState<string>("");
   const [dataLoaded, setDataLoaded] = React.useState(false);
   const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
   const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
@@ -154,6 +155,7 @@ export default function MasterUserDetailsPage() {
           const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
           setSelectedMonth(latest);
           setCompareMonth(secondLatest);
+          setSelectedYear(latest.split('-')[0]);
         }
       } else {
         setMonthlyData({});
@@ -205,6 +207,58 @@ export default function MasterUserDetailsPage() {
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData || {}).sort().reverse();
   }, [monthlyData]);
+
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set<string>();
+    Object.keys(monthlyData || {}).forEach(m => {
+      const y = m.split("-")[0];
+      if (y) yearsSet.add(y);
+    });
+    if (yearsSet.size === 0) {
+      yearsSet.add(new Date().getFullYear().toString());
+    }
+    return Array.from(yearsSet).sort().reverse();
+  }, [monthlyData]);
+
+  const yearlyTrendData = useMemo(() => {
+    if (!selectedYear) return { trend: [], totalYearRevenue: 0, avgYearRevenue: 0, activeMonthCount: 0 };
+    
+    const trend = [];
+    let maxVal = 1;
+    let totalYearRevenue = 0;
+    let activeMonthCount = 0;
+
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = `${selectedYear}-${String(m).padStart(2, "0")}`;
+      const record = monthlyData[monthStr];
+      const revenue = record ? (getFlatMetrics(record).totalRevenue || 0) : 0;
+      
+      if (revenue > maxVal) {
+        maxVal = revenue;
+      }
+      if (revenue > 0) {
+        totalYearRevenue += revenue;
+        activeMonthCount++;
+      }
+
+      trend.push({
+        monthKey: monthStr,
+        monthLabel: `${m}월`,
+        hasData: !!record && revenue > 0,
+        revenue
+      });
+    }
+
+    return {
+      trend: trend.map(t => ({
+        ...t,
+        ratio: (t.revenue / maxVal) * 100
+      })),
+      totalYearRevenue,
+      avgYearRevenue: activeMonthCount > 0 ? Math.round(totalYearRevenue / activeMonthCount) : 0,
+      activeMonthCount
+    };
+  }, [selectedYear, monthlyData]);
 
   const metrics = useMemo(() => [
     { key: "basicRevenue", label: "보험 매출", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
@@ -737,7 +791,111 @@ export default function MasterUserDetailsPage() {
             })()}
           </Card>
         </section>
+        {/* 전체 매출 성장추이 (Yearly Sales Growth & Forecast) */}
+        <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Card className="glass-card p-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">📈 연도별 전체 매출 성장 추이 분석 (Yearly Growth)</h3>
+                <p className="text-xs text-zinc-500 font-medium mt-1">
+                  1년 단위로 매출 데이터를 연도별로 분류하여 분석합니다. 아직 매출이 집계되지 않은 달은 <span className="text-teal-600 font-black">진료예정</span>으로 스마트 가상 대기 처리됩니다.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md">연간 단위 분석</span>
+                {/* 연도 선택 셀렉터 */}
+                <div className="relative">
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="appearance-none bg-white border border-zinc-200 text-xs font-black text-slate-800 py-2 pl-4 pr-10 rounded-2xl cursor-pointer hover:border-zinc-300 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+                  >
+                    {availableYears.map(yr => (
+                      <option key={yr} value={yr}>{yr}년 분석</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={14} />
+                </div>
+              </div>
+            </div>
 
+            {/* 연간 통계 서머리 카드 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">누적 연간 매출액</span>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-2xl font-black text-slate-950">{formatNumber(yearlyTrendData.totalYearRevenue)}</span>
+                  <span className="text-xs font-extrabold text-slate-500">원</span>
+                </div>
+              </div>
+              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">월평균 매출액 (운영월 기준)</span>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-2xl font-black text-slate-950">{formatNumber(yearlyTrendData.avgYearRevenue)}</span>
+                  <span className="text-xs font-extrabold text-slate-500">원/월</span>
+                </div>
+              </div>
+              <div className="p-5 bg-slate-50/50 border border-zinc-100 rounded-3xl flex flex-col justify-between">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">데이터 집계 / 진료 예정</span>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xl font-black text-indigo-600">{yearlyTrendData.activeMonthCount}개월 집계</span>
+                  <span className="text-zinc-300 font-bold">|</span>
+                  <span className="text-sm font-extrabold text-teal-600">{12 - yearlyTrendData.activeMonthCount}개월 진료예정</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 12개월 타임라인 및 프로그레스 그리드 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {yearlyTrendData.trend.map(t => (
+                <div 
+                  key={t.monthKey} 
+                  className={`p-5 rounded-[24px] border transition-all duration-300 ${
+                    t.hasData 
+                      ? "bg-white border-zinc-100 shadow-sm hover:border-zinc-200 hover:shadow-md" 
+                      : "bg-slate-50/40 border-dashed border-zinc-200"
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-base font-black text-slate-900">{selectedYear}년 {t.monthLabel}</span>
+                    {t.hasData ? (
+                      <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">매출 집계완료</span>
+                    ) : (
+                      <span className="relative flex h-5 items-center justify-center">
+                        <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-teal-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                        <span className="text-[9.5px] font-black text-teal-700 bg-teal-50/70 border border-teal-100 px-2 py-0.5 rounded-md ml-2">🗓️ 진료예정</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {t.hasData ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-lg font-black text-slate-955">{formatNumber(t.revenue)}원</span>
+                        <span className="text-[10px] font-bold text-zinc-400">최대치 대비 {Math.round(t.ratio)}%</span>
+                      </div>
+                      {/* 가로 프로그레스 바 */}
+                      <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden shadow-inner relative">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: `${t.ratio}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      <p className="text-xs font-bold text-zinc-400 leading-relaxed">
+                        아직 매출이 발생하지 않은 기간입니다.<br />
+                        해당 기간 도래 시 매출 분석이 활성화됩니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </section>
 
         {/* 5. 다중 선택 타임라인 비교 (Multi-Month Comparator) */}
         <section className="animate-in fade-in slide-in-from-bottom-4 duration-700">
