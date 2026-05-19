@@ -93,6 +93,27 @@ const tryExtractMonth = (val: unknown, baseYear?: string): string | null => {
     const m = parseInt(match2[2]);
     if (m >= 1 && m <= 12) return `${match2[1]}-${match2[2]}`;
   }
+
+  // YY-MM or YY.MM or YY/MM (e.g. "25.01", "25-01", "25. 1")
+  const shortMatch = str.match(/^(\d{2})[^\d](\d{1,2})$/);
+  if (shortMatch) {
+    const y = parseInt(shortMatch[1]);
+    const m = parseInt(shortMatch[2]);
+    if (m >= 1 && m <= 12 && y >= 20 && y <= 35) {
+      return `20${y}-${String(m).padStart(2, "0")}`;
+    }
+  }
+
+  // YY년 MM월 (e.g. "25년 01월", "25년 1월")
+  const korMatch = str.match(/(\d{2})\s*년\s*(\d{1,2})\s*월/);
+  if (korMatch) {
+    const y = parseInt(korMatch[1]);
+    const m = parseInt(korMatch[2]);
+    if (m >= 1 && m <= 12 && y >= 20 && y <= 35) {
+      return `20${y}-${String(m).padStart(2, "0")}`;
+    }
+  }
+
   return null;
 };
 
