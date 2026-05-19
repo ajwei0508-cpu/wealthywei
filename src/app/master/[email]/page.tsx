@@ -121,6 +121,7 @@ export default function MasterUserDetailsPage() {
   const [compareMonth, setCompareMonth] = React.useState<string>("");
   const [multiCompareMonths, setMultiCompareMonths] = React.useState<string[]>([]);
   const [selectedYear, setSelectedYear] = React.useState<string>("");
+  const [analysisPeriodMode, setAnalysisPeriodMode] = React.useState<'1m' | '3m' | '6m' | '1y' | 'custom'>('3m');
   const [dataLoaded, setDataLoaded] = React.useState(false);
   const [aiAnalysis, setAiAnalysis] = React.useState<any>(null);
   const [loadingAnalysis, setLoadingAnalysis] = React.useState(false);
@@ -154,9 +155,11 @@ export default function MasterUserDetailsPage() {
         const months = Object.keys(transformed).sort();
         if (months.length > 0) {
           const latest = months[months.length - 1];
-          const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
           setSelectedMonth(latest);
-          setCompareMonth(secondLatest);
+          
+          const currentIndex = months.indexOf(latest);
+          const targetIndex = Math.max(0, currentIndex - 2);
+          setCompareMonth(months[targetIndex]);
           setSelectedYear(latest.split('-')[0]);
         }
       } else {
@@ -168,6 +171,37 @@ export default function MasterUserDetailsPage() {
       setDataLoaded(true);
     }
   };
+
+  const updateCompareMonthForMode = (mode: '1m' | '3m' | '6m' | '1y' | 'custom', endMonth: string, allMonths: string[]) => {
+    if (!endMonth) return;
+    if (mode === 'custom') return;
+
+    const sortedMonths = [...allMonths].sort();
+    const currentIndex = sortedMonths.indexOf(endMonth);
+    if (currentIndex === -1) return;
+
+    let targetIndex = currentIndex;
+    if (mode === '1m') {
+      targetIndex = currentIndex;
+    } else if (mode === '3m') {
+      targetIndex = Math.max(0, currentIndex - 2);
+    } else if (mode === '6m') {
+      targetIndex = Math.max(0, currentIndex - 5);
+    } else if (mode === '1y') {
+      targetIndex = Math.max(0, currentIndex - 11);
+    }
+
+    const calculatedCompareMonth = sortedMonths[targetIndex];
+    if (calculatedCompareMonth) {
+      setCompareMonth(calculatedCompareMonth);
+    }
+  };
+
+  useEffect(() => {
+    if (analysisPeriodMode !== 'custom' && selectedMonth && availableMonths.length > 0) {
+      updateCompareMonthForMode(analysisPeriodMode, selectedMonth, availableMonths);
+    }
+  }, [analysisPeriodMode, selectedMonth, monthlyData]);
 
   useEffect(() => {
     if (session?.user?.email === "wei0508@naver.com") {
@@ -499,76 +533,121 @@ export default function MasterUserDetailsPage() {
               <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">[{decodedEmail}] 분석 리포트</h2>
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            {/* Start Month Selector */}
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 transition-colors border border-zinc-200 shadow-sm">
-                <Calendar size={14} className="text-zinc-400" />
-                <span className="text-[10px] text-zinc-400 mr-0.5 font-black uppercase">시작월</span>
-                {compareMonth || "선택"}
-                <ChevronDown size={14} className="text-zinc-300" />
-              </button>
-              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
-                {availableMonths.map(m => (
-                  <div key={m} className="flex items-center gap-1 group/item">
-                    <button 
-                      onClick={() => setCompareMonth(m)} 
-                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100/50 text-zinc-900 font-black" : "hover:bg-zinc-50/50 text-zinc-600"}`}
-                    >
-                      {formatMonth(m)}
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteData(m);
-                      }}
-                      className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <span className="text-zinc-400 font-bold">~</span>
-
-            {/* End Month Selector */}
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-primary transition-colors border border-primary/20 shadow-sm">
-                <Calendar size={14} className="text-primary/60" />
-                <span className="text-[10px] text-primary/40 mr-0.5 font-black uppercase">종료월</span>
-                {selectedMonth}
-                <ChevronDown size={14} className="text-primary/30" />
-              </button>
-              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
-                {availableMonths.map(m => (
-                  <div key={m} className="flex items-center gap-1 group/item">
-                    <button 
-                      onClick={() => setSelectedMonth(m)} 
-                      className={`flex-1 text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white font-black" : "hover:bg-zinc-50/50 text-zinc-600"}`}
-                    >
-                      {formatMonth(m)}
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteData(m);
-                      }}
-                      className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto p-6 md:p-12 space-y-12">
+
+        {/* 분석 주기 통합 컨트롤 패널 */}
+        <div className="bg-white border border-zinc-100 p-6 rounded-[32px] shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-md">PERIOD SELECTOR</span>
+              {analysisPeriodMode !== 'custom' && (
+                <span className="text-[10px] font-black text-teal-600 bg-teal-50 border border-teal-100 px-2.5 py-0.5 rounded-md animate-pulse">
+                  {analysisPeriodMode === '1m' ? '1개월 자동 분석' : analysisPeriodMode === '3m' ? '3개월 자동 분석' : analysisPeriodMode === '6m' ? '6개월 자동 분석' : '1년 자동 분석'}
+                </span>
+              )}
+            </div>
+            <h3 className="text-base font-black text-slate-900">경영 진단 분석 주기 설정</h3>
+            <p className="text-xs text-zinc-500 font-medium">원하는 경영 분석 단위를 클릭하면 분석 기간이 자동 산정되어 리포트 지표가 실시간 재진단됩니다.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
+            {/* 주기 선택 퀵 메뉴 */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl gap-0.5 border border-zinc-200/50">
+              {[
+                { id: '1m', label: '1개월' },
+                { id: '3m', label: '3개월' },
+                { id: '6m', label: '6개월' },
+                { id: '1y', label: '1년' },
+                { id: 'custom', label: '직접선택' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setAnalysisPeriodMode(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-200 ${
+                    analysisPeriodMode === tab.id
+                      ? "bg-white text-primary shadow-sm scale-105"
+                      : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50/50"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 날짜 선택 드롭다운 쌍 */}
+            <div className="flex items-center gap-2">
+              {/* 시작월 */}
+              <div className="relative group">
+                <button className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 transition-colors border border-zinc-200/60 shadow-sm">
+                  <Calendar size={13} className="text-zinc-400" />
+                  <span className="text-[9px] text-zinc-400 mr-0.5 font-black uppercase">시작월</span>
+                  {compareMonth || "선택"}
+                  <ChevronDown size={12} className="text-zinc-300" />
+                </button>
+                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-200/50 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[60] min-w-[160px]">
+                  {availableMonths.map(m => (
+                    <div key={m} className="flex items-center gap-1 group/item">
+                      <button 
+                        onClick={() => {
+                          setCompareMonth(m);
+                          setAnalysisPeriodMode('custom');
+                        }} 
+                        className={`flex-1 text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${m === compareMonth ? "bg-zinc-100 text-zinc-900 font-bold" : "hover:bg-zinc-50 text-zinc-600"}`}
+                      >
+                        {formatMonth(m)}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteData(m);
+                        }}
+                        className="p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <span className="text-zinc-300 font-extrabold text-xs">~</span>
+
+              {/* 종료월 */}
+              <div className="relative group">
+                <button className="flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-primary transition-colors border border-primary/20 shadow-sm">
+                  <Calendar size={13} className="text-primary/60" />
+                  <span className="text-[9px] text-primary/40 mr-0.5 font-black uppercase">종료월</span>
+                  {selectedMonth}
+                  <ChevronDown size={12} className="text-primary/30" />
+                </button>
+                <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl shadow-xl border border-zinc-200/50 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[60] min-w-[160px]">
+                  {availableMonths.map(m => (
+                    <div key={m} className="flex items-center gap-1 group/item">
+                      <button 
+                        onClick={() => setSelectedMonth(m)} 
+                        className={`flex-1 text-left px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${m === selectedMonth ? "bg-primary text-white font-bold" : "hover:bg-zinc-50 text-zinc-600"}`}
+                      >
+                        {formatMonth(m)}
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteData(m);
+                        }}
+                        className="p-1.5 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
 
 
