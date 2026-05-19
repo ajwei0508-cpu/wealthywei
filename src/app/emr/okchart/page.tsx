@@ -140,16 +140,16 @@ export default function OkchartPage() {
       for (let i = 0; i < files.length; i++) {
         const resList = await parseExcelFile(files[i], selectedMonth, "okchart");
         for (const res of resList) {
-          // 신규환자가 0인 달은 미래의 예약된 데이터이거나 실적이 없는 달이므로 등록에서 제외 및 기존 데이터 삭제
+          // 환자 수와 총 매출액이 모두 0인 달은 데이터가 없는 달로 간주하고 등록에서 제외
           const d = res.extractedData;
-          const isInvalidMonth = d.newPatients === 0;
+          const isInvalidMonth = (d.patientMetrics.total === 0 && d.generatedRevenue.total === 0);
           
           if (!isInvalidMonth) {
             await setMonthlyData(res.targetMonth, d);
           } else {
             // 이미 0원 데이터가 등록되어 있는 경우 삭제 처리하여 화면에서 제거
             await deleteMonthlyData(res.targetMonth);
-            console.log(`${res.targetMonth} 데이터는 신규환자가 0명이라 삭제/제외 처리했습니다.`);
+            console.log(`${res.targetMonth} 데이터는 실적(환자 및 매출)이 없어 삭제/제외 처리했습니다.`);
           }
         }
       }
