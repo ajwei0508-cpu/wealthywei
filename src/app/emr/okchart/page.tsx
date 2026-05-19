@@ -71,6 +71,7 @@ export default function OkchartPage() {
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
   const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
 
   // State for Period Comparison
   const [viewMode, setViewMode] = useState<"single" | "period">("single");
@@ -225,6 +226,30 @@ export default function OkchartPage() {
       setSelectedMonthsForDelete(allMonths);
     }
   };
+
+  // 제공 데이터가 비어있을 때 자동으로 기본 샘플 데이터를 입력해 주는 이펙트 (1초 딜레이로 초기 로딩 대기)
+  useEffect(() => {
+    if (hasAutoLoaded) return;
+    
+    const timer = setTimeout(async () => {
+      const okchartMonths = Object.keys(monthlyData).filter(m => monthlyData[m]?.okchartData);
+      if (okchartMonths.length === 0) {
+        try {
+          for (const [month, metrics] of Object.entries(PROVIDED_OKCHART_DATA)) {
+            await setMonthlyData(month, metrics as any);
+          }
+          setHasAutoLoaded(true);
+          console.log("오케이차트 제공 샘플 데이터를 자동으로 입력 완료했습니다.");
+        } catch (e) {
+          console.error("제공 데이터 자동입력 에러:", e);
+        }
+      } else {
+        setHasAutoLoaded(true);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [monthlyData, setMonthlyData, hasAutoLoaded]);
 
   useEffect(() => {
     async function getInsight() {
