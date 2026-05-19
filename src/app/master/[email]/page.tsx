@@ -496,13 +496,7 @@ export default function MasterUserDetailsPage() {
               <ArrowLeft size={20} />
             </button>
             <div className="hidden sm:block">
-              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">[{decodedEmail}] 분석 리포트</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-extrabold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">{formatMonth(compareMonth)}</span>
-                <span className="text-zinc-400 font-bold">~</span>
-                <span className="text-sm font-extrabold text-primary bg-primary/5 px-2 py-0.5 rounded-lg border border-primary/10">{formatMonth(selectedMonth)}</span>
-                <span className="text-xs font-bold text-zinc-400 ml-1">상세 분석 기간</span>
-              </div>
+              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">[{decodedEmail}] 분석 리포트</h2>
             </div>
           </div>
 
