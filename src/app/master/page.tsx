@@ -22,6 +22,7 @@ import {
   Eye,
   BarChart3,
   ChevronRight,
+  ChevronDown,
   X,
   Activity,
   Crown
@@ -108,6 +109,7 @@ export default function MasterDashboardPortal() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedWorkbook, setSelectedWorkbook] = useState<WorkbookRow | null>(null);
   const [expandedChapter, setExpandedChapter] = useState<number | null>(null);
+  const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
 
   // User Map for easy lookup
   const userMap = React.useMemo(() => {
@@ -227,7 +229,8 @@ export default function MasterDashboardPortal() {
           lastUpload: rev?.latest?.created_at,
           changeType,
           changeRate,
-          indicators
+          indicators,
+          records: rev?.records || []
         },
         workbook: {
           fill: wb ? calcFill(wb.data) : 0,
@@ -395,87 +398,190 @@ export default function MasterDashboardPortal() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
-                {filteredData.map((item) => (
-                  <tr key={item.email} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden border border-zinc-100">{allUsers.find(u => u.email?.toLowerCase() === item.email)?.image ? <img src={allUsers.find(u => u.email?.toLowerCase() === item.email)?.image} alt="profile" className="w-full h-full object-cover" /> : <Users size={18} />}</div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-extrabold text-slate-900">{item.clinicName}</p>
-                            {item.email?.toLowerCase() === masterEmail.toLowerCase() && (
-                              <Crown size={14} className="text-amber-500 fill-amber-500" />
-                            )}
-                            {item.revenue.changeType === "up" && (
-                              <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
-                                <TrendingUp size={10} />
-                                +{item.revenue.changeRate.toFixed(1)}%
-                              </span>
-                            )}
-                            {item.revenue.changeType === "down" && (
-                              <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
-                                <TrendingDown size={10} />
-                                {item.revenue.changeRate.toFixed(1)}%
-                              </span>
-                            )}
+                {filteredData.map((item) => {
+                  const isExpanded = expandedEmails.has(item.email);
+                  return (
+                    <React.Fragment key={item.email}>
+                      <tr className="hover:bg-zinc-50/50 transition-colors group">
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newSet = new Set(expandedEmails);
+                                if (newSet.has(item.email)) {
+                                  newSet.delete(item.email);
+                                } else {
+                                  newSet.add(item.email);
+                                }
+                                setExpandedEmails(newSet);
+                              }}
+                              className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-600 transition flex items-center justify-center"
+                              title="월별 매출 이력 열기"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown size={14} className="text-primary transform transition-transform" />
+                              ) : (
+                                <ChevronRight size={14} className="transition-transform" />
+                              )}
+                            </button>
+                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden border border-zinc-100">{allUsers.find(u => u.email?.toLowerCase() === item.email)?.image ? <img src={allUsers.find(u => u.email?.toLowerCase() === item.email)?.image} alt="profile" className="w-full h-full object-cover" /> : <Users size={18} />}</div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-extrabold text-slate-900">{item.clinicName}</p>
+                                {item.email?.toLowerCase() === masterEmail.toLowerCase() && (
+                                  <Crown size={14} className="text-amber-500 fill-amber-500" />
+                                )}
+                                {item.revenue.changeType === "up" && (
+                                  <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                    <TrendingUp size={10} />
+                                    +{item.revenue.changeRate.toFixed(1)}%
+                                  </span>
+                                )}
+                                {item.revenue.changeType === "down" && (
+                                  <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                    <TrendingDown size={10} />
+                                    {item.revenue.changeRate.toFixed(1)}%
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-black border border-primary/10">{item.kakaoName}</span>
+                                <span className="text-[10px] text-zinc-400 font-medium">{item.email}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-black border border-primary/10">{item.kakaoName}</span>
-                            <span className="text-[10px] text-zinc-400 font-medium">{item.email}</span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-slate-700">{item.revenue.latestMonth}</span>
+                              <span className="text-[10px] text-emerald-600 font-black px-1.5 py-0.5 bg-emerald-50 rounded-md w-fit">누적 {item.revenue.count}개월</span>
+                            </div>
+                            <span className="text-sm font-black text-slate-900">{formatNumber(item.revenue.totalRevenue)}원</span>
+                            <span className="text-[10px] font-bold text-primary">비급여: {formatNumber(item.revenue.nonBenefit)}원</span>
                           </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-slate-700">{item.revenue.latestMonth}</span>
-                          <span className="text-[10px] text-emerald-600 font-black px-1.5 py-0.5 bg-emerald-50 rounded-md w-fit">누적 {item.revenue.count}개월</span>
-                        </div>
-                        <span className="text-sm font-black text-slate-900">{formatNumber(item.revenue.totalRevenue)}원</span>
-                        <span className="text-[10px] font-bold text-primary">비급여: {formatNumber(item.revenue.nonBenefit)}원</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-wrap gap-2 max-w-[400px]">
-                        {(() => {
-                          const indicatorLabels = {
-                            healthIns: "건강보험",
-                            nonBenefit: "비급여",
-                            autoIns: "자보",
-                            newPatient: "초진",
-                            arpu: "객단가"
-                          };
-                          return Object.entries(indicatorLabels).map(([key, label]) => {
-                            const ind = item.revenue.indicators?.[key];
-                            if (!ind || ind.type === "none") {
-                              return (
-                                <span key={key} className="bg-zinc-50/50 text-zinc-400/80 border border-zinc-200/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
-                                  {label} -
-                                </span>
-                              );
-                            }
-                            const isUp = ind.type === "up";
-                            return (
-                              <span 
-                                key={key} 
-                                className={`px-2 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 border shadow-sm transition-all hover:scale-105 ${
-                                  isUp 
-                                    ? "bg-rose-50 text-rose-600 border-rose-100" 
-                                    : "bg-blue-50 text-blue-600 border-blue-100"
-                                }`}
-                              >
-                                {label} {isUp ? "+" : ""}{ind.rate.toFixed(1)}% {isUp ? "▲" : "▼"}
-                              </span>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-blue-100">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
-                    <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
-                  </tr>
-                ))}
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex flex-wrap gap-2 max-w-[400px]">
+                            {(() => {
+                              const indicatorLabels = {
+                                healthIns: "건강보험",
+                                nonBenefit: "비급여",
+                                autoIns: "자보",
+                                newPatient: "초진",
+                                arpu: "객단가"
+                              };
+                              return Object.entries(indicatorLabels).map(([key, label]) => {
+                                const ind = item.revenue.indicators?.[key];
+                                if (!ind || ind.type === "none") {
+                                  return (
+                                    <span key={key} className="bg-zinc-50/50 text-zinc-400/80 border border-zinc-200/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
+                                      {label} -
+                                    </span>
+                                  );
+                                }
+                                const isUp = ind.type === "up";
+                                return (
+                                  <span 
+                                    key={key} 
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 border shadow-sm transition-all hover:scale-105 ${
+                                      isUp 
+                                        ? "bg-rose-50 text-rose-600 border-rose-100" 
+                                        : "bg-blue-50 text-blue-600 border-blue-100"
+                                    }`}
+                                  >
+                                    {label} {isUp ? "+" : ""}{ind.rate.toFixed(1)}% {isUp ? "▲" : "▼"}
+                                  </span>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-blue-100">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
+                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-slate-50/30">
+                          <td colSpan={5} className="px-8 py-4 border-t border-b border-zinc-100">
+                            <div className="bg-white rounded-[24px] border border-zinc-100/80 shadow-md overflow-hidden p-6 animate-in slide-in-from-top-2 duration-300">
+                              <h4 className="text-xs font-black text-slate-800 mb-4 flex items-center gap-2">
+                                <Database size={14} className="text-primary animate-pulse" />
+                                {item.clinicName} 월별 매출 이력 목록 ({item.revenue.count}개 개월)
+                              </h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-zinc-100 text-[10px] font-bold text-zinc-400 uppercase">
+                                      <th className="py-2.5 px-3">기준월</th>
+                                      <th className="py-2.5 px-3">총 매출</th>
+                                      <th className="py-2.5 px-3">비급여</th>
+                                      <th className="py-2.5 px-3">보험매출+자보</th>
+                                      <th className="py-2.5 px-3">초진환자</th>
+                                      <th className="py-2.5 px-3">객단가</th>
+                                      <th className="py-2.5 px-3 text-center">동작</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-zinc-50 font-medium">
+                                    {item.revenue.records.map((rec: any) => {
+                                      const flat = getFlatMetrics(rec.metrics);
+                                      return (
+                                        <tr key={rec.id} className="hover:bg-zinc-50/50 transition-colors">
+                                          <td className="py-2.5 px-3 font-extrabold text-slate-700">{rec.month}</td>
+                                          <td className="py-2.5 px-3 font-extrabold text-slate-900">{formatNumber(flat.totalRevenue)}원</td>
+                                          <td className="py-2.5 px-3 text-primary font-bold">{formatNumber(flat.nonBenefit)}원</td>
+                                          <td className="py-2.5 px-3 text-slate-600">{formatNumber((flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0))}원</td>
+                                          <td className="py-2.5 px-3 text-slate-600">{flat.newPatientCount}명</td>
+                                          <td className="py-2.5 px-3 text-slate-600">{formatNumber(Math.round(flat.totalRevenue / Math.max(flat.patientCount || 1, 1)))}원</td>
+                                          <td className="py-2.5 px-3 text-center">
+                                            <div className="flex items-center justify-center gap-1.5">
+                                              <button 
+                                                onClick={() => router.push(`/master/${encodeURIComponent(item.email)}?month=${rec.month}`)}
+                                                className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shadow-sm"
+                                              >
+                                                분석
+                                              </button>
+                                              <button 
+                                                onClick={async () => {
+                                                  if (!window.confirm(`${rec.month} 데이터를 정말 삭제하시겠습니까?`)) return;
+                                                  try {
+                                                    const res = await fetch("/api/delete-data", {
+                                                      method: "POST",
+                                                      headers: { "Content-Type": "application/json" },
+                                                      body: JSON.stringify({
+                                                        userId: item.email.toLowerCase(),
+                                                        month: rec.month
+                                                      })
+                                                    });
+                                                    if (res.ok) {
+                                                      toast.success("성공적으로 삭제되었습니다.");
+                                                      window.location.reload();
+                                                    } else {
+                                                      toast.error("삭제 실패");
+                                                    }
+                                                  } catch (err) {
+                                                    toast.error("오류 발생");
+                                                  }
+                                                }}
+                                                className="px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg text-[10px] font-bold hover:bg-rose-100 transition shadow-sm"
+                                              >
+                                                삭제
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
