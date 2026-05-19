@@ -470,15 +470,20 @@ function parseHanchart(jsonData: string[][], targetMonth: string): ParseExcelRes
 function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResult[] {
   const resultsMap: Record<string, ParseExcelResult> = {};
 
-  // 1. 컨텍스트 정보(연도 등) 추출
+  // 1. 컨텍스트 정보(연도 등) 추출 (상단 15행 전수 검사하여 연도 추출 성능 극대화)
   let contextYear = "";
-  for (let i = 0; i < Math.min(jsonData.length, 5); i++) {
+  for (let i = 0; i < Math.min(jsonData.length, 15); i++) {
     const rowStr = jsonData[i].join(" ");
-    const yearMatch = rowStr.match(/연말결산:(\d{4})/);
+    const yearMatch = rowStr.match(/연말결산:(\d{4})/) || rowStr.match(/(202\d|203[0-5])/);
     if (yearMatch) {
       contextYear = yearMatch[1];
       break;
     }
+  }
+
+  // 1.1 파일 본문에서 연도가 검출되지 않았을 경우, 현재 대시보드에서 선택된 targetMonth의 연도를 기본값으로 활용하여 1~12월 매핑
+  if (!contextYear && targetMonth) {
+    contextYear = targetMonth.split("-")[0];
   }
 
   // 2. 헤더 행 찾기
