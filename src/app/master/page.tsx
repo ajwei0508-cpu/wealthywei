@@ -601,7 +601,8 @@ export default function MasterDashboardPortal() {
           <table className="w-full text-left">
             <thead className="bg-[#FAFAFB]">
               <tr>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">사용자</th>
+                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">사용자 (프로필)</th>
+                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">가입 정보</th>
                 <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">이메일</th>
                 <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 상태</th>
                 <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 분류</th>
@@ -623,7 +624,16 @@ export default function MasterDashboardPortal() {
                         <div className="w-8 h-8 rounded-full bg-zinc-100 overflow-hidden border border-zinc-100">
                           {user.image ? <img src={user.image} alt="p" className="w-full h-full object-cover" /> : <Users size={14} className="m-auto mt-1.5" />}
                         </div>
-                        <span className="text-sm font-extrabold text-slate-900">{user.name || "이름 없음"}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-extrabold text-slate-900">{perms.real_name || user.name || "이름 없음"}</span>
+                          <span className="text-[10px] text-zinc-500 font-bold bg-zinc-100 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.name}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit">{perms.clinic_name || "한의원 미입력"}</span>
+                        {perms.age && <span className="text-[10px] text-zinc-500 font-medium ml-1">{perms.age}세</span>}
                       </div>
                     </td>
                     <td className="px-8 py-5 text-sm text-zinc-500 font-medium">{user.email}</td>

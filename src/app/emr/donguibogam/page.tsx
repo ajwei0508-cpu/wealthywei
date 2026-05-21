@@ -147,7 +147,7 @@ export default function DonguibogamPage() {
         for (const res of resList) {
           if (res.extractedData.donguibogamData?.hasFinancialData) financialCount++;
           if (res.extractedData.donguibogamData?.hasTreatmentData) treatmentCount++;
-          await setMonthlyData(res.targetMonth, res.extractedData);
+          await setMonthlyData(res.targetMonth, res.extractedData, true);
         }
       }
 

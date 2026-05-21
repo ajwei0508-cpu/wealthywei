@@ -33,6 +33,48 @@ export default function Home() {
 
   const selectedEmr = (session?.user as any)?.selectedEmr;
   const userName = session?.user?.name || "원장";
+  const realName = (session?.user as any)?.realName;
+  const clinicName = (session?.user as any)?.clinicName;
+  
+  const [showProfileSetup, setShowProfileSetup] = React.useState(false);
+  const [profileForm, setProfileForm] = React.useState({ realName: userName, clinicName: "", age: "" });
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (status === "authenticated" && (!realName || !clinicName)) {
+      setShowProfileSetup(true);
+    } else {
+      setShowProfileSetup(false);
+    }
+  }, [status, realName, clinicName]);
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileForm.realName || !profileForm.clinicName || !profileForm.age) {
+      toast.error("모든 항목을 입력해주세요.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("정보가 성공적으로 저장되었습니다.");
+        await update(); // 세션 업데이트
+        setShowProfileSetup(false);
+      } else {
+        toast.error(data.error || "저장에 실패했습니다.");
+      }
+    } catch (err) {
+      toast.error("오류가 발생했습니다.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // 로딩 상태
   if (status === "loading") {
@@ -58,6 +100,71 @@ export default function Home() {
           <KakaoLogin />
         </div>
       </main>
+    );
+  }
+
+  // 1.5 프로필 설정 모달 (신규 가입자)
+  if (showProfileSetup) {
+    return (
+      <DashboardLayout>
+        <div className="min-h-screen bg-slate-50 p-8 md:p-12 lg:p-20 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white rounded-[32px] p-8 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900">환영합니다!</h2>
+              <p className="text-slate-500 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
+            </div>
+            
+            <form onSubmit={handleProfileSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-slate-700">원장님 성함</label>
+                <input 
+                  type="text" 
+                  required
+                  value={profileForm.realName}
+                  onChange={e => setProfileForm({...profileForm, realName: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                  placeholder="홍길동"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-slate-700">한의원명</label>
+                <input 
+                  type="text" 
+                  required
+                  value={profileForm.clinicName}
+                  onChange={e => setProfileForm({...profileForm, clinicName: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                  placeholder="바른한의원"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-slate-700">연령 (나이)</label>
+                <input 
+                  type="number" 
+                  required
+                  min="20"
+                  max="100"
+                  value={profileForm.age}
+                  onChange={e => setProfileForm({...profileForm, age: e.target.value})}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                  placeholder="35"
+                />
+              </div>
+              
+              <button 
+                type="submit" 
+                disabled={isSaving}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+              >
+                {isSaving ? "저장 중..." : "저장하고 시작하기"}
+              </button>
+            </form>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 

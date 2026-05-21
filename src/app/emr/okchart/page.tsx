@@ -146,7 +146,7 @@ export default function OkchartPage() {
           const isInvalidMonth = (d.patientMetrics.total === 0 && d.generatedRevenue.total === 0);
           
           if (!isInvalidMonth) {
-            await setMonthlyData(res.targetMonth, d);
+            await setMonthlyData(res.targetMonth, d, true);
           } else {
             // 이미 0원 데이터가 등록되어 있는 경우 삭제 처리하여 화면에서 제거
             await deleteMonthlyData(res.targetMonth);

@@ -16,7 +16,8 @@ import {
   Crown,
   ClipboardList,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -251,6 +252,12 @@ export default function DashboardSidebar() {
 
         <div className="mt-10 mb-4 pt-10 border-t border-white/5">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Support & Tools</p>
+          <NavItem 
+            icon={Bell} 
+            label="공지사항" 
+            isActive={pathname.startsWith("/notice")}
+            onClick={() => router.push("/notice")}
+          />
           <NavItem icon={Settings} label="설정" isLocked />
         </div>
       </nav>

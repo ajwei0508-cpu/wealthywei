@@ -130,7 +130,7 @@ interface DataContextType {
   targetRevenue: number; // Auto generated +10% goal based on compareMonth
   setSelectedMonth: (month: string) => void;
   setCompareMonth: (month: string) => void;
-  setMonthlyData: (month: string, newData: Partial<DataMetrics>) => void;
+  setMonthlyData: (month: string, newData: Partial<DataMetrics>, isManualUpload?: boolean) => void;
   deleteMonthlyData: (month: string) => Promise<void>;
   resetData: () => void;
 }
@@ -231,7 +231,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("barun_data_metrics_v3", JSON.stringify(monthlyData));
   }, [monthlyData]);
 
-  const setMonthlyData = async (month: string, newData: Partial<DataMetrics>) => {
+  const setMonthlyData = async (month: string, newData: Partial<DataMetrics>, isManualUpload: boolean = false) => {
     let finalMetrics: DataMetrics | null = null;
 
     setStateMonthlyData((prev) => {
@@ -269,6 +269,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         leakage: mergeSubset(existing.leakage, newData.leakage, isDonguibogam),
         cashFlow: mergeSubset(existing.cashFlow, newData.cashFlow, isDonguibogam),
         paymentMethods: mergeSubset(existing.paymentMethods, newData.paymentMethods, isDonguibogam),
+        okchartData: newData.okchartData ? mergeSubset(existing.okchartData, newData.okchartData, false) : existing.okchartData,
+        hanisarangData: newData.hanisarangData ? mergeSubset(existing.hanisarangData, newData.hanisarangData, false) : existing.hanisarangData,
       };
 
       if (newData.donguibogamData) {
@@ -322,6 +324,30 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             month: month,
             metrics: finalMetrics
           }, { onConflict: 'user_id,month' });
+
+          // 알림 발송 (실제 사용자가 직접 업로드한 경우만)
+          if (isManualUpload) {
+            let emrType = '알 수 없음';
+            if (newData.okchartData) emrType = '오케이차트';
+            else if (newData.hanchartData) emrType = '한차트';
+            else if (newData.hanisarangData) emrType = '한의사랑';
+            else if (newData.donguibogamData) emrType = '동의보감';
+
+            try {
+              await fetch("/api/master/notifications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  user: session.user.name || '사용자',
+                  email: session.user.email,
+                  month,
+                  emrType
+                })
+              });
+            } catch (notifyErr) {
+              console.error("알림 발송 실패:", notifyErr);
+            }
+          }
         } catch (e) {
           console.error("Supabase save error:", e);
         }

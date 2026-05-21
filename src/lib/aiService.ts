@@ -71,12 +71,20 @@ export async function generateClinicInsightStream(data: DataMetrics, onChunk: (t
       fullText += chunkText;
       onChunk(fullText);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI Insight Streaming Failed:", error);
+    
+    let errorMessage = "현재 데이터를 분석하는 중 오류가 발생했습니다.";
+    if (error?.message?.includes("exceeded") || error?.message?.includes("429")) {
+      errorMessage = "Google Gemini API 결제 한도가 초과되었습니다. https://ai.studio/spend 에서 결제 설정을 확인하거나 API 키를 교체해주세요.";
+    }
+
     onChunk(JSON.stringify({
-      summary: "분석 중 오류 발생",
-      detailedAnalysis: "현재 데이터를 분석하는 중 오류가 발생했습니다.",
-      actionPlan: [],
+      summary: "API 한도 초과 (결제 필요)",
+      detailedAnalysis: errorMessage,
+      actionPlan: [
+        { task: "API 설정 확인", effect: "AI 분석 기능 정상화" }
+      ],
       recommendedVideoKeyword: ""
     }));
   }
@@ -159,13 +167,22 @@ export async function generateStrategicBriefing(history: { month: string, metric
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Strategic Briefing Failed:", error);
+    
+    let errorMessage = "데이터 추세 분석 중 오류가 발생했습니다.";
+    if (error?.message?.includes("exceeded") || error?.message?.includes("429")) {
+      errorMessage = "Google Gemini API 결제 한도가 초과되었습니다. https://ai.studio/spend 에서 결제 설정을 확인하거나 API 키를 교체해주세요.";
+    }
+
     return JSON.stringify({
-      summary: { headline: "분석 중 오류 발생", statusPill: "Error", healthScores: { profitability: 0, stability: 0, growth: 0, patientFlow: 0, efficiency: 0 } },
+      summary: { headline: "API 한도 초과 (결제 필요)", statusPill: "Error", healthScores: { profitability: 0, stability: 0, growth: 0, patientFlow: 0, efficiency: 0 } },
       executiveInsights: [],
-      actionPlan: [],
-      detailedAnalysis: "데이터 추세 분석 중 오류가 발생했습니다."
+      actionPlan: [
+        { phase: "긴급", task: "API 설정 확인", expectedEffect: "AI 분석 기능 정상화" }
+      ],
+      detailedAnalysis: errorMessage,
+      recommendedVideoKeyword: ""
     });
   }
 }

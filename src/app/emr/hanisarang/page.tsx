@@ -103,7 +103,7 @@ export default function HanisarangPage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const resList = await parseExcelFile(files[i], selectedMonth, "hanisarang");
-        for (const res of resList) await setMonthlyData(res.targetMonth, res.extractedData);
+        for (const res of resList) await setMonthlyData(res.targetMonth, res.extractedData, true);
       }
       toast.success("분석 완료", { id: "excel-parse" });
     } catch (err: any) {
