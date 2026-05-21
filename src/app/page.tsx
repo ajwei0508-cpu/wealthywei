@@ -40,6 +40,12 @@ export default function Home() {
   const [profileForm, setProfileForm] = React.useState({ realName: userName, clinicName: "", age: "" });
   const [isSaving, setIsSaving] = React.useState(false);
 
+  // AI Chat State
+  const [chatInput, setChatInput] = React.useState("");
+  const [chatResponse, setChatResponse] = React.useState("");
+  const [isChatLoading, setIsChatLoading] = React.useState(false);
+  const chatRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     if (status === "authenticated" && (!realName || !clinicName)) {
       setShowProfileSetup(true);
@@ -73,6 +79,53 @@ export default function Home() {
       toast.error("오류가 발생했습니다.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleChatSubmit = async (e?: React.FormEvent, presetMessage?: string) => {
+    e?.preventDefault();
+    const query = presetMessage || chatInput;
+    if (!query) return;
+
+    setChatResponse("");
+    setIsChatLoading(true);
+    setChatInput(query);
+    
+    // Auto scroll to chat area
+    setTimeout(() => {
+      chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          data: currentData,
+          emrType: selectedEmr
+        })
+      });
+      
+      if (!res.ok) throw new Error("API Error");
+      
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      
+      if (reader) {
+        let text = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+          setChatResponse(text);
+        }
+      }
+    } catch (err) {
+      setChatResponse("데이터 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsChatLoading(false);
+      setChatInput(""); // Clear input after complete
     }
   };
 
@@ -306,33 +359,72 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 className="relative max-w-4xl"
+                ref={chatRef}
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-                <div className="relative bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-2 flex items-center shadow-2xl group">
+                <form 
+                  onSubmit={handleChatSubmit}
+                  className="relative bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-2 flex items-center shadow-2xl group"
+                >
                   <div className="pl-8 text-blue-500">
-                    <Sparkles size={24} className="animate-pulse" />
+                    {isChatLoading ? <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> : <Sparkles size={24} className="animate-pulse" />}
                   </div>
                   <input 
                     type="text" 
-                    placeholder="지난달 비급여 매출 비중은 어때? (준비 중)"
-                    className="w-full bg-transparent border-none px-6 py-6 text-lg font-medium text-white placeholder-slate-600 focus:outline-none focus:ring-0"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    disabled={isChatLoading}
+                    placeholder="지난달 비급여 매출 비중은 어때? (입력하여 질문하기)"
+                    className="w-full bg-transparent border-none px-6 py-6 text-lg font-medium text-white placeholder-slate-600 focus:outline-none focus:ring-0 disabled:opacity-50"
                   />
-                  <button className="mr-2 p-5 bg-blue-600 hover:bg-blue-500 text-white rounded-[2rem] transition-all shadow-xl shadow-blue-600/20 active:scale-95 group/btn">
+                  <button 
+                    type="submit"
+                    disabled={isChatLoading || !chatInput.trim()}
+                    className="mr-2 p-5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white rounded-[2rem] transition-all shadow-xl shadow-blue-600/20 active:scale-95 group/btn"
+                  >
                     <ArrowRight size={24} className="group-hover/btn:translate-x-1 transition-transform" />
                   </button>
-                </div>
+                </form>
+
+                {/* AI Chat Response Area */}
+                <AnimatePresence>
+                  {(chatResponse || isChatLoading) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -20, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -20, height: 0 }}
+                      className="mt-6 p-8 bg-[#0D1117]/60 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0 border border-blue-500/20 mt-1">
+                          <BrainCircuit size={20} />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <h4 className="text-sm font-bold text-blue-400 uppercase tracking-widest">AI Management Secretary</h4>
+                          <div className="whitespace-pre-wrap text-slate-300 leading-relaxed font-light">
+                            {chatResponse || "데이터를 분석하고 있습니다..."}
+                            {isChatLoading && <span className="inline-block ml-1 animate-pulse">▋</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Smart Suggestion Chips */}
                 <div className="flex flex-wrap gap-3 mt-6 ml-4">
                   {[
-                    { label: "실시간 객단가 진단", icon: <Zap size={12} /> },
-                    { label: "신규 환자 유입 채널 분석", icon: <Target size={12} /> },
-                    { label: "보험 청구 누수 점검", icon: <MessageSquare size={12} /> },
-                    { label: "비급여 상담 성공률", icon: <Sparkles size={12} /> }
+                    { label: "최근 3개월 비급여 매출 트렌드 분석해줘", icon: <Zap size={12} /> },
+                    { label: "신규 환자 유입을 늘리기 위한 마케팅 플랜 짜줘", icon: <Target size={12} /> },
+                    { label: "보험 청구액이 유독 낮았던 달의 원인이 뭘까?", icon: <MessageSquare size={12} /> },
+                    { label: "초진 환자 재진율을 높이는 상담 스크립트 작성해줘", icon: <Sparkles size={12} /> }
                   ].map((chip, i) => (
                     <button 
                       key={i}
-                      className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-blue-500/50 text-[11px] font-bold text-slate-400 hover:text-blue-400 transition-all flex items-center gap-2"
+                      type="button"
+                      onClick={() => handleChatSubmit(undefined, chip.label)}
+                      disabled={isChatLoading}
+                      className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-blue-500/50 text-[11px] font-bold text-slate-400 hover:text-blue-400 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {chip.icon} {chip.label}
                     </button>
