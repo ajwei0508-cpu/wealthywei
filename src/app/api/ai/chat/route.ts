@@ -3,11 +3,40 @@ import { model } from "@/lib/gemini";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
+// 간단한 인메모리 Rate Limiter (무한 루프 방지용)
+const rateLimitMap = new Map<string, { count: number; timestamp: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1분
+const MAX_REQUESTS_PER_MINUTE = 5; // 1분에 5회까지만 허용
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
+
+  // --- Rate Limiting 로직 ---
+  const userEmail = session.user.email;
+  const now = Date.now();
+  const userRate = rateLimitMap.get(userEmail);
+
+  if (userRate) {
+    if (now - userRate.timestamp < RATE_LIMIT_WINDOW) {
+      if (userRate.count >= MAX_REQUESTS_PER_MINUTE) {
+        console.warn(`[RateLimit] ${userEmail} exceeded AI request limit.`);
+        return new Response(
+          JSON.stringify({ error: "비정상적인 과도한 요청이 감지되었습니다. 1분 후 다시 시도해주세요." }),
+          { status: 429 }
+        );
+      }
+      userRate.count += 1;
+    } else {
+      // 1분이 지나면 리셋
+      rateLimitMap.set(userEmail, { count: 1, timestamp: now });
+    }
+  } else {
+    rateLimitMap.set(userEmail, { count: 1, timestamp: now });
+  }
+  // -----------------------
 
   try {
     const { query, data, emrType } = await req.json();

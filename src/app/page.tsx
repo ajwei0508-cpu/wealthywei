@@ -44,6 +44,7 @@ export default function Home() {
   const [chatInput, setChatInput] = React.useState("");
   const [chatResponse, setChatResponse] = React.useState("");
   const [isChatLoading, setIsChatLoading] = React.useState(false);
+  const [lastChatTime, setLastChatTime] = React.useState(0);
   const chatRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -87,6 +88,14 @@ export default function Home() {
     const query = presetMessage || chatInput;
     if (!query) return;
 
+    // 1단계 프론트엔드 방어막: 5초 쿨타임
+    const now = Date.now();
+    if (now - lastChatTime < 5000) {
+      toast.error("너무 잦은 요청입니다. 5초 후 다시 시도해 주세요.");
+      return;
+    }
+    setLastChatTime(now);
+
     setChatResponse("");
     setIsChatLoading(true);
     setChatInput(query);
@@ -126,7 +135,11 @@ export default function Home() {
       }
     } catch (err: any) {
       const errorMsg = err.message || "";
-      if (errorMsg.includes("429") || errorMsg.includes("exceeded")) {
+      if (errorMsg.includes("비정상적인 과도한 요청")) {
+        // 백엔드 방어막에 걸렸을 때
+        setChatResponse("🚨 " + errorMsg);
+        toast.error("비정상적인 요청이 감지되어 차단되었습니다.");
+      } else if (errorMsg.includes("429") || errorMsg.includes("exceeded")) {
         setChatResponse("Google Gemini API 결제 한도가 초과되었습니다.\nGoogle AI Studio에서 결제 설정을 확인하거나 API 키를 교체해 주세요.");
       } else {
         setChatResponse("데이터 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
