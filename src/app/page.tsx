@@ -107,7 +107,10 @@ export default function Home() {
         })
       });
       
-      if (!res.ok) throw new Error("API Error");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "API Error");
+      }
       
       const reader = res.body?.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -121,8 +124,13 @@ export default function Home() {
           setChatResponse(text);
         }
       }
-    } catch (err) {
-      setChatResponse("데이터 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    } catch (err: any) {
+      const errorMsg = err.message || "";
+      if (errorMsg.includes("429") || errorMsg.includes("exceeded")) {
+        setChatResponse("Google Gemini API 결제 한도가 초과되었습니다.\nGoogle AI Studio에서 결제 설정을 확인하거나 API 키를 교체해 주세요.");
+      } else {
+        setChatResponse("데이터 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      }
     } finally {
       setIsChatLoading(false);
       setChatInput(""); // Clear input after complete
