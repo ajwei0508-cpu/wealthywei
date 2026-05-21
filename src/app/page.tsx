@@ -361,7 +361,7 @@ export default function Home() {
                 className="relative max-w-4xl"
                 ref={chatRef}
               >
-                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 pointer-events-none"></div>
                 <form 
                   onSubmit={handleChatSubmit}
                   className="relative bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-2 flex items-center shadow-2xl group"
@@ -412,7 +412,7 @@ export default function Home() {
                 </AnimatePresence>
 
                 {/* Smart Suggestion Chips */}
-                <div className="flex flex-wrap gap-3 mt-6 ml-4">
+                <div className="relative z-10 flex flex-wrap gap-3 mt-6 ml-4">
                   {[
                     { label: "최근 3개월 비급여 매출 트렌드 분석해줘", icon: <Zap size={12} /> },
                     { label: "신규 환자 유입을 늘리기 위한 마케팅 플랜 짜줘", icon: <Target size={12} /> },
