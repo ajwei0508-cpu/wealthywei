@@ -40,9 +40,15 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
     return (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) + emrSalt;
   }, [today, emrSalt]);
 
-  const currentQuote = useMemo(() => {
-    return QUOTES[dateSeed % QUOTES.length];
-  }, [dateSeed]);
+  const [randomQuoteIndex, setRandomQuoteIndex] = React.useState(0);
+
+  // Use useEffect to set a random index on client mount to avoid hydration mismatch
+  // and ensure it changes on every refresh
+  React.useEffect(() => {
+    setRandomQuoteIndex(Math.floor(Math.random() * QUOTES.length));
+  }, []);
+
+  const currentQuote = QUOTES[randomQuoteIndex];
 
   const mission = useMemo(() => {
     // Defensive data access to prevent crashes if certain metrics are missing
