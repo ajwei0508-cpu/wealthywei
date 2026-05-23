@@ -17,7 +17,8 @@ import {
   ClipboardList,
   Sparkles,
   RefreshCw,
-  Bell
+  Bell,
+  MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -102,7 +103,13 @@ export default function DashboardSidebar() {
   const consultingSubMenus = [
     { label: "AI 차팅", soon: true },
     { label: "원장", soon: true },
-    { label: "직원", soon: true },
+    { 
+      label: "직원", 
+      items: [
+        { label: "접수실교육", url: "/employee/reception" },
+        { label: "치료실교육", url: "/employee/treatment" }
+      ] 
+    },
     { label: "실비", soon: true },
     { label: "眞장부맥법", soon: true },
     { 
@@ -176,19 +183,22 @@ export default function DashboardSidebar() {
                           exit={{ height: 0, opacity: 0 }}
                           className="overflow-hidden pl-4 space-y-1"
                         >
-                          {sub.items?.map((item, i) => (
-                            <a 
-                              key={i}
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
-                            >
-                              <div className="w-1 h-[1px] bg-white/20"></div>
-                              {item.label}
-                              <Sparkles size={10} className="text-blue-400 opacity-50" />
-                            </a>
-                          ))}
+                          {sub.items?.map((item, i) => {
+                            const isExternal = item.url.startsWith('http');
+                            return (
+                              <Link 
+                                key={i}
+                                href={item.url}
+                                target={isExternal ? "_blank" : undefined}
+                                rel={isExternal ? "noopener noreferrer" : undefined}
+                                className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
+                              >
+                                <div className="w-1 h-[1px] bg-white/20"></div>
+                                {item.label}
+                                <Sparkles size={10} className="text-blue-400 opacity-50" />
+                              </Link>
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -257,6 +267,12 @@ export default function DashboardSidebar() {
             label="공지사항" 
             isActive={pathname.startsWith("/notice")}
             onClick={() => router.push("/notice")}
+          />
+          <NavItem 
+            icon={MessageSquare} 
+            label="요청사항" 
+            isActive={pathname.startsWith("/requests")}
+            onClick={() => router.push("/requests")}
           />
           <NavItem icon={Settings} label="설정" isLocked />
         </div>

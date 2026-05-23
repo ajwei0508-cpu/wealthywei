@@ -1,0 +1,221 @@
+"use client";
+
+import React, { useState } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Play, Clock, Tag, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function ReceptionTrainingPage() {
+  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+
+  // 임시 영상 데이터 배열
+  const videos = [
+    {
+      id: "sugar-test-1",
+      title: "당 검사 교육",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "당 검사 진행 방법 및 주의사항에 대한 교육 영상입니다.",
+      url: "https://api.wecandeo.com/video/default/BOKNS9AQWrHtcygjPaNnuiiYWRC40kWDc1WZB3isU4TA2YzaipAXb9Q0vMxzxNx4FQQZvSUKjqXHhYcKiih4ippW9Ugieie.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?q=80&w=1453&auto=format&fit=crop"
+    },
+    {
+      id: "liver-test-1",
+      title: "간 수치 검사 교육",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "간 수치 검사 진행 방법 및 주의사항에 대한 교육 영상입니다.",
+      url: "https://api.wecandeo.com/video/default/BOKNS9AQWrHtcygjPaNnuiiYWRC40kWDc1WZB3isU4TA13D2NPcgdc1PMxzxNx4FQQZvSUKjqXHhZXZ2aLXaSThQieie.mp4",
+      thumbnail: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?q=80&w=1453&auto=format&fit=crop"
+    },
+    {
+      id: "first-visit-1",
+      title: "초진 접수",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "초진 환자 접수 및 응대 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/sH9tIazfEw8",
+      thumbnail: "https://img.youtube.com/vi/sH9tIazfEw8/hqdefault.jpg"
+    },
+    {
+      id: "re-first-visit-1",
+      title: "재초진접수",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "재초진 환자 접수 및 응대 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/ePWOPsa8JF4",
+      thumbnail: "https://img.youtube.com/vi/ePWOPsa8JF4/hqdefault.jpg"
+    },
+    {
+      id: "re-visit-1",
+      title: "재진 접수",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "재진 환자 접수 및 응대 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/InRHGLoNKoI",
+      thumbnail: "https://img.youtube.com/vi/InRHGLoNKoI/hqdefault.jpg"
+    },
+    {
+      id: "id-request-1",
+      title: "신분증 요청",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "환자 신분증 요청 및 응대 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/KRcsxVHvUvY",
+      thumbnail: "https://img.youtube.com/vi/KRcsxVHvUvY/hqdefault.jpg"
+    },
+    {
+      id: "privacy-consent-1",
+      title: "개인정보 사인 동의",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "개인정보 수집 및 활용 동의서 안내 및 서명 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/O4t9BXkgelQ",
+      thumbnail: "https://img.youtube.com/vi/O4t9BXkgelQ/hqdefault.jpg"
+    },
+    {
+      id: "payment-guide-1",
+      title: "결제 안내",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "환자 진료비 결제 및 수납 안내 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/Y679VyHWdBU",
+      thumbnail: "https://img.youtube.com/vi/Y679VyHWdBU/hqdefault.jpg"
+    },
+    {
+      id: "insurance-claim-1",
+      title: "실비 청구 안내",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "환자 실손보험(실비) 청구 서류 및 절차 안내 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/u3V_ggc8taE",
+      thumbnail: "https://img.youtube.com/vi/u3V_ggc8taE/hqdefault.jpg"
+    },
+    {
+      id: "meridian-test-1",
+      title: "수양명경락검사 안내",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "수양명경락검사 진행 방법 및 환자 안내에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/OnqdPqXb6gE",
+      thumbnail: "https://img.youtube.com/vi/OnqdPqXb6gE/hqdefault.jpg"
+    }
+  ];
+
+  return (
+    <DashboardLayout>
+      <div className="p-8 max-w-7xl mx-auto h-full overflow-y-auto">
+        <div className="mb-10">
+          <h1 className="text-3xl font-black text-white mb-2">접수실 교육</h1>
+          <p className="text-white/60">접수실 업무 매뉴얼 및 실무 교육 영상을 확인하세요.</p>
+        </div>
+
+        {/* 필터 칩 (UI용) */}
+        <div className="flex gap-2 mb-8">
+          <button className="px-4 py-2 bg-blue-500 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-500/20">
+            전체 보기
+          </button>
+          <button className="px-4 py-2 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white rounded-full text-sm font-bold transition-all">
+            검사 교육
+          </button>
+          <button className="px-4 py-2 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white rounded-full text-sm font-bold transition-all">
+            환자 응대
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {videos.map((video) => (
+            <motion.div 
+              key={video.id}
+              whileHover={{ y: -5 }}
+              className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden cursor-pointer group hover:border-blue-500/50 hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-300 flex flex-col"
+              onClick={() => setSelectedVideo(video)}
+            >
+              <div className="relative aspect-video bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden border-b border-white/5">
+                {/* 텍스트 썸네일 */}
+                <div className="absolute inset-0 flex items-center justify-center p-6 text-center group-hover:scale-105 transition-transform duration-500">
+                  <h2 className="text-white/90 font-black text-2xl drop-shadow-md break-keep">
+                    {video.title}
+                  </h2>
+                </div>
+                {/* Hover Play Button */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
+                  <div className="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-300 shadow-xl text-white">
+                    <Play fill="currentColor" className="ml-1" size={24} />
+                  </div>
+                </div>
+                <div className="absolute bottom-3 right-3 bg-black/60 px-2 py-1 rounded-md flex items-center gap-1.5 text-xs font-bold text-white backdrop-blur-md">
+                  <Clock size={12} className="text-blue-400" />
+                  {video.duration}
+                </div>
+              </div>
+              <div className="p-5 flex-1 flex flex-col">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-md flex items-center gap-1 border border-blue-500/20">
+                    <Tag size={10} />
+                    {video.category}
+                  </span>
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">{video.title}</h3>
+                <p className="text-white/40 text-sm line-clamp-2 leading-relaxed">{video.description}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Video Player Modal */}
+      <AnimatePresence>
+        {selectedVideo && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 bg-black/90 backdrop-blur-md"
+            onClick={() => setSelectedVideo(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-5xl bg-[#0F172A] rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
+                <h3 className="text-white font-bold flex items-center gap-2">
+                  <Play size={16} className="text-blue-400" />
+                  {selectedVideo.title}
+                </h3>
+                <button 
+                  onClick={() => setSelectedVideo(null)}
+                  className="w-8 h-8 hover:bg-white/10 rounded-full flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="aspect-video bg-black w-full relative">
+                {selectedVideo.url.includes('.mp4') ? (
+                  <video 
+                    src={selectedVideo.url} 
+                    controls 
+                    autoPlay 
+                    className="w-full h-full object-contain outline-none"
+                    controlsList="nodownload"
+                  />
+                ) : (
+                  <iframe
+                    src={selectedVideo.url}
+                    className="w-full h-full border-none outline-none"
+                    allowFullScreen
+                    allow="autoplay; fullscreen"
+                  />
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </DashboardLayout>
+  );
+}
