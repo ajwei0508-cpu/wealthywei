@@ -142,6 +142,42 @@ export default function ReceptionTrainingPage() {
       description: "환자 혈압 측정 및 안내 방법에 대한 교육 영상입니다.",
       url: "https://www.youtube.com/embed/I4e6TR6wlqI",
       thumbnail: "https://img.youtube.com/vi/I4e6TR6wlqI/hqdefault.jpg"
+    },
+    {
+      id: "thermography-test-1",
+      title: "체열진단검사",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "체열진단검사 진행 방법 및 환자 안내에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/IjGYF8V7rO8",
+      thumbnail: "https://img.youtube.com/vi/IjGYF8V7rO8/hqdefault.jpg"
+    },
+    {
+      id: "review-request-1",
+      title: "리뷰요청",
+      category: "환자 응대",
+      duration: "05:00",
+      description: "환자 내원 후 리뷰 작성 요청 방법에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/4YVrl61W-Vg",
+      thumbnail: "https://img.youtube.com/vi/4YVrl61W-Vg/hqdefault.jpg"
+    },
+    {
+      id: "body-fat-test-1",
+      title: "체지방 검사",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "체지방 검사 진행 방법 및 환자 안내에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/aLii6NvJtPk",
+      thumbnail: "https://img.youtube.com/vi/aLii6NvJtPk/hqdefault.jpg"
+    },
+    {
+      id: "auto-ins-thermography-1",
+      title: "자보 체열 검사",
+      category: "검사 교육",
+      duration: "05:00",
+      description: "자동차보험 환자 체열진단검사 진행 방법 및 안내에 대한 교육 영상입니다.",
+      url: "https://www.youtube.com/embed/BP-SYr29BIQ",
+      thumbnail: "https://img.youtube.com/vi/BP-SYr29BIQ/hqdefault.jpg"
     }
   ];
 
