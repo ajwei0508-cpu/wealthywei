@@ -56,6 +56,11 @@ export default function RequestsPage() {
           if (updated) setSelectedRequest(updated);
           else setSelectedRequest(null);
         }
+
+        if (session?.user?.email && data.length > 0) {
+          const latestId = Math.max(...data.map((r:any) => r.id));
+          localStorage.setItem(`read_request_${session.user.email}`, latestId.toString());
+        }
       })
       .catch(err => {
         console.error(err);
@@ -65,7 +70,7 @@ export default function RequestsPage() {
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [session?.user?.email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

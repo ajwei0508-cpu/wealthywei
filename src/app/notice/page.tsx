@@ -29,12 +29,16 @@ export default function NoticePage() {
       .then(data => {
         setNotices(data);
         setLoading(false);
+        if (session?.user?.email && data.length > 0) {
+          const latestId = Math.max(...data.map((n:any) => n.id));
+          localStorage.setItem(`read_notice_${session.user.email}`, latestId.toString());
+        }
       })
       .catch(err => {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [session?.user?.email]);
 
   return (
     <DashboardLayout>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   BarChart3, 
   Lock, 
@@ -33,9 +33,10 @@ interface NavItemProps {
   onClick?: () => void;
   children?: React.ReactNode;
   isActive?: boolean;
+  hasNew?: boolean;
 }
 
-const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isActive }: NavItemProps) => {
+const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isActive, hasNew }: NavItemProps) => {
   return (
     <div className="mb-2">
       <button
@@ -50,7 +51,15 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
       >
         <div className="flex items-center gap-3">
           <Icon size={20} className={isLocked ? "text-white/20" : isActive ? "text-blue-400" : "group-hover:text-blue-400"} />
-          <span className="text-sm font-semibold tracking-tight">{label}</span>
+          <span className="text-sm font-semibold tracking-tight flex items-center gap-2">
+            {label}
+            {hasNew && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>
+              </span>
+            )}
+          </span>
         </div>
         {isLocked ? (
           <Lock size={14} className="text-white/20" />
@@ -87,6 +96,38 @@ export default function DashboardSidebar() {
   const [isConsultingOpen, setIsConsultingOpen] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
+
+  const [hasNewNotice, setHasNewNotice] = useState(false);
+  const [hasNewRequest, setHasNewRequest] = useState(false);
+
+  useEffect(() => {
+    const checkNewItems = async () => {
+      if (!session?.user?.email) return;
+      try {
+        const [noticesRes, requestsRes] = await Promise.all([
+          fetch('/api/notices'),
+          fetch('/api/requests')
+        ]);
+        
+        if (noticesRes.ok) {
+          const notices = await noticesRes.json();
+          const latestNoticeId = notices.length > 0 ? Math.max(...notices.map((n:any) => n.id)) : 0;
+          const readNoticeId = parseInt(localStorage.getItem(`read_notice_${session.user.email}`) || '0', 10);
+          setHasNewNotice(latestNoticeId > readNoticeId);
+        }
+        
+        if (requestsRes.ok) {
+          const requests = await requestsRes.json();
+          const latestRequestId = requests.length > 0 ? Math.max(...requests.map((r:any) => r.id)) : 0;
+          const readRequestId = parseInt(localStorage.getItem(`read_request_${session.user.email}`) || '0', 10);
+          setHasNewRequest(latestRequestId > readRequestId);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    checkNewItems();
+  }, [session?.user?.email, pathname]);
 
   const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
   const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
@@ -267,12 +308,14 @@ export default function DashboardSidebar() {
             label="공지사항" 
             isActive={pathname.startsWith("/notice")}
             onClick={() => router.push("/notice")}
+            hasNew={hasNewNotice}
           />
           <NavItem 
             icon={MessageSquare} 
             label="요청사항" 
             isActive={pathname.startsWith("/requests")}
             onClick={() => router.push("/requests")}
+            hasNew={hasNewRequest}
           />
           <NavItem icon={Settings} label="설정" isLocked />
         </div>

@@ -1,12 +1,37 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Play, Clock, Tag, X } from "lucide-react";
+import { Play, Clock, Tag, X, CheckCircle2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 
 export default function TreatmentTrainingPage() {
   const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+  const [watchedVideos, setWatchedVideos] = useState<string[]>([]);
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      const stored = localStorage.getItem(`watched_treatment_${session.user.email}`);
+      if (stored) {
+        try {
+          setWatchedVideos(JSON.parse(stored));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, [session?.user?.email]);
+
+  const handleWatchComplete = (id: string) => {
+    if (!session?.user?.email) return;
+    if (!watchedVideos.includes(id)) {
+      const newWatched = [...watchedVideos, id];
+      setWatchedVideos(newWatched);
+      localStorage.setItem(`watched_treatment_${session.user.email}`, JSON.stringify(newWatched));
+    }
+  };
 
   // 임시 영상 데이터 배열
   const videos = [
@@ -114,6 +139,20 @@ export default function TreatmentTrainingPage() {
               onClick={() => setSelectedVideo(video)}
             >
               <div className="relative aspect-video bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden border-b border-white/5">
+                {/* 시청 상태 뱃지 */}
+                <div className="absolute top-3 left-3 z-10">
+                  {watchedVideos.includes(video.id) ? (
+                    <div className="bg-emerald-500/90 text-white px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 shadow-lg backdrop-blur-md">
+                      <CheckCircle2 size={12} />
+                      시청함
+                    </div>
+                  ) : (
+                    <div className="bg-rose-500 text-white px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 shadow-[0_0_15px_rgba(244,63,94,0.6)] animate-pulse border border-rose-400">
+                      <Sparkles size={12} className="animate-spin-slow" />
+                      NEW
+                    </div>
+                  )}
+                </div>
                 {/* 텍스트 썸네일 */}
                 <div className="absolute inset-0 flex items-center justify-center p-6 text-center group-hover:scale-105 transition-transform duration-500">
                   <h2 className="text-white/90 font-black text-2xl drop-shadow-md break-keep">
@@ -126,10 +165,7 @@ export default function TreatmentTrainingPage() {
                     <Play fill="currentColor" className="ml-1" size={24} />
                   </div>
                 </div>
-                <div className="absolute bottom-3 right-3 bg-black/60 px-2 py-1 rounded-md flex items-center gap-1.5 text-xs font-bold text-white backdrop-blur-md">
-                  <Clock size={12} className="text-blue-400" />
-                  {video.duration}
-                </div>
+
               </div>
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
@@ -184,6 +220,7 @@ export default function TreatmentTrainingPage() {
                     autoPlay 
                     className="w-full h-full object-contain outline-none"
                     controlsList="nodownload"
+                    onEnded={() => handleWatchComplete(selectedVideo.id)}
                   />
                 ) : (
                   <iframe
@@ -192,6 +229,24 @@ export default function TreatmentTrainingPage() {
                     allowFullScreen
                     allow="autoplay; fullscreen"
                   />
+                )}
+              </div>
+              
+              {/* 시청 완료 버튼 (모달 하단) */}
+              <div className="p-4 bg-black/40 border-t border-white/5 flex justify-end">
+                {watchedVideos.includes(selectedVideo.id) ? (
+                  <button disabled className="px-5 py-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl font-bold flex items-center gap-2 text-sm border border-emerald-500/20">
+                    <CheckCircle2 size={16} />
+                    시청 완료됨
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => handleWatchComplete(selectedVideo.id)}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center gap-2 text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                  >
+                    <CheckCircle2 size={16} />
+                    시청 완료 표시하기
+                  </button>
                 )}
               </div>
             </motion.div>
