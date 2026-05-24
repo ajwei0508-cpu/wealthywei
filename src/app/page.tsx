@@ -159,19 +159,244 @@ export default function Home() {
     );
   }
 
+  const [loginMode, setLoginMode] = React.useState<"director" | "staff" | "staff-signup">("director");
+  const [staffUsername, setStaffUsername] = React.useState("");
+  const [staffPassword, setStaffPassword] = React.useState("");
+  const [isStaffLogining, setIsStaffLogining] = React.useState(false);
+
+  // Signup fields
+  const [signupForm, setSignupForm] = React.useState({
+    clinic_name: "",
+    name: "",
+    phone: "",
+    password: "",
+    invite_code: ""
+  });
+  const [isSigningUp, setIsSigningUp] = React.useState(false);
+
   // 1. 비로그인 상태
   if (status === "unauthenticated") {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-md w-full space-y-12 text-center">
+        <div className="max-w-md w-full space-y-8 text-center">
           <div className="space-y-4">
-            <div className="inline-block p-4 bg-white rounded-3xl shadow-xl shadow-blue-500/10 mb-6">
+            <div className="inline-block p-4 bg-white rounded-3xl shadow-xl shadow-blue-500/10 mb-2">
               <TrendingUp size={48} className="text-blue-600" strokeWidth={2.5} />
             </div>
             <h1 className="text-4xl font-black text-slate-900 tracking-tight">바른컨설팅</h1>
             <p className="text-slate-500 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
           </div>
-          <KakaoLogin />
+
+          <div className="bg-white rounded-full p-1.5 flex shadow-sm border border-slate-100 mb-4">
+            <button
+              onClick={() => setLoginMode("director")}
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${
+                loginMode === "director" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              원장님 로그인
+            </button>
+            <button
+              onClick={() => setLoginMode("staff")}
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${
+                (loginMode === "staff" || loginMode === "staff-signup") ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              직원 로그인
+            </button>
+          </div>
+
+          <div className="bg-white rounded-[32px] p-8 shadow-xl border border-slate-100">
+            {loginMode === "director" ? (
+              <div className="space-y-6">
+                <div className="text-center space-y-2 mb-6">
+                  <h3 className="text-lg font-black text-slate-900">원장님 전용 시작하기</h3>
+                  <p className="text-sm text-slate-500">카카오 계정으로 간편하고 안전하게 로그인하세요.</p>
+                </div>
+                <KakaoLogin />
+              </div>
+            ) : loginMode === "staff" ? (
+              <div className="space-y-5 text-left">
+                <div className="text-center space-y-2 mb-6">
+                  <h3 className="text-lg font-black text-blue-600">직원 교육 시스템 로그인</h3>
+                  <p className="text-sm text-slate-500">가입하신 휴대폰 번호로 로그인해주세요.</p>
+                </div>
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!staffUsername || !staffPassword) {
+                      toast.error("휴대폰 번호와 비밀번호를 입력해주세요.");
+                      return;
+                    }
+                    setIsStaffLogining(true);
+                    try {
+                      const { signIn } = await import("next-auth/react");
+                      const res = await signIn("staff-login", {
+                        redirect: false,
+                        phone: staffUsername,
+                        password: staffPassword
+                      });
+                      if (res?.error) {
+                        toast.error("가입 정보가 없거나 비밀번호가 일치하지 않습니다.");
+                      } else {
+                        window.location.href = "/treatment"; // Redirect to video page
+                      }
+                    } catch (e) {
+                      toast.error("로그인 중 오류가 발생했습니다.");
+                    } finally {
+                      setIsStaffLogining(false);
+                    }
+                  }}
+                  className="space-y-5"
+                >
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호</label>
+                    <input 
+                      type="text" 
+                      value={staffUsername}
+                      onChange={(e) => setStaffUsername(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                      placeholder="숫자만 입력하세요"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
+                    <input 
+                      type="password" 
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                      placeholder="비밀번호를 입력하세요"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isStaffLogining}
+                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                  >
+                    {isStaffLogining ? "로그인 중..." : "로그인"}
+                  </button>
+                </form>
+                <div className="pt-4 border-t border-slate-100 text-center">
+                  <p className="text-sm text-slate-500">
+                    아직 계정이 없으신가요?
+                    <button 
+                      onClick={() => setLoginMode("staff-signup")}
+                      className="ml-2 font-bold text-blue-600 hover:text-blue-700 underline"
+                    >
+                      직원 가입하기
+                    </button>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-5 text-left">
+                <div className="text-center space-y-2 mb-6">
+                  <h3 className="text-lg font-black text-blue-600">직원 전용 회원가입</h3>
+                  <p className="text-sm text-slate-500">원장님께 받은 초대 코드를 입력해주세요.</p>
+                </div>
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!signupForm.clinic_name || !signupForm.name || !signupForm.phone || !signupForm.password || !signupForm.invite_code) {
+                      toast.error("모든 항목을 입력해주세요.");
+                      return;
+                    }
+                    setIsSigningUp(true);
+                    try {
+                      const res = await fetch("/api/staff", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(signupForm)
+                      });
+                      const data = await res.json();
+                      if (res.ok) {
+                        toast.success("가입이 완료되었습니다! 로그인해주세요.");
+                        setLoginMode("staff");
+                        setStaffUsername(signupForm.phone);
+                      } else {
+                        toast.error(data.error || "가입에 실패했습니다.");
+                      }
+                    } catch (e) {
+                      toast.error("오류가 발생했습니다.");
+                    } finally {
+                      setIsSigningUp(false);
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 ml-1">한의원명</label>
+                      <input 
+                        type="text" 
+                        value={signupForm.clinic_name}
+                        onChange={(e) => setSignupForm({...signupForm, clinic_name: e.target.value})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                        placeholder="예: 바른한의원"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 ml-1">이름</label>
+                      <input 
+                        type="text" 
+                        value={signupForm.name}
+                        onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                        placeholder="홍길동"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호 (아이디로 사용됨)</label>
+                    <input 
+                      type="text" 
+                      value={signupForm.phone}
+                      onChange={(e) => setSignupForm({...signupForm, phone: e.target.value.replace(/[^0-9]/g, '')})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                      placeholder="- 제외 숫자만 입력"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
+                    <input 
+                      type="password" 
+                      value={signupForm.password}
+                      onChange={(e) => setSignupForm({...signupForm, password: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
+                      placeholder="비밀번호 설정"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1">
+                      원장님 초대 코드 <Ticket size={12} className="text-amber-500" />
+                    </label>
+                    <input 
+                      type="text" 
+                      value={signupForm.invite_code}
+                      onChange={(e) => setSignupForm({...signupForm, invite_code: e.target.value.toUpperCase()})}
+                      className="w-full px-4 py-3 bg-amber-50/50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm font-bold tracking-wider uppercase text-slate-700"
+                      placeholder="6자리 코드 입력"
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    disabled={isSigningUp}
+                    className="w-full py-3.5 mt-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95"
+                  >
+                    {isSigningUp ? "가입 처리 중..." : "가입하기"}
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setLoginMode("staff")}
+                    className="w-full py-3 text-slate-500 hover:text-slate-700 text-sm font-bold"
+                  >
+                    돌아가기
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     );

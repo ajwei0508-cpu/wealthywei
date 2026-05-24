@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import { Activity, Lock } from "lucide-react";
 
+import { usePathname, useRouter } from "next/navigation";
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
@@ -14,12 +16,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: session, status } = useSession();
   const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
   const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
+  const pathname = usePathname();
+  const router = useRouter();
   
   const approvalStatus = (session?.user as any)?.approvalStatus || 'pending';
+  const userRole = (session?.user as any)?.role || 'director';
+
+  // Protect routes for staff
+  React.useEffect(() => {
+    if (userRole === 'staff') {
+      const allowedPaths = ['/treatment', '/notice'];
+      if (!allowedPaths.some(p => pathname.startsWith(p))) {
+        router.push('/treatment');
+      }
+    }
+  }, [userRole, pathname, router]);
 
   if (status === "loading") return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
-
-  // If not master and not approved, show waiting screen
   if (!isMaster && approvalStatus !== 'approved') {
     return (
       <div className="flex min-h-screen bg-[#F8F9FA] items-center justify-center p-6">

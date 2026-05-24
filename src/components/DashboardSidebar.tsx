@@ -135,6 +135,7 @@ export default function DashboardSidebar() {
   const userStatus = (session?.user as any)?.approvalStatus || 'pending';
   const approvedCategories = (session?.user as any)?.approvedCategories || [];
   const userCategory = (session?.user as any)?.approvedCategory || '';
+  const userRole = (session?.user as any)?.role || 'director';
 
   const isConsultingApproved = userStatus === 'approved' && (approvedCategories.includes('consulting') || userCategory === 'consulting');
   const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
@@ -188,117 +189,125 @@ export default function DashboardSidebar() {
         <div className="mb-4">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
-          {/* 1. 바른컨설팅 (Accordion) */}
-          <NavItem 
-            icon={LayoutDashboard} 
-            label="바른컨설팅" 
-            isLocked={!isConsultingApproved && !isMaster}
-            isOpen={isConsultingOpen} 
-            onClick={() => setIsConsultingOpen(!isConsultingOpen)}
-            isActive={pathname === "/" || pathname === "/details"}
-          >
-            {consultingSubMenus.map((sub, idx) => {
-              if (typeof sub === "string") return null; // Old format fallback
-              
-              const isActualMenu = sub.items && sub.items.length > 0;
-              const isSubOpen = openSubMenus.includes(sub.label);
+          {/* 1. 바른컨설팅 (Accordion) - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={LayoutDashboard} 
+              label="바른컨설팅" 
+              isLocked={!isConsultingApproved && !isMaster}
+              isOpen={isConsultingOpen} 
+              onClick={() => setIsConsultingOpen(!isConsultingOpen)}
+              isActive={pathname === "/" || pathname === "/details"}
+            >
+              {consultingSubMenus.map((sub, idx) => {
+                if (typeof sub === "string") return null; // Old format fallback
+                
+                const isActualMenu = sub.items && sub.items.length > 0;
+                const isSubOpen = openSubMenus.includes(sub.label);
 
-              if (isActualMenu) {
+                if (isActualMenu) {
+                  return (
+                    <div key={idx} className="mb-1">
+                      <button 
+                        onClick={() => toggleSubMenu(sub.label)}
+                        className="w-full flex items-center justify-between py-2 text-[13px] font-bold text-blue-200/80 hover:text-white transition-colors group/sub"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
+                          {sub.label}
+                        </div>
+                        <ChevronDown size={12} className={`transition-transform ${isSubOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      <AnimatePresence>
+                        {isSubOpen && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden pl-4 space-y-1"
+                          >
+                            {sub.items?.map((item, i) => {
+                              const isExternal = item.url.startsWith('http');
+                              return (
+                                <Link 
+                                  key={i}
+                                  href={item.url}
+                                  target={isExternal ? "_blank" : undefined}
+                                  rel={isExternal ? "noopener noreferrer" : undefined}
+                                  className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
+                                >
+                                  <div className="w-1 h-[1px] bg-white/20"></div>
+                                  {item.label}
+                                  <Sparkles size={10} className="text-blue-400 opacity-50" />
+                                </Link>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={idx} className="mb-1">
-                    <button 
-                      onClick={() => toggleSubMenu(sub.label)}
-                      className="w-full flex items-center justify-between py-2 text-[13px] font-bold text-blue-200/80 hover:text-white transition-colors group/sub"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                        {sub.label}
-                      </div>
-                      <ChevronDown size={12} className={`transition-transform ${isSubOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    <AnimatePresence>
-                      {isSubOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden pl-4 space-y-1"
-                        >
-                          {sub.items?.map((item, i) => {
-                            const isExternal = item.url.startsWith('http');
-                            return (
-                              <Link 
-                                key={i}
-                                href={item.url}
-                                target={isExternal ? "_blank" : undefined}
-                                rel={isExternal ? "noopener noreferrer" : undefined}
-                                className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
-                              >
-                                <div className="w-1 h-[1px] bg-white/20"></div>
-                                {item.label}
-                                <Sparkles size={10} className="text-blue-400 opacity-50" />
-                              </Link>
-                            );
-                          })}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                  <div 
+                    key={idx} 
+                    className="text-[13px] font-medium py-2 text-white/40 cursor-not-allowed flex items-center gap-2 group/sub"
+                    title={`${sub.label} 서비스는 현재 준비 중입니다.`}
+                  >
+                    <div className="w-1 h-1 bg-white/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
+                    {sub.label}
+                    <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
                   </div>
                 );
-              }
+              })}
+            </NavItem>
+          )}
 
-              return (
-                <div 
-                  key={idx} 
-                  className="text-[13px] font-medium py-2 text-white/40 cursor-not-allowed flex items-center gap-2 group/sub"
-                  title={`${sub.label} 서비스는 현재 준비 중입니다.`}
-                >
-                  <div className="w-1 h-1 bg-white/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
-                  {sub.label}
-                  <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
-                </div>
-              );
-            })}
-          </NavItem>
+          {/* 1.1 AI 경영 분석 - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={Sparkles} 
+              label="AI 경영 분석" 
+              isLocked={!isConsultingApproved && !isMaster}
+              isActive={pathname.startsWith("/emr")}
+              onClick={() => {
+                const selEmr = (session?.user as any)?.selectedEmr;
+                if (selEmr) {
+                  router.push(`/emr/${selEmr}`);
+                } else {
+                  router.push("/");
+                }
+              }}
+            />
+          )}
 
-          {/* 1.1 AI 경영 분석 */}
-          <NavItem 
-            icon={Sparkles} 
-            label="AI 경영 분석" 
-            isLocked={!isConsultingApproved && !isMaster}
-            isActive={pathname.startsWith("/emr")}
-            onClick={() => {
-              const selEmr = (session?.user as any)?.selectedEmr;
-              if (selEmr) {
-                router.push(`/emr/${selEmr}`);
-              } else {
-                router.push("/");
-              }
-            }}
-          />
-
-          {/* 2. 바른개원법 */}
-          <NavItem 
-            icon={FileText} 
-            label="바른개원법" 
-            isLocked={!isOpeningApproved && !isMaster} 
-          />
+          {/* 2. 바른개원법 - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={FileText} 
+              label="바른개원법" 
+              isLocked={!isOpeningApproved && !isMaster} 
+            />
+          )}
           
-          {/* 3. 바른진료법 */}
+          {/* 3. 바른진료법 (Video Hub) - Visible to everyone */}
           <NavItem 
             icon={Stethoscope} 
-            label="바른진료법" 
+            label={userRole === 'staff' ? "직원 교육 영상" : "바른진료법"}
             isLocked={!isTreatmentApproved && !isMaster} 
             isActive={pathname === "/treatment"}
             onClick={() => router.push("/treatment")}
           />
           
-          {/* 4. 바른처방법 */}
-          <NavItem 
-            icon={Pill} 
-            label="바른처방법" 
-            isLocked={!isPrescriptionApproved && !isMaster} 
-          />
+          {/* 4. 바른처방법 - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={Pill} 
+              label="바른처방법" 
+              isLocked={!isPrescriptionApproved && !isMaster} 
+            />
+          )}
         </div>
 
         <div className="mt-10 mb-4 pt-10 border-t border-white/5">
@@ -310,14 +319,23 @@ export default function DashboardSidebar() {
             onClick={() => router.push("/notice")}
             hasNew={hasNewNotice}
           />
-          <NavItem 
-            icon={MessageSquare} 
-            label="요청사항" 
-            isActive={pathname.startsWith("/requests")}
-            onClick={() => router.push("/requests")}
-            hasNew={hasNewRequest}
-          />
-          <NavItem icon={Settings} label="설정" isLocked />
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={MessageSquare} 
+              label="요청사항" 
+              isActive={pathname.startsWith("/requests")}
+              onClick={() => router.push("/requests")}
+              hasNew={hasNewRequest}
+            />
+          )}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={Settings} 
+              label="직원 계정 관리" 
+              isActive={pathname.startsWith("/settings/staff")}
+              onClick={() => router.push("/settings/staff")}
+            />
+          )}
         </div>
       </nav>
 
@@ -333,8 +351,8 @@ export default function DashboardSidebar() {
             )}
           </div>
           <div className="flex flex-col min-w-0">
-            <p className="text-sm font-bold text-white truncate">{session?.user?.name || "원장님"}</p>
-            <p className="text-[10px] text-white/40 truncate">{session?.user?.email || "Medical Management"}</p>
+            <p className="text-sm font-bold text-white truncate">{session?.user?.name || "사용자"}</p>
+            <p className="text-[10px] text-white/40 truncate">{userRole === 'staff' ? "직원 계정" : (session?.user?.email || "Medical Management")}</p>
           </div>
         </div>
 
@@ -351,27 +369,31 @@ export default function DashboardSidebar() {
           </div>
         )}
 
-        {/* Workbook Button — ALL users */}
-        <Link 
-          href="/survey"
-          className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
-        >
-          <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
-          경영 진단 워크북 작성
-        </Link>
+        {/* Workbook Button — Not for staff */}
+        {userRole !== 'staff' && (
+          <Link 
+            href="/survey"
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
+          >
+            <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
+            경영 진단 워크북 작성
+          </Link>
+        )}
 
-        {/* EMR Change Button */}
-        <button 
-          onClick={() => router.push("/?change=true")}
-          className="w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl bg-amber-500/10 border border-amber-400/20 hover:bg-amber-500/20 hover:text-amber-400 text-amber-300 text-xs font-bold transition-all group relative z-10 cursor-pointer active:scale-95"
-        >
-          <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-          사용 차트(EMR) 변경
-        </button>
+        {/* EMR Change Button - Not for staff */}
+        {userRole !== 'staff' && (
+          <button 
+            onClick={() => router.push("/?change=true")}
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-2 rounded-xl bg-amber-500/10 border border-amber-400/20 hover:bg-amber-500/20 hover:text-amber-400 text-amber-300 text-xs font-bold transition-all group relative z-10 cursor-pointer active:scale-95"
+          >
+            <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
+            사용 차트(EMR) 변경
+          </button>
+        )}
 
         <button 
           onClick={() => signOut()}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/50 text-xs font-bold transition-all"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/50 text-xs font-bold transition-all mt-2"
         >
           <LogOut size={14} />
           로그아웃

@@ -95,7 +95,7 @@ export default function MasterDashboardPortal() {
   
   // -- Common State --
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"unified" | "users">("unified");
+  const [activeTab, setActiveTab] = useState<"unified" | "users" | "staff">("unified");
   const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
   const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
 
@@ -103,6 +103,8 @@ export default function MasterDashboardPortal() {
   const [allData, setAllData] = useState<any[]>([]);
   const [workbooks, setWorkbooks] = useState<WorkbookRow[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [allStaff, setAllStaff] = useState<any[]>([]);
+  const [allInvites, setAllInvites] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   
   // -- UI State --
@@ -262,14 +264,20 @@ export default function MasterDashboardPortal() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [uRes, dRes, wRes] = await Promise.all([
+        const [uRes, dRes, wRes, sRes] = await Promise.all([
           fetch("/api/master/users"),
           fetch("/api/master-data"),
-          fetch("/api/master/workbooks")
+          fetch("/api/master/workbooks"),
+          fetch("/api/master/staff")
         ]);
         if (uRes.ok) { const { data } = await uRes.json(); setAllUsers(data || []); }
         if (dRes.ok) { const { data } = await dRes.json(); setAllData(data || []); }
         if (wRes.ok) { const { data } = await wRes.json(); setWorkbooks(data || []); }
+        if (sRes.ok) { 
+          const { staff, invites } = await sRes.json(); 
+          setAllStaff(staff || []);
+          setAllInvites(invites || []);
+        }
       } catch (err) { console.error("Fetch error:", err); } finally { setLoading(false); }
     };
     fetchData();
@@ -357,14 +365,15 @@ export default function MasterDashboardPortal() {
           <nav className="flex items-center bg-zinc-100/50 p-1 rounded-2xl ml-4">
             <button onClick={() => { setActiveTab("unified"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "unified" ? "bg-white text-primary shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>통합 데이터 관리</button>
             <button onClick={() => { setActiveTab("users"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "users" ? "bg-white text-primary shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>가입자 현황</button>
+            <button onClick={() => { setActiveTab("staff"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "staff" ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}><Users size={14} />직원 현황</button>
             <div className="w-[1px] h-3 bg-zinc-200 mx-1" />
             <button onClick={() => router.push("/survey/admin")} className="px-4 py-1.5 rounded-xl text-xs font-bold text-amber-600 hover:bg-amber-50 transition-all flex items-center gap-1.5"><FileText size={14} />제출 파일 관리</button>
           </nav>
         </div>
-        {activeTab !== "users" && (
+        {(activeTab === "unified" || activeTab === "staff") && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-            <input type="text" placeholder="병원명, 이메일 검색..." className="pl-10 pr-4 py-2 bg-white/50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="병원명, 이름 검색..." className="pl-10 pr-4 py-2 bg-white/50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         )}
       </div>
@@ -698,9 +707,138 @@ export default function MasterDashboardPortal() {
     </div>
   );
 
+  const handleMasterGenerateInvite = async () => {
+    const email = window.prompt("초대 코드를 대신 발급해줄 원장님의 이메일을 입력하세요:");
+    if (!email) return;
+    
+    try {
+      const res = await fetch("/api/master/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetEmail: email, hours: 24 })
+      });
+      if (res.ok) {
+        toast.success("대리 초대 코드가 발급되었습니다.");
+        const sRes = await fetch("/api/master/staff");
+        if (sRes.ok) {
+          const { staff, invites } = await sRes.json();
+          setAllStaff(staff || []);
+          setAllInvites(invites || []);
+        }
+      } else {
+        toast.error("발급 실패");
+      }
+    } catch (e) {
+      toast.error("오류 발생");
+    }
+  };
+
+  const handleMasterDeleteStaff = async (id: string, name: string) => {
+    if (!window.confirm(`${name} 직원의 계정을 강제 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`/api/master/staff?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("강제 삭제 완료");
+        setAllStaff(prev => prev.filter(s => s.id !== id));
+      }
+    } catch (e) {
+      toast.error("삭제 실패");
+    }
+  };
+
+  const renderStaffView = () => {
+    const filteredStaff = allStaff.filter(s => 
+      s.clinic_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.parent_email?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg">
+            <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Users size={24} /></div>
+            <div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">전체 가입 직원</p><p className="text-2xl font-extrabold text-slate-900">{allStaff.length}명</p></div>
+          </Card>
+          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg">
+            <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Activity size={24} /></div>
+            <div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">활성화된 초대 코드</p><p className="text-2xl font-extrabold text-slate-900">{allInvites.length}개</p></div>
+          </Card>
+          <div className="md:col-span-2 flex items-center justify-end">
+            <button 
+              onClick={handleMasterGenerateInvite}
+              className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-900/20"
+            >
+              <Crown size={16} className="text-amber-400" />
+              마스터 대리 초대 코드 발급
+            </button>
+          </div>
+        </div>
+
+        <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
+          <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50">
+            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Users size={20} className="text-indigo-500" />글로벌 직원 계정 총괄</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-[#FAFAFB]">
+                <tr>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">소속 한의원</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">직원 이름</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">아이디(휴대폰)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">원장님 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">영상 시청률 (Mock)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-right">관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredStaff.map((staff) => {
+                  const progress = Math.floor(Math.random() * 80) + 20; // Mocked data
+                  return (
+                    <tr key={staff.id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="px-8 py-5 font-extrabold text-indigo-600">{staff.clinic_name}</td>
+                      <td className="px-8 py-5 font-bold text-slate-900">{staff.name}</td>
+                      <td className="px-8 py-5 font-medium text-slate-600">{staff.phone}</td>
+                      <td className="px-8 py-5 text-sm text-zinc-500">{staff.parent_email}</td>
+                      <td className="px-8 py-5 text-center">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-indigo-500" style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className="text-[10px] font-black text-slate-500">{progress}%</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <button 
+                          onClick={() => handleMasterDeleteStaff(staff.id, staff.name)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="강제 계정 삭제"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredStaff.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-8 py-12 text-center text-zinc-400">
+                      가입된 직원이 없거나 검색 결과가 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (activeTab === "unified") return renderUnifiedView();
     if (activeTab === "users") return renderUsersView();
+    if (activeTab === "staff") return renderStaffView();
     return renderUnifiedView();
   };
 

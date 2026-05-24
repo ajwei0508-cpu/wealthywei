@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import KakaoProvider from "next-auth/providers/kakao";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { SupabaseAdapter } from "@next-auth/supabase-adapter";
 
 /**
@@ -7,6 +8,7 @@ import { SupabaseAdapter } from "@next-auth/supabase-adapter";
  * 
  * - Integration: Supabase (via SupabaseAdapter)
  * - Provider: Kakao (with robust mapping & fallback email)
+ * - Provider: Credentials (for Staff sub-accounts)
  * - Redirect Loop Prevention: Explicit pages configuration
  * - Debugging: Detailed login callback logging
  */
@@ -51,6 +53,47 @@ export const authOptions: NextAuthOptions = {
         };
       },
     }),
+    CredentialsProvider({
+      id: "staff-login",
+      name: "직원 로그인",
+      credentials: {
+        phone: { label: "휴대폰 번호 (- 제외)", type: "text" },
+        password: { label: "비밀번호", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.phone || !credentials?.password) return null;
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+
+          const { data, error } = await supabase
+            .from("staff_accounts")
+            .select("*")
+            .eq("phone", credentials.phone.replace(/-/g, ""))
+            .single();
+
+          if (error || !data) return null;
+
+          if (data.password === credentials.password) {
+            return {
+              id: data.id,
+              name: data.name,
+              email: `staff_${data.phone}@bareun.app`, // fake email to satisfy NextAuth
+              // @ts-ignore
+              role: "staff",
+              parent_email: data.parent_email
+            };
+          }
+          return null;
+        } catch (e) {
+          console.error("Staff auth error:", e);
+          return null;
+        }
+      }
+    })
   ],
 
   // 4. Callbacks for Debugging & Sync
@@ -86,6 +129,13 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
+        // @ts-ignore
+        if (user.role) {
+          // @ts-ignore
+          token.role = user.role;
+          // @ts-ignore
+          token.parent_email = user.parent_email;
+        }
       }
       return token;
     },
@@ -101,41 +151,53 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email;
         session.user.name = token.name;
         session.user.image = token.picture;
+        // @ts-ignore
+        session.user.role = token.role || "director";
+        // @ts-ignore
+        session.user.parent_email = token.parent_email;
 
-        // Fetch permissions from Supabase
-        try {
-          const { createClient } = await import("@supabase/supabase-js");
-          const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-          );
-          const { data } = await supabase
-            .from("user_permissions")
-            .select("approval_status, approved_category, approved_categories, selected_emr, real_name, clinic_name, age")
-            .eq("user_email", token.email?.toLowerCase())
-            .single();
+        // Fetch permissions from Supabase (only if not staff)
+        // @ts-ignore
+        if (session.user.role !== "staff") {
+          try {
+            const { createClient } = await import("@supabase/supabase-js");
+            const supabase = createClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+            const { data } = await supabase
+              .from("user_permissions")
+              .select("approval_status, approved_category, approved_categories, selected_emr, real_name, clinic_name, age")
+              .eq("user_email", token.email?.toLowerCase())
+              .single();
 
-          if (data) {
-            // @ts-ignore
-            session.user.approvalStatus = data.approval_status;
-            // @ts-ignore
-            session.user.approvedCategories = data.approved_categories || (data.approved_category ? [data.approved_category] : []);
-            // @ts-ignore
-            session.user.selectedEmr = data.selected_emr;
-            // @ts-ignore
-            session.user.realName = data.real_name;
-            // @ts-ignore
-            session.user.clinicName = data.clinic_name;
-            // @ts-ignore
-            session.user.age = data.age;
-          } else {
-            // @ts-ignore
-            session.user.approvalStatus = 'pending';
-            // @ts-ignore
-            session.user.approvedCategories = [];
+            if (data) {
+              // @ts-ignore
+              session.user.approvalStatus = data.approval_status;
+              // @ts-ignore
+              session.user.approvedCategories = data.approved_categories || (data.approved_category ? [data.approved_category] : []);
+              // @ts-ignore
+              session.user.selectedEmr = data.selected_emr;
+              // @ts-ignore
+              session.user.realName = data.real_name;
+              // @ts-ignore
+              session.user.clinicName = data.clinic_name;
+              // @ts-ignore
+              session.user.age = data.age;
+            } else {
+              // @ts-ignore
+              session.user.approvalStatus = 'pending';
+              // @ts-ignore
+              session.user.approvedCategories = [];
+            }
+          } catch (e) {
+            console.error("Session permission fetch error:", e);
           }
-        } catch (e) {
-          console.error("Session permission fetch error:", e);
+        } else {
+          // @ts-ignore
+          session.user.approvalStatus = 'approved';
+          // @ts-ignore
+          session.user.approvedCategories = ['treatment']; // Staff only gets treatment videos by default
         }
       }
       return session;
