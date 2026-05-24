@@ -313,9 +313,26 @@ export default function ReceptionTrainingPage() {
   return (
     <DashboardLayout>
       <div className="p-8 max-w-7xl mx-auto h-full overflow-y-auto">
-        <div className="mb-10">
-          <h1 className="text-3xl font-black text-white mb-2">접수실 교육</h1>
-          <p className="text-white/60">접수실 업무 매뉴얼 및 실무 교육 영상을 확인하세요.</p>
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-black text-white mb-2">접수실 교육</h1>
+            <p className="text-white/60">접수실 업무 매뉴얼 및 실무 교육 영상을 확인하세요.</p>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 min-w-[280px]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold text-white/70">나의 교육 이수율</span>
+              <span className="text-xl font-black text-blue-400">{progress}%</span>
+            </div>
+            <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
+              />
+            </div>
+            <p className="text-xs text-white/40 text-right mt-2 font-medium">{completedVideos} / {totalVideos}개 완료</p>
+          </div>
         </div>
 
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
