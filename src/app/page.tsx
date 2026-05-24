@@ -17,7 +17,8 @@ import {
   BrainCircuit,
   MessageSquare,
   Zap,
-  Target
+  Target,
+  Ticket
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
