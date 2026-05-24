@@ -47,6 +47,20 @@ export default function Home() {
   const [lastChatTime, setLastChatTime] = React.useState(0);
   const chatRef = React.useRef<HTMLDivElement>(null);
 
+  // Staff Login & Signup State
+  const [loginMode, setLoginMode] = React.useState<"director" | "staff" | "staff-signup">("director");
+  const [staffUsername, setStaffUsername] = React.useState("");
+  const [staffPassword, setStaffPassword] = React.useState("");
+  const [isStaffLogining, setIsStaffLogining] = React.useState(false);
+  const [signupForm, setSignupForm] = React.useState({
+    clinic_name: "",
+    name: "",
+    phone: "",
+    password: "",
+    invite_code: ""
+  });
+  const [isSigningUp, setIsSigningUp] = React.useState(false);
+
   React.useEffect(() => {
     if (status === "authenticated" && (!realName || !clinicName)) {
       setShowProfileSetup(true);
@@ -158,21 +172,6 @@ export default function Home() {
       </main>
     );
   }
-
-  const [loginMode, setLoginMode] = React.useState<"director" | "staff" | "staff-signup">("director");
-  const [staffUsername, setStaffUsername] = React.useState("");
-  const [staffPassword, setStaffPassword] = React.useState("");
-  const [isStaffLogining, setIsStaffLogining] = React.useState(false);
-
-  // Signup fields
-  const [signupForm, setSignupForm] = React.useState({
-    clinic_name: "",
-    name: "",
-    phone: "",
-    password: "",
-    invite_code: ""
-  });
-  const [isSigningUp, setIsSigningUp] = React.useState(false);
 
   // 1. 비로그인 상태
   if (status === "unauthenticated") {
