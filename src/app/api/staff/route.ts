@@ -30,11 +30,11 @@ export async function GET(req: Request) {
     // Now get progress
     let progressData: any[] = [];
     if (data && data.length > 0) {
-      const phones = data.map((s: any) => s.phone);
+      const staffEmails = data.map((s: any) => `staff_${s.phone}@bareun.app`);
       const { data: pData, error: pError } = await supabase
         .from("video_progress")
         .select("*")
-        .in("staff_phone", phones);
+        .in("staff_phone", staffEmails);
         
       if (!pError) {
         progressData = pData || [];

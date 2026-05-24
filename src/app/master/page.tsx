@@ -795,7 +795,8 @@ export default function MasterDashboardPortal() {
               </thead>
               <tbody className="divide-y divide-zinc-50">
                 {filteredStaff.map((staff) => {
-                  const staffProgress = allProgress.filter(p => p.staff_phone === staff.phone && p.watched && p.quiz_passed);
+                  const staffEmail = `staff_${staff.phone}@bareun.app`;
+                  const staffProgress = allProgress.filter(p => p.staff_phone === staffEmail);
                   const TOTAL_VIDEOS = 24; // 접수실 16개 + 치료실 8개
                   const progress = Math.min(100, Math.round((staffProgress.length / TOTAL_VIDEOS) * 100));
 

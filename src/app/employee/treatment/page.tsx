@@ -36,16 +36,41 @@ export default function TreatmentTrainingPage() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.email) {
-      const stored = localStorage.getItem(`watched_treatment_${session.user.email}`);
-      if (stored) {
+    const loadProgress = async () => {
+      if (session?.user?.email) {
+        // 1. Load from localStorage
+        const stored = localStorage.getItem(`watched_treatment_${session.user.email}`);
+        let localWatched: string[] = [];
+        if (stored) {
+          try {
+            localWatched = JSON.parse(stored);
+            setWatchedVideos(localWatched);
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        
+        // 2. Fetch from DB
         try {
-          setWatchedVideos(JSON.parse(stored));
+          const res = await fetch('/api/staff/video-progress');
+          if (res.ok) {
+            const data = await res.json();
+            const dbWatched = data.data
+              .filter((p: any) => p.category === 'treatment')
+              .map((p: any) => p.video_id);
+              
+            if (dbWatched && dbWatched.length > 0) {
+              const merged = Array.from(new Set([...localWatched, ...dbWatched]));
+              setWatchedVideos(merged);
+              localStorage.setItem(`watched_treatment_${session.user.email}`, JSON.stringify(merged));
+            }
+          }
         } catch (e) {
           console.error(e);
         }
       }
-    }
+    };
+    loadProgress();
   }, [session?.user?.email]);
 
   // 안티치트: 화면 벗어남 감지

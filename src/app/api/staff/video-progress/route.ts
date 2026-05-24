@@ -12,7 +12,8 @@ export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    // For staff, their phone is saved in the email session field by next-auth or we check role
+    
+    // We use email as the identifier for both directors and staff (staff email is formatted as staff_PHONE@bareun.app)
     const staffPhone = session.user.email; 
 
     const { data, error } = await supabase
@@ -32,24 +33,36 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    
+    // email is the unique identifier (director email or staff_PHONE@bareun.app)
     const staffPhone = session.user.email; 
 
     const body = await req.json();
-    const { video_id, watched, quiz_passed } = body;
+    const { videoId, category } = body;
 
-    // UPSERT
+    // Check if it already exists
+    const { data: existing, error: findError } = await supabase
+      .from("video_progress")
+      .select("id")
+      .eq("staff_phone", staffPhone)
+      .eq("video_id", videoId)
+      .single();
+
+    if (existing) {
+      return NextResponse.json({ success: true, data: existing });
+    }
+
+    // Insert
     const { data, error } = await supabase
       .from("video_progress")
-      .upsert(
+      .insert([
         {
           staff_phone: staffPhone,
-          video_id,
-          watched,
-          quiz_passed,
-          updated_at: new Date().toISOString()
-        },
-        { onConflict: 'staff_phone,video_id' }
-      )
+          video_id: videoId,
+          category: category || 'general',
+          completed_at: new Date().toISOString()
+        }
+      ])
       .select()
       .single();
 

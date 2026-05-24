@@ -205,7 +205,8 @@ export default function StaffManagementPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {staff.map((s) => {
-                      const sProgress = staffProgress.filter(p => p.staff_phone === s.phone && p.watched && p.quiz_passed);
+                      const staffEmail = `staff_${s.phone}@bareun.app`;
+                      const sProgress = staffProgress.filter(p => p.staff_phone === staffEmail);
                       const TOTAL_VIDEOS = 24;
                       const progressPct = Math.min(100, Math.round((sProgress.length / TOTAL_VIDEOS) * 100));
 
