@@ -18,6 +18,7 @@ export default function TreatmentTrainingPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizAnswer, setQuizAnswer] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // AbortError 원천 차단: 브라우저 native play() 프로미스에 빈 catch를 달아 unhandledrejection 이벤트를 완전히 방지함
   useEffect(() => {
@@ -81,12 +82,31 @@ export default function TreatmentTrainingPage() {
         if (playerRef.current) {
           playerRef.current.pause();
         }
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }), '*');
+        }
         alert('화면을 벗어나면 시청이 일시정지됩니다.');
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [selectedVideo, playing]);
+
+  // YouTube iframe 자동 완료 감지
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data && data.event === "onStateChange" && data.info === 0) {
+          if (selectedVideo && !selectedVideo.url.includes('.mp4')) {
+            handleEnded();
+          }
+        }
+      } catch (e) {}
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [selectedVideo, showQuiz]);
 
   const handleWatchComplete = (id: string) => {
     if (!session?.user?.email) return;
@@ -425,10 +445,16 @@ export default function TreatmentTrainingPage() {
                   />
                 ) : (
                   <iframe
-                    src={selectedVideo.url}
+                    ref={iframeRef}
+                    src={`${selectedVideo.url}${selectedVideo.url.includes('?') ? '&' : '?'}enablejsapi=1`}
                     className="w-full h-full border-none outline-none"
                     allowFullScreen
                     allow="autoplay; fullscreen"
+                    onLoad={() => {
+                      if (iframeRef.current?.contentWindow) {
+                        iframeRef.current.contentWindow.postMessage(JSON.stringify({event: 'listening'}), '*');
+                      }
+                    }}
                   />
                 )}
               </div>
@@ -444,7 +470,7 @@ export default function TreatmentTrainingPage() {
                     className={`px-5 py-2 rounded-xl font-bold flex items-center gap-2 text-sm border ${watchedVideos.includes(selectedVideo.id) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all'}`}
                   >
                     <CheckCircle2 size={16} />
-                    {watchedVideos.includes(selectedVideo.id) ? '시청 완료됨' : '시청 완료 처리하기'}
+                    {watchedVideos.includes(selectedVideo.id) ? '시청 완료됨' : '수동 시청 완료 처리'}
                   </button>
                 ) : null}
               </div>
