@@ -25,9 +25,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Protect routes for staff
   React.useEffect(() => {
     if (userRole === 'staff') {
-      const allowedPaths = ['/treatment', '/notice'];
+      const allowedPaths = ['/employee', '/notice'];
       if (!allowedPaths.some(p => pathname.startsWith(p))) {
-        router.push('/treatment');
+        router.push('/employee/reception');
       }
     }
   }, [userRole, pathname, router]);

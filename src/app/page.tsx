@@ -239,7 +239,7 @@ export default function Home() {
                       if (res?.error) {
                         toast.error("가입 정보가 없거나 비밀번호가 일치하지 않습니다.");
                       } else {
-                        window.location.href = "/treatment"; // Redirect to video page
+                        window.location.href = "/employee/reception"; // Redirect to staff video page
                       }
                     } catch (e) {
                       toast.error("로그인 중 오류가 발생했습니다.");

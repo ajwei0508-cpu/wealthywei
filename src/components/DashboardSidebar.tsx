@@ -291,14 +291,44 @@ export default function DashboardSidebar() {
             />
           )}
           
-          {/* 3. 바른진료법 (Video Hub) - Visible to everyone */}
-          <NavItem 
-            icon={Stethoscope} 
-            label={userRole === 'staff' ? "직원 교육 영상" : "바른진료법"}
-            isLocked={!isTreatmentApproved && !isMaster} 
-            isActive={pathname === "/treatment"}
-            onClick={() => router.push("/treatment")}
-          />
+          {/* Staff Specific Video Menu */}
+          {userRole === 'staff' && (
+            <NavItem 
+              icon={Stethoscope} 
+              label="직원 교육 영상" 
+              isOpen={true} 
+            >
+              <div className="mb-1 space-y-1 pl-4 pt-1">
+                 <Link 
+                   href="/employee/reception" 
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
+                 >
+                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    접수실교육
+                    <Sparkles size={10} className="text-blue-400 opacity-50" />
+                 </Link>
+                 <Link 
+                   href="/employee/treatment" 
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') === false && pathname.startsWith('/employee/treatment') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
+                 >
+                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    치료실교육
+                    <Sparkles size={10} className="text-blue-400 opacity-50" />
+                 </Link>
+              </div>
+            </NavItem>
+          )}
+
+          {/* 3. 바른진료법 (Video Hub) - Directors only */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={Stethoscope} 
+              label="바른진료법"
+              isLocked={!isTreatmentApproved && !isMaster} 
+              isActive={pathname === "/treatment"}
+              onClick={() => router.push("/treatment")}
+            />
+          )}
           
           {/* 4. 바른처방법 - Not for staff */}
           {userRole !== 'staff' && (
