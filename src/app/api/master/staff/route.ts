@@ -40,9 +40,16 @@ export async function GET(req: Request) {
 
     if (inviteError && inviteError.code !== '42P01') throw inviteError;
 
+    const { data: progressData, error: progressError } = await supabase
+      .from("video_progress")
+      .select("*");
+      
+    if (progressError && progressError.code !== 'PGRST205') throw progressError;
+
     return NextResponse.json({ 
       staff: staffData || [], 
-      invites: inviteData || [] 
+      invites: inviteData || [],
+      progress: progressData || []
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

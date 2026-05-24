@@ -23,11 +23,25 @@ export async function GET(req: Request) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      if (error.code === '42P01') return NextResponse.json({ data: [] });
+      if (error.code === '42P01') return NextResponse.json({ data: [], progress: [] });
       throw error;
     }
+    
+    // Now get progress
+    let progressData: any[] = [];
+    if (data && data.length > 0) {
+      const phones = data.map((s: any) => s.phone);
+      const { data: pData, error: pError } = await supabase
+        .from("video_progress")
+        .select("*")
+        .in("staff_phone", phones);
+        
+      if (!pError) {
+        progressData = pData || [];
+      }
+    }
 
-    return NextResponse.json({ data });
+    return NextResponse.json({ data, progress: progressData });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

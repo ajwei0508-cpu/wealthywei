@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 export default function StaffManagementPage() {
   const [staff, setStaff] = useState<any[]>([]);
   const [inviteCodes, setInviteCodes] = useState<any[]>([]);
+  const [staffProgress, setStaffProgress] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [isGenerating, setIsGenerating] = useState(false);
@@ -26,8 +27,9 @@ export default function StaffManagementPage() {
       ]);
       
       if (staffRes.ok) {
-        const { data } = await staffRes.json();
+        const { data, progress } = await staffRes.json();
         setStaff(data || []);
+        setStaffProgress(progress || []);
       }
       if (inviteRes.ok) {
         const { data } = await inviteRes.json();
@@ -197,30 +199,48 @@ export default function StaffManagementPage() {
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">이름</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">휴대폰 번호 (아이디)</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">가입일</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-center">교육 이수율</th>
                       <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase text-right">관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {staff.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-blue-600">{s.clinic_name}</td>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-slate-900">{s.name}</div>
-                          <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block font-bold">교육 전용</div>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-slate-700">{s.phone}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{new Date(s.created_at).toLocaleDateString('ko-KR')}</td>
-                        <td className="px-6 py-4 text-right">
-                          <button 
-                            onClick={() => handleDeleteStaff(s.id, s.name)}
-                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="계정 삭제"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {staff.map((s) => {
+                      const sProgress = staffProgress.filter(p => p.staff_phone === s.phone && p.watched && p.quiz_passed);
+                      const TOTAL_VIDEOS = 24;
+                      const progressPct = Math.min(100, Math.round((sProgress.length / TOTAL_VIDEOS) * 100));
+
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-blue-600">{s.clinic_name}</td>
+                          <td className="px-6 py-4">
+                            <div className="font-bold text-slate-900">{s.name}</div>
+                            <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block font-bold">교육 전용</div>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-slate-700">{s.phone}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{new Date(s.created_at).toLocaleDateString('ko-KR')}</td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex flex-col items-center gap-1.5 w-24 mx-auto">
+                              <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
+                                <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black text-slate-600">{progressPct}%</span>
+                                <span className="text-[9px] font-bold text-slate-400">({sProgress.length}/{TOTAL_VIDEOS})</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => handleDeleteStaff(s.id, s.name)}
+                              className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="계정 삭제"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

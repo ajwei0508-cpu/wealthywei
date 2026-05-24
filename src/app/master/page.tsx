@@ -105,6 +105,7 @@ export default function MasterDashboardPortal() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [allStaff, setAllStaff] = useState<any[]>([]);
   const [allInvites, setAllInvites] = useState<any[]>([]);
+  const [allProgress, setAllProgress] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   
   // -- UI State --
@@ -274,9 +275,10 @@ export default function MasterDashboardPortal() {
         if (dRes.ok) { const { data } = await dRes.json(); setAllData(data || []); }
         if (wRes.ok) { const { data } = await wRes.json(); setWorkbooks(data || []); }
         if (sRes.ok) { 
-          const { staff, invites } = await sRes.json(); 
+          const { staff, invites, progress } = await sRes.json(); 
           setAllStaff(staff || []);
           setAllInvites(invites || []);
+          setAllProgress(progress || []);
         }
       } catch (err) { console.error("Fetch error:", err); } finally { setLoading(false); }
     };
@@ -787,13 +789,16 @@ export default function MasterDashboardPortal() {
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">직원 이름</th>
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">아이디(휴대폰)</th>
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">원장님 이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">영상 시청률 (Mock)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">교육 이수율 현황</th>
                   <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-right">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
                 {filteredStaff.map((staff) => {
-                  const progress = Math.floor(Math.random() * 80) + 20; // Mocked data
+                  const staffProgress = allProgress.filter(p => p.staff_phone === staff.phone && p.watched && p.quiz_passed);
+                  const TOTAL_VIDEOS = 24; // 접수실 16개 + 치료실 8개
+                  const progress = Math.min(100, Math.round((staffProgress.length / TOTAL_VIDEOS) * 100));
+
                   return (
                     <tr key={staff.id} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-8 py-5 font-extrabold text-indigo-600">{staff.clinic_name}</td>
@@ -801,11 +806,14 @@ export default function MasterDashboardPortal() {
                       <td className="px-8 py-5 font-medium text-slate-600">{staff.phone}</td>
                       <td className="px-8 py-5 text-sm text-zinc-500">{staff.parent_email}</td>
                       <td className="px-8 py-5 text-center">
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500" style={{ width: `${progress}%` }} />
+                        <div className="flex flex-col items-center gap-1.5 w-32 mx-auto">
+                          <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden relative">
+                            <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
                           </div>
-                          <span className="text-[10px] font-black text-slate-500">{progress}%</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black text-slate-500">{progress}%</span>
+                            <span className="text-[9px] font-bold text-zinc-400">({staffProgress.length}/{TOTAL_VIDEOS})</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-5 text-right">
