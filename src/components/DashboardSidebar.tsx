@@ -349,15 +349,13 @@ export default function DashboardSidebar() {
             onClick={() => router.push("/notice")}
             hasNew={hasNewNotice}
           />
-          {userRole !== 'staff' && (
-            <NavItem 
-              icon={MessageSquare} 
-              label="요청사항" 
-              isActive={pathname.startsWith("/requests")}
-              onClick={() => router.push("/requests")}
-              hasNew={hasNewRequest}
-            />
-          )}
+          <NavItem 
+            icon={MessageSquare} 
+            label="요청사항" 
+            isActive={pathname.startsWith("/requests")}
+            onClick={() => router.push("/requests")}
+            hasNew={hasNewRequest}
+          />
           {userRole !== 'staff' && (
             <NavItem 
               icon={Settings} 
