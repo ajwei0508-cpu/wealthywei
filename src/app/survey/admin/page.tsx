@@ -30,6 +30,7 @@ export default function AdminSurveyPage() {
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<Submission | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
 
   // User Map for easy lookup
   const userMap = React.useMemo(() => {
@@ -54,8 +55,11 @@ export default function AdminSurveyPage() {
       return;
     }
 
-    fetchData();
-  }, [status, session, router]);
+    if (status === "authenticated" && !hasFetched) {
+      fetchData();
+      setHasFetched(true);
+    }
+  }, [status, session?.user?.email, router, hasFetched]);
 
   const fetchData = async () => {
     try {

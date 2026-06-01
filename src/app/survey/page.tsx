@@ -345,6 +345,7 @@ export default function SurveyPage() {
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "unsaved">("saved");
   const [showSuccess, setShowSuccess] = useState(false);
   const [stampStep, setStampStep] = useState<number | null>(null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
   const isReadOnly = false; // 마스터 권한 없이도 모든 사용자가 상시 수정 가능하도록 변경
@@ -369,6 +370,8 @@ export default function SurveyPage() {
         return;
       }
 
+      if (hasFetched) return; // Prevent infinite fetching loops
+
       fetch("/api/survey").then(r => r.json()).then(({ data: saved }) => {
         if (saved?.data) {
           setData(prev => {
@@ -382,9 +385,10 @@ export default function SurveyPage() {
           });
         }
         if (saved?.submitted) setSubmitted(true);
+        setHasFetched(true);
       }).catch(() => {});
     }
-  }, [status, router, session, isMaster]);
+  }, [status, router, isMaster, hasFetched, session?.user?.email, (session?.user as any)?.approvalStatus, (session?.user as any)?.approvedCategory, JSON.stringify((session?.user as any)?.approvedCategories)]);
 
   // ── Auto-save ──────────────────────────────────────────────────────────────
   const saveTimer = useRef<any>(null);
