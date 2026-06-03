@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       if (error.code === '42P01') return NextResponse.json({ data: [], progress: [] });
       throw error;
     }
-    
+
     // Now get progress
     let progressData: any[] = [];
     if (data && data.length > 0) {
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
         .from("video_progress")
         .select("*")
         .in("staff_phone", staffEmails);
-        
+
       if (!pError) {
         progressData = pData || [];
       }

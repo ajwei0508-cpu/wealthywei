@@ -5,14 +5,14 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import KakaoLogin from "@/components/KakaoLogin";
 import DashboardLayout from "@/components/DashboardLayout";
-import { 
-  TrendingUp, 
-  Stethoscope, 
-  Activity, 
-  FileText, 
-  BarChart2, 
-  Sparkles, 
-  Search, 
+import {
+  TrendingUp,
+  Stethoscope,
+  Activity,
+  FileText,
+  BarChart2,
+  Sparkles,
+  Search,
   ArrowRight,
   BrainCircuit,
   MessageSquare,
@@ -36,7 +36,7 @@ export default function Home() {
   const userName = session?.user?.name || "원장";
   const realName = (session?.user as any)?.realName;
   const clinicName = (session?.user as any)?.clinicName;
-  
+
   const [showProfileSetup, setShowProfileSetup] = React.useState(false);
   const [profileForm, setProfileForm] = React.useState({ realName: userName, clinicName: "", age: "" });
   const [isSaving, setIsSaving] = React.useState(false);
@@ -114,7 +114,7 @@ export default function Home() {
     setChatResponse("");
     setIsChatLoading(true);
     setChatInput(query);
-    
+
     // Auto scroll to chat area
     setTimeout(() => {
       chatRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -130,15 +130,15 @@ export default function Home() {
           emrType: selectedEmr
         })
       });
-      
+
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || "API Error");
       }
-      
+
       const reader = res.body?.getReader();
       const decoder = new TextDecoder("utf-8");
-      
+
       if (reader) {
         let text = "";
         while (true) {
@@ -190,17 +190,15 @@ export default function Home() {
           <div className="bg-white rounded-full p-1.5 flex shadow-sm border border-slate-100 mb-4">
             <button
               onClick={() => setLoginMode("director")}
-              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${
-                loginMode === "director" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-              }`}
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${loginMode === "director" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                }`}
             >
               원장님 로그인
             </button>
             <button
               onClick={() => setLoginMode("staff")}
-              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${
-                (loginMode === "staff" || loginMode === "staff-signup") ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
-              }`}
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${(loginMode === "staff" || loginMode === "staff-signup") ? "bg-blue-600 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+                }`}
             >
               직원 로그인
             </button>
@@ -221,7 +219,7 @@ export default function Home() {
                   <h3 className="text-lg font-black text-blue-600">직원 교육 시스템 로그인</h3>
                   <p className="text-sm text-slate-500">가입하신 휴대폰 번호로 로그인해주세요.</p>
                 </div>
-                <form 
+                <form
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!staffUsername || !staffPassword) {
@@ -251,8 +249,8 @@ export default function Home() {
                 >
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={staffUsername}
                       onChange={(e) => setStaffUsername(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
@@ -261,15 +259,15 @@ export default function Home() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={staffPassword}
                       onChange={(e) => setStaffPassword(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
                       placeholder="비밀번호를 입력하세요"
                     />
                   </div>
-                  <button 
+                  <button
                     type="submit"
                     disabled={isStaffLogining}
                     className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 transition-all active:scale-95"
@@ -280,7 +278,7 @@ export default function Home() {
                 <div className="pt-4 border-t border-slate-100 text-center">
                   <p className="text-sm text-slate-500">
                     아직 계정이 없으신가요?
-                    <button 
+                    <button
                       onClick={() => setLoginMode("staff-signup")}
                       className="ml-2 font-bold text-blue-600 hover:text-blue-700 underline"
                     >
@@ -295,7 +293,7 @@ export default function Home() {
                   <h3 className="text-lg font-black text-blue-600">직원 전용 회원가입</h3>
                   <p className="text-sm text-slate-500">원장님께 받은 초대 코드를 입력해주세요.</p>
                 </div>
-                <form 
+                <form
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (!signupForm.clinic_name || !signupForm.name || !signupForm.phone || !signupForm.password || !signupForm.invite_code) {
@@ -328,20 +326,20 @@ export default function Home() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 ml-1">한의원명</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={signupForm.clinic_name}
-                        onChange={(e) => setSignupForm({...signupForm, clinic_name: e.target.value})}
+                        onChange={(e) => setSignupForm({ ...signupForm, clinic_name: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
                         placeholder="예: 바른한의원"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 ml-1">이름</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={signupForm.name}
-                        onChange={(e) => setSignupForm({...signupForm, name: e.target.value})}
+                        onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
                         placeholder="홍길동"
                       />
@@ -349,20 +347,20 @@ export default function Home() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호 (아이디로 사용됨)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={signupForm.phone}
-                      onChange={(e) => setSignupForm({...signupForm, phone: e.target.value.replace(/[^0-9]/g, '')})}
+                      onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
                       placeholder="- 제외 숫자만 입력"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
-                    <input 
-                      type="password" 
+                    <input
+                      type="password"
                       value={signupForm.password}
-                      onChange={(e) => setSignupForm({...signupForm, password: e.target.value})}
+                      onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-medium"
                       placeholder="비밀번호 설정"
                     />
@@ -371,22 +369,22 @@ export default function Home() {
                     <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1">
                       원장님 초대 코드 <Ticket size={12} className="text-amber-500" />
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={signupForm.invite_code}
-                      onChange={(e) => setSignupForm({...signupForm, invite_code: e.target.value.toUpperCase()})}
+                      onChange={(e) => setSignupForm({ ...signupForm, invite_code: e.target.value.toUpperCase() })}
                       className="w-full px-4 py-3 bg-amber-50/50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm font-bold tracking-wider uppercase text-slate-700"
                       placeholder="6자리 코드 입력"
                     />
                   </div>
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSigningUp}
                     className="w-full py-3.5 mt-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95"
                   >
                     {isSigningUp ? "가입 처리 중..." : "가입하기"}
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setLoginMode("staff")}
                     className="w-full py-3 text-slate-500 hover:text-slate-700 text-sm font-bold"
@@ -415,46 +413,46 @@ export default function Home() {
               <h2 className="text-2xl font-black text-slate-900">환영합니다!</h2>
               <p className="text-slate-500 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
             </div>
-            
+
             <form onSubmit={handleProfileSubmit} className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700">원장님 성함</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={profileForm.realName}
-                  onChange={e => setProfileForm({...profileForm, realName: e.target.value})}
+                  onChange={e => setProfileForm({ ...profileForm, realName: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
                   placeholder="홍길동"
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700">한의원명</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   required
                   value={profileForm.clinicName}
-                  onChange={e => setProfileForm({...profileForm, clinicName: e.target.value})}
+                  onChange={e => setProfileForm({ ...profileForm, clinicName: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
                   placeholder="바른한의원"
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-bold text-slate-700">연령 (나이)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   required
                   min="20"
                   max="100"
                   value={profileForm.age}
-                  onChange={e => setProfileForm({...profileForm, age: e.target.value})}
+                  onChange={e => setProfileForm({ ...profileForm, age: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
                   placeholder="35"
                 />
               </div>
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 disabled={isSaving}
                 className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
               >
@@ -506,7 +504,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto space-y-16">
             <header className="space-y-4">
               <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-                반갑습니다, {userName}님<br/>
+                반갑습니다, {userName}님<br />
                 <span className="text-blue-600">사용하시는 차트</span>를 선택해 주세요.
               </h2>
               <p className="text-slate-500 font-medium text-xl">선택하신 차트에 맞춰 대시보드가 자동으로 구성됩니다.</p>
@@ -559,7 +557,7 @@ export default function Home() {
     <DashboardLayout>
       <div className="min-h-screen bg-[#05080F] text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 pt-32 space-y-20">
-          
+
           {/* AI Secretary Hero Section */}
           <section className="relative">
             {/* Background Glows */}
@@ -567,40 +565,40 @@ export default function Home() {
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-600/5 rounded-full blur-[120px] pointer-events-none" />
 
             <div className="relative z-10 space-y-12">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-center gap-3"
               >
                 <span className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-                  <BrainCircuit size={14} className="animate-pulse" /> 
+                  <BrainCircuit size={14} className="animate-pulse" />
                   AI Management Secretary Active
                 </span>
               </motion.div>
 
               <div className="space-y-4">
-                <motion.h1 
+                <motion.h1
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                   className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9]"
                 >
-                  안녕하세요, <br/>
+                  안녕하세요, <br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-blue-500">{userName} 원장님.</span>
                 </motion.h1>
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                   className="text-slate-400 text-xl font-light leading-relaxed max-w-2xl"
                 >
-                  오늘 우리 병원의 데이터를 정밀 분석했습니다. <br/>
+                  오늘 우리 병원의 데이터를 정밀 분석했습니다. <br />
                   궁금하신 지표나 개선 전략을 비서에게 물어보세요.
                 </motion.p>
               </div>
 
               {/* AI Interaction Area */}
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
@@ -608,22 +606,22 @@ export default function Home() {
                 ref={chatRef}
               >
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-40 transition duration-1000 pointer-events-none"></div>
-                <form 
+                <form
                   onSubmit={handleChatSubmit}
                   className="relative bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-2 flex items-center shadow-2xl group"
                 >
                   <div className="pl-8 text-blue-500">
                     {isChatLoading ? <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /> : <Sparkles size={24} className="animate-pulse" />}
                   </div>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     disabled={isChatLoading}
                     placeholder="지난달 비급여 매출 비중은 어때? (입력하여 질문하기)"
                     className="w-full bg-transparent border-none px-6 py-6 text-lg font-medium text-white placeholder-slate-600 focus:outline-none focus:ring-0 disabled:opacity-50"
                   />
-                  <button 
+                  <button
                     type="submit"
                     disabled={isChatLoading || !chatInput.trim()}
                     className="mr-2 p-5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white rounded-[2rem] transition-all shadow-xl shadow-blue-600/20 active:scale-95 group/btn"
@@ -665,7 +663,7 @@ export default function Home() {
                     { label: "보험 청구액이 유독 낮았던 달의 원인이 뭘까?", icon: <MessageSquare size={12} /> },
                     { label: "초진 환자 재진율을 높이는 상담 스크립트 작성해줘", icon: <Sparkles size={12} /> }
                   ].map((chip, i) => (
-                    <button 
+                    <button
                       key={i}
                       type="button"
                       onClick={() => handleChatSubmit(undefined, chip.label)}
@@ -687,12 +685,12 @@ export default function Home() {
 
           {/* Quick Support Footer */}
           <footer className="pt-20 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 text-slate-600 text-[10px] font-bold uppercase tracking-widest">
-             <div className="flex items-center gap-6">
-                <span className="hover:text-slate-400 cursor-pointer transition-colors">이용약관</span>
-                <span className="hover:text-slate-400 cursor-pointer transition-colors">개인정보처리방침</span>
-                <span className="hover:text-slate-400 cursor-pointer transition-colors">고객센터</span>
-             </div>
-             <p>© 2026 BARUN CONSULTING. ALL RIGHTS RESERVED.</p>
+            <div className="flex items-center gap-6">
+              <span className="hover:text-slate-400 cursor-pointer transition-colors">이용약관</span>
+              <span className="hover:text-slate-400 cursor-pointer transition-colors">개인정보처리방침</span>
+              <span className="hover:text-slate-400 cursor-pointer transition-colors">고객센터</span>
+            </div>
+            <p>© 2026 BARUN CONSULTING. ALL RIGHTS RESERVED.</p>
           </footer>
         </main>
       </div>

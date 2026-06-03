@@ -339,6 +339,7 @@ export default function MasterDashboardPortal() {
   const CATEGORIES = [
     { id: 'consulting', name: '바른컨설팅' },
     { id: 'treatment', name: '바른진료법' },
+    { id: 'treatment_no_download', name: '바른진료법 (다운로드 불가)' },
     { id: 'opening', name: '바른개원법' },
     { id: 'prescription', name: '바른처방법' }
   ];

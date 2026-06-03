@@ -3,9 +3,13 @@
 import React from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { motion } from "framer-motion";
-import { Stethoscope, Play, ShieldCheck, Clock } from "lucide-react";
+import { Stethoscope, Play, ShieldCheck, Clock } from "lucide-react";import { useSession } from "next-auth/react";
 
 export default function TreatmentPage() {
+  const { data: session } = useSession();
+  const approvedCategories = (session?.user as any)?.approvedCategories || [];
+  const canDownload = !approvedCategories.includes('treatment_no_download');
+
   const videoUrl = "https://play.wecandeo.com/video/v/?key=BOKNS9AQWrHlii9BTiicPOip0bcnNis6FTI4UGLEKisbMYn72VBELumP4PwUmjisAfZ65FwtMVisL5qrf76P4G0KDAAngXw2rpEBsQS";
 
   return (
@@ -84,14 +88,16 @@ export default function TreatmentPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => window.open("http://naver.me/5XTiFWSo", "_blank")}
-                  className="px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-black text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-                >
-                  강의자료 다운로드
-                </button>
-              </div>
+              {canDownload && (
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => window.open("http://naver.me/5XTiFWSo", "_blank")}
+                    className="px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-black text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                  >
+                    강의자료 다운로드
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
 

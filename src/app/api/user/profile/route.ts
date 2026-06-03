@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const { error } = await supabaseAdmin
       .from("user_permissions")
-      .upsert({ 
+      .upsert({
         user_email: session.user.email.toLowerCase(),
         real_name: realName,
         clinic_name: clinicName,
@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     if (error) {
       // If error is about missing columns, provide a clear message
       if (error.code === '42703') {
-         console.error("DB Column missing:", error);
-         return NextResponse.json({ error: "데이터베이스 설정이 필요합니다. 관리자에게 문의하세요 (user_permissions 테이블에 real_name, clinic_name, age 컬럼 추가 필요)." }, { status: 500 });
+        console.error("DB Column missing:", error);
+        return NextResponse.json({ error: "데이터베이스 설정이 필요합니다. 관리자에게 문의하세요 (user_permissions 테이블에 real_name, clinic_name, age 컬럼 추가 필요)." }, { status: 500 });
       }
       throw error;
     }

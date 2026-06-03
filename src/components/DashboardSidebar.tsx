@@ -138,7 +138,7 @@ export default function DashboardSidebar() {
   const userRole = (session?.user as any)?.role || 'director';
 
   const isConsultingApproved = userStatus === 'approved' && (approvedCategories.includes('consulting') || userCategory === 'consulting');
-  const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
+  const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('treatment_no_download') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
   const isOpeningApproved = userStatus === 'approved' && (approvedCategories.includes('opening') || approvedCategories.includes('consulting') || userCategory === 'opening' || userCategory === 'consulting');
   const isPrescriptionApproved = userStatus === 'approved' && (approvedCategories.includes('prescription') || userCategory === 'prescription');
 
