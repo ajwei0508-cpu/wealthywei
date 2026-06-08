@@ -379,8 +379,8 @@ export default function Home() {
                   </div>
                   <button
                     type="submit"
-                    disabled={isSigningUp}
-                    className="w-full py-3.5 mt-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95"
+                    disabled={isSigningUp || !signupForm.clinic_name || !signupForm.name || !signupForm.phone || !signupForm.password || !signupForm.invite_code}
+                    className="w-full py-3.5 mt-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95 disabled:shadow-none"
                   >
                     {isSigningUp ? "가입 처리 중..." : "가입하기"}
                   </button>
@@ -453,8 +453,8 @@ export default function Home() {
 
               <button
                 type="submit"
-                disabled={isSaving}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
               >
                 {isSaving ? "저장 중..." : "저장하고 시작하기"}
               </button>
