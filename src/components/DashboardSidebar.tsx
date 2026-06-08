@@ -158,8 +158,7 @@ export default function DashboardSidebar() {
       label: "직원", 
       items: [
         { label: "접수실교육", url: "/employee/reception" },
-        { label: "치료실교육", url: "/employee/treatment" },
-        { label: "재내원 해피콜", url: "/employee/happycall" }
+        { label: "치료실교육", url: "/employee/treatment" }
       ] 
     },
     { label: "실비", soon: true },
@@ -334,14 +333,6 @@ export default function DashboardSidebar() {
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     치료실교육
-                    <Sparkles size={10} className="text-blue-400 opacity-50" />
-                 </Link>
-                 <Link 
-                   href="/employee/happycall" 
-                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/happycall') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
-                 >
-                    <div className="w-1 h-[1px] bg-white/20"></div>
-                    재내원 해피콜
                     <Sparkles size={10} className="text-blue-400 opacity-50" />
                  </Link>
               </div>
