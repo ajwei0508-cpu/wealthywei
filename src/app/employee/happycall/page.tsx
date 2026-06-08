@@ -204,6 +204,7 @@ export default function SmartPatientManagement() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
