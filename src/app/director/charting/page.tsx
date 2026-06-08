@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import DashboardLayout from '@/components/DashboardLayout';
 
 const CHART_DATA = [
   {
@@ -139,8 +140,9 @@ export default function ChartingTemplatesPage() {
   })).filter(category => category.items.length > 0);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col">
-      {/* Header */}
+    <DashboardLayout>
+      <div className="p-6 max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col">
+        {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -247,8 +249,9 @@ export default function ChartingTemplatesPage() {
               </pre>
             </div>
           </div>
+          </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

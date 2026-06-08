@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { UploadCloud, Users, AlertCircle, Phone, Sparkles, Send, MessageSquare } from 'lucide-react';
+import DashboardLayout from '@/components/DashboardLayout';
 
 // 환자 데이터 타입
 interface FinalPatientFormat {
@@ -130,10 +131,11 @@ export default function SmartPatientManagement() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      {/* 왼쪽: 환자 데이터 및 엑셀 분석 영역 (2칸 차지) */}
-      <div className="lg:col-span-2 space-y-6">
+    <DashboardLayout>
+      <div className="p-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-2rem)] overflow-hidden">
+        
+        {/* 왼쪽: 환자 데이터 및 엑셀 분석 영역 (2칸 차지) */}
+        <div className="lg:col-span-2 space-y-6 flex flex-col h-full">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">스마트 미내원 환자 관리</h1>
           <p className="text-gray-500 text-sm mt-1">엑셀 파일을 업로드하면 4/7/8일차 기준에 맞춰 자동 분류됩니다.</p>
@@ -170,8 +172,9 @@ export default function SmartPatientManagement() {
 
         {/* 리스트 테이블 */}
         {patients.length > 0 && (
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden h-[500px] overflow-y-auto">
-            <table className="w-full text-left text-sm text-gray-600">
+          <div className="bg-white rounded-xl border shadow-sm flex-1 overflow-hidden flex flex-col">
+            <div className="overflow-y-auto flex-1 custom-scrollbar">
+              <table className="w-full text-left text-sm text-gray-600">
               <thead className="bg-gray-50 border-b font-medium text-gray-700 sticky top-0">
                 <tr>
                   <th className="p-4">구분</th>
@@ -268,8 +271,8 @@ export default function SmartPatientManagement() {
             <Send className="w-5 h-5" />
           </button>
         </div>
+        </div>
       </div>
-
-    </div>
+    </DashboardLayout>
   );
 }
