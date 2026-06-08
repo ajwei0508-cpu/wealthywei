@@ -144,12 +144,18 @@ export default function DashboardSidebar() {
 
   const consultingSubMenus = [
     { label: "AI 차팅", soon: true },
-    { label: "원장", soon: true },
+    { 
+      label: "원장", 
+      items: [
+        { label: "질환별 차팅", url: "/director/charting" }
+      ] 
+    },
     { 
       label: "직원", 
       items: [
         { label: "접수실교육", url: "/employee/reception" },
-        { label: "치료실교육", url: "/employee/treatment" }
+        { label: "치료실교육", url: "/employee/treatment" },
+        { label: "재내원 해피콜", url: "/employee/happycall" }
       ] 
     },
     { label: "실비", soon: true },
@@ -295,7 +301,7 @@ export default function DashboardSidebar() {
           {userRole === 'staff' && (
             <NavItem 
               icon={Stethoscope} 
-              label="직원 교육 영상" 
+              label="직원 메뉴" 
               isOpen={true} 
             >
               <div className="mb-1 space-y-1 pl-4 pt-1">
@@ -313,6 +319,14 @@ export default function DashboardSidebar() {
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     치료실교육
+                    <Sparkles size={10} className="text-blue-400 opacity-50" />
+                 </Link>
+                 <Link 
+                   href="/employee/happycall" 
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/happycall') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
+                 >
+                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    재내원 해피콜
                     <Sparkles size={10} className="text-blue-400 opacity-50" />
                  </Link>
               </div>
