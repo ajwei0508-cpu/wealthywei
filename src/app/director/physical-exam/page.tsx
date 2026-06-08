@@ -6,14 +6,11 @@ import { Activity, Play, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const EXAM_VIDEOS = [
-  { id: "LT55oAaD6-4", title: "목" },
-  { id: "QZLQyp0FKXg", title: "어깨 관절" },
-  { id: "mmAj5bl7tUI", title: "팔꿈치 관절" },
-  { id: "biSEncuN6mM", title: "손목" },
-  { id: "89Tsn94jVDU", title: "허리" },
-  { id: "dIWTDjyiE9g", title: "고관절" },
-  { id: "V4qT8YeAmnQ", title: "무릎" },
-  { id: "RUsekWzmuJg", title: "발목" }
+  { id: "vZslcyGN4IE", title: "SLRT" },
+  { id: "DfePXX0c3ys", title: "무릎" },
+  { id: "NDwmAan88Co", title: "bi lslrt" },
+  { id: "nj5tJU7EGSo", title: "xcross" },
+  { id: "BPIz7P6HPm8", title: "고관절" }
 ];
 
 export default function DirectorPhysicalExamPage() {
