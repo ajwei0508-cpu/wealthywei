@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Upload, Phone, Calendar, User, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Upload, Phone, Calendar, User, CheckCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { parseHappyCallExcel } from "@/lib/happycallParser";
 import { toast } from "react-hot-toast";
 
@@ -23,6 +23,7 @@ export default function HappyCallDashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [targets, setTargets] = useState<PatientTarget[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
   
   // Call Log Modal State
   const [selectedPatient, setSelectedPatient] = useState<PatientTarget | null>(null);
@@ -43,7 +44,8 @@ export default function HappyCallDashboard() {
   const fetchTargets = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/happycall/targets");
+      // 테스트를 위해 기준 날짜를 임시로 6월 8일로 고정
+      const res = await fetch("/api/happycall/targets?date=2026-06-08");
       const data = await res.json();
       if (res.ok && data.targets) {
         setTargets(data.targets);
@@ -94,6 +96,30 @@ export default function HappyCallDashboard() {
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleResetData = async () => {
+    if (!window.confirm("모든 환자 목록과 해피콜 기록이 영구적으로 삭제됩니다.\n테스트용 데이터를 정말 초기화하시겠습니까?")) return;
+    
+    try {
+      setIsResetting(true);
+      const toastId = toast.loading("데이터 초기화 중...");
+      
+      const res = await fetch("/api/happycall/reset", { method: "POST" });
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast.success(data.message || "성공적으로 초기화되었습니다.", { id: toastId });
+        setTargets([]); // 즉시 비움
+        fetchTargets();
+      } else {
+        toast.error(data.error || "초기화에 실패했습니다.", { id: toastId });
+      }
+    } catch (e) {
+      toast.error("네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -195,8 +221,17 @@ export default function HappyCallDashboard() {
             className="hidden" 
           />
           <button 
+            onClick={handleResetData}
+            disabled={isResetting || isUploading}
+            className="flex items-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-4 py-2.5 rounded-lg font-medium transition-all shadow-sm disabled:opacity-70"
+          >
+            {isResetting ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-rose-600 border-t-transparent"></div> : <Trash2 size={16} />}
+            데이터 초기화
+          </button>
+
+          <button 
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || isResetting}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-sm shadow-blue-200 disabled:opacity-70"
           >
             {isUploading ? <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div> : <Upload size={18} />}

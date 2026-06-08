@@ -54,7 +54,14 @@ export async function GET(request: Request) {
       }
     });
 
-    const today = new Date();
+    // Get optional 'date' parameter for testing purposes (e.g. ?date=2026-06-08)
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get("date");
+    
+    let today = new Date();
+    if (dateParam && !isNaN(new Date(dateParam).getTime())) {
+      today = new Date(dateParam);
+    }
     // Reset time to midnight for accurate day difference calculation
     today.setHours(0, 0, 0, 0);
 
