@@ -44,8 +44,7 @@ export default function HappyCallDashboard() {
   const fetchTargets = async () => {
     try {
       setIsLoading(true);
-      // 테스트를 위해 기준 날짜를 임시로 6월 8일로 고정
-      const res = await fetch("/api/happycall/targets?date=2026-06-08");
+      const res = await fetch("/api/happycall/targets");
       const data = await res.json();
       if (res.ok && data.targets) {
         setTargets(data.targets);
