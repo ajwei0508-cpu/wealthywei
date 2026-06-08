@@ -148,6 +148,7 @@ export default function DashboardSidebar() {
       label: "원장", 
       items: [
         { label: "질환별 차팅", url: "/director/charting" },
+        { label: "수양명경락검사 설명", url: "/director/meridian-test" },
         { label: "진료법", url: "/director/treatment" },
         { label: "이학적검사", url: "/director/physical-exam" }
       ] 
