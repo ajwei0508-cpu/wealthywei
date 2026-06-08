@@ -147,7 +147,9 @@ export default function DashboardSidebar() {
     { 
       label: "원장", 
       items: [
-        { label: "질환별 차팅", url: "/director/charting" }
+        { label: "질환별 차팅", url: "/director/charting" },
+        { label: "진료법", url: "/director/treatment" },
+        { label: "이학적검사", url: "/director/physical-exam" }
       ] 
     },
     { 
