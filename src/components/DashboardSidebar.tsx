@@ -18,7 +18,8 @@ import {
   Sparkles,
   RefreshCw,
   Bell,
-  MessageSquare
+  MessageSquare,
+  PhoneCall
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -288,6 +289,17 @@ export default function DashboardSidebar() {
                   router.push("/");
                 }
               }}
+            />
+          )}
+
+          {/* Happy Call Management - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={PhoneCall} 
+              label="해피콜 환자관리" 
+              isLocked={false}
+              isActive={pathname.startsWith("/happycall")}
+              onClick={() => router.push("/happycall")}
             />
           )}
 
