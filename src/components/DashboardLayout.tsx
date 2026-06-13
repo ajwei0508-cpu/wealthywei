@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   if (status === "loading") return <div className="min-h-screen bg-white/5 flex items-center justify-center">Loading...</div>;
   if (!isMaster && approvalStatus !== 'approved') {
     return (
-      <div className="flex min-h-screen bg-[#F8F9FA] items-center justify-center p-6">
+      <div className="flex min-h-screen bg-[#031C13] items-center justify-center p-6">
         <div className="max-w-md w-full bg-white/5 p-12 rounded-[2rem] shadow-xl border border-white/5 text-center space-y-8 animate-in fade-in zoom-in duration-500">
           <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto">
             {approvalStatus === 'pending' ? <Activity size={40} /> : <Lock size={40} />}
@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F8F9FA]">
+    <div className="flex min-h-screen bg-[#031C13]">
       <DashboardSidebar />
       <main className="flex-1 ml-72 overflow-x-hidden">
         <motion.div
