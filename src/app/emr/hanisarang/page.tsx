@@ -341,7 +341,7 @@ export default function HanisarangPage() {
 
               <div className="bg-[#0A2213] rounded-[2rem] p-6 border border-white/5 shadow-xl">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><Users size={22} /></div>
+                  <div className="p-3 bg-emerald-600/10 rounded-2xl text-amber-500"><Users size={22} /></div>
                   <p className={`text-sm font-black ${revenuePerPatient >= pRevenuePerPatient ? "text-emerald-400" : "text-rose-400"}`}>
                     {pRevenuePerPatient > 0 ? ((revenuePerPatient - pRevenuePerPatient) / pRevenuePerPatient * 100).toFixed(1) : 0}%
                   </p>
@@ -414,7 +414,7 @@ export default function HanisarangPage() {
                 {/* Payment Method Analysis */}
                 <div className="bg-[#0A2213] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl">
                    <h2 className="text-xl font-bold mb-8 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500"><CreditCard size={20} /></div>
+                    <div className="h-10 w-10 rounded-xl bg-emerald-600/10 flex items-center justify-center text-amber-500"><CreditCard size={20} /></div>
                     결제 수단별 수납 비중
                   </h2>
                   <div className="space-y-6">
@@ -428,7 +428,7 @@ export default function HanisarangPage() {
                          <>
                            <div className="space-y-2">
                              <div className="flex justify-between text-xs font-bold uppercase text-emerald-800"><span>카드 결제</span><span>{cardPct.toFixed(1)}%</span></div>
-                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${cardPct}%` }} /></div>
+                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${cardPct}%` }} /></div>
                            </div>
                            <div className="space-y-2">
                              <div className="flex justify-between text-xs font-bold uppercase text-emerald-800"><span>현금 결제</span><span>{cashPct.toFixed(1)}%</span></div>
@@ -458,7 +458,7 @@ export default function HanisarangPage() {
                 onClick={() => router.push("/ai-intelligence?emr=hanisarang")}
                 className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 shadow-2xl shadow-emerald-500/20 active:scale-[0.98] transition-all"
               >
-                <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+                <div className="relative bg-[#042418] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
                   <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
                     <BrainCircuit size={300} />
                   </div>

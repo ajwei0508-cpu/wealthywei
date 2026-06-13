@@ -21,8 +21,8 @@ interface MetricCardProps {
 const colorMap = {
   blue: {
     bg: "bg-blue-50",
-    text: "text-blue-600",
-    iconBg: "bg-blue-600/10",
+    text: "text-amber-600",
+    iconBg: "bg-emerald-700/10",
     border: "border-blue-100/50"
   },
   rose: {
@@ -71,7 +71,7 @@ const MetricCard = ({
         </div>
         {trend && (
           <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black ${
-            trend.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+            trend.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-amber-600"
           }`}>
             {trend.isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
             {trend.percent}%

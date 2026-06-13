@@ -139,7 +139,7 @@ export function YoutubeVideoLink({ keyword, mLabel = "AI 추천", isUp = false, 
       }}
       className={`relative overflow-hidden group flex items-center gap-3 p-2 rounded-xl border transition-all hover:-translate-y-[1px] shadow-sm ${isUp ? "bg-white border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-100" : "bg-white border-zinc-200 hover:border-primary/40 hover:shadow-slate-200"}`}
     >
-      <div className="relative w-24 h-16 bg-slate-900 rounded-lg overflow-hidden flex-shrink-0">
+      <div className="relative w-24 h-16 bg-emerald-950 rounded-lg overflow-hidden flex-shrink-0">
         <img src={video.snippet.thumbnails?.default?.url || video.snippet.thumbnails?.medium?.url} alt="thumbnail" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors">
           <Play size={20} className="text-white fill-white shadow-sm" />

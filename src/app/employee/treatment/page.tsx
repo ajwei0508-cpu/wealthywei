@@ -282,14 +282,14 @@ export default function TreatmentTrainingPage() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 min-w-[280px]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-white/70">나의 교육 이수율</span>
-              <span className="text-xl font-black text-blue-400">{progress}%</span>
+              <span className="text-xl font-black text-amber-400">{progress}%</span>
             </div>
             <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
+                className="h-full bg-gradient-to-r from-emerald-700 to-blue-400 rounded-full"
               />
             </div>
             <p className="text-xs text-white/40 text-right mt-2 font-medium">{completedVideos} / {totalVideos}개 완료</p>
@@ -303,7 +303,7 @@ export default function TreatmentTrainingPage() {
               onClick={() => setSelectedCategory(category)}
               className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg transition-all whitespace-nowrap ${
                 selectedCategory === category
-                  ? "bg-blue-500 text-white shadow-blue-500/20"
+                  ? "bg-emerald-600 text-white shadow-emerald-500/20"
                   : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -319,7 +319,7 @@ export default function TreatmentTrainingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
-              className="group cursor-pointer bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-blue-500/50 hover:bg-white/10 transition-all shadow-xl"
+              className="group cursor-pointer bg-white/5 rounded-2xl overflow-hidden border border-white/10 hover:border-emerald-600/50 hover:bg-white/10 transition-all shadow-xl"
               onClick={() => {
                 setSelectedVideo(video);
                 setPlaying(true);
@@ -332,7 +332,7 @@ export default function TreatmentTrainingPage() {
                       <CheckCircle2 size={12} /> 시청 완료
                     </div>
                   ) : (
-                    <div className="bg-blue-600 animate-pulse text-white px-2 py-1 rounded-md text-[10px] font-black tracking-wider shadow-lg backdrop-blur-md">
+                    <div className="bg-emerald-700 animate-pulse text-white px-2 py-1 rounded-md text-[10px] font-black tracking-wider shadow-lg backdrop-blur-md">
                       NEW
                     </div>
                   )}
@@ -343,19 +343,19 @@ export default function TreatmentTrainingPage() {
                   </h2>
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
-                  <div className="w-14 h-14 rounded-full bg-blue-500 flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-300 shadow-xl text-white">
+                  <div className="w-14 h-14 rounded-full bg-emerald-600 flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-300 shadow-xl text-white">
                     <Play fill="currentColor" className="ml-1" size={24} />
                   </div>
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[10px] font-bold px-2.5 py-1 bg-blue-500/20 text-blue-300 rounded-md flex items-center gap-1 border border-blue-500/20">
+                  <span className="text-[10px] font-bold px-2.5 py-1 bg-emerald-600/20 text-amber-300 rounded-md flex items-center gap-1 border border-emerald-600/20">
                     <Tag size={10} />
                     {video.category}
                   </span>
                 </div>
-                <h3 className="text-white font-bold text-lg mb-2 group-hover:text-blue-400 transition-colors">{video.title}</h3>
+                <h3 className="text-white font-bold text-lg mb-2 group-hover:text-amber-400 transition-colors">{video.title}</h3>
                 <p className="text-white/40 text-sm line-clamp-2 leading-relaxed">{video.description}</p>
               </div>
             </motion.div>
@@ -382,7 +382,7 @@ export default function TreatmentTrainingPage() {
             >
               <div className="flex items-center justify-between p-4 border-b border-white/10 bg-black/20">
                 <h3 className="text-white font-bold flex items-center gap-2">
-                  <Play size={16} className="text-blue-400" />
+                  <Play size={16} className="text-amber-400" />
                   {selectedVideo.title}
                 </h3>
                 <button 
@@ -394,11 +394,11 @@ export default function TreatmentTrainingPage() {
               </div>
               <div className="aspect-video bg-black w-full relative">
                 {showQuiz && selectedVideo.options && (
-                  <div className="absolute inset-0 z-50 bg-[#05080F] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+                  <div className="absolute inset-0 z-50 bg-[#031C13] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
                     <div className="max-w-2xl w-full bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-sm">
                       <div className="flex items-center justify-center gap-3 mb-6">
-                        <div className="p-3 bg-blue-500/20 rounded-2xl">
-                          <Sparkles className="text-blue-400" size={28} />
+                        <div className="p-3 bg-emerald-600/20 rounded-2xl">
+                          <Sparkles className="text-amber-400" size={28} />
                         </div>
                       </div>
                       <h2 className="text-2xl font-black text-white text-center mb-2">돌발 퀴즈</h2>
@@ -409,7 +409,7 @@ export default function TreatmentTrainingPage() {
                           <button
                             key={i}
                             onClick={() => setQuizAnswer(i)}
-                            className={`w-full p-4 rounded-xl border text-left font-bold transition-all ${quizAnswer === i ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'}`}
+                            className={`w-full p-4 rounded-xl border text-left font-bold transition-all ${quizAnswer === i ? 'bg-emerald-700 border-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'}`}
                           >
                             <span className="mr-3 opacity-50">{i + 1}.</span>
                             {option}
@@ -421,7 +421,7 @@ export default function TreatmentTrainingPage() {
                         <button
                           onClick={handleQuizSubmit}
                           disabled={quizAnswer === null || isSubmitting}
-                          className="px-8 py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-white/10 disabled:text-white/30 text-white rounded-xl font-black text-lg transition-all"
+                          className="px-8 py-4 bg-emerald-700 hover:bg-emerald-600 disabled:bg-white/10 disabled:text-white/30 text-white rounded-xl font-black text-lg transition-all"
                         >
                           {isSubmitting ? "처리 중..." : "정답 제출하고 교육 완료하기"}
                         </button>
@@ -467,7 +467,7 @@ export default function TreatmentTrainingPage() {
                   <button 
                     onClick={!watchedVideos.includes(selectedVideo.id) ? () => handleEnded() : undefined}
                     disabled={watchedVideos.includes(selectedVideo.id)} 
-                    className={`px-5 py-2 rounded-xl font-bold flex items-center gap-2 text-sm border ${watchedVideos.includes(selectedVideo.id) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all'}`}
+                    className={`px-5 py-2 rounded-xl font-bold flex items-center gap-2 text-sm border ${watchedVideos.includes(selectedVideo.id) ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20' : 'bg-emerald-700 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 transition-all'}`}
                   >
                     <CheckCircle2 size={16} />
                     {watchedVideos.includes(selectedVideo.id) ? '시청 완료됨' : '수동 시청 완료 처리'}

@@ -270,7 +270,7 @@ export default function DonguibogamPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#0A0E1A] text-white font-sans selection:bg-amber-500/30">
+      <div className="min-h-screen bg-[#042418] text-white font-sans selection:bg-amber-500/30">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-24">
         
         {/* Page Header */}
@@ -425,12 +425,12 @@ export default function DonguibogamPage() {
                     : selectedMonth === m && !isManageMode
                     ? "bg-amber-500 border-amber-600 text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                     : compareMonth === m && !isManageMode
-                    ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                    ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
                     : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
                   }`}
                 >
                   {isManageMode && (
-                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#0A0E1A] border-white/20"}`}>
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#042418] border-white/20"}`}>
                        {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
                     </div>
                   )}
@@ -536,7 +536,7 @@ export default function DonguibogamPage() {
 
           {/* Comparison Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-amber-500/30 transition-all group shadow-xl">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-amber-500/30 transition-all group shadow-xl">
               <div className="flex justify-between items-start mb-6">
                 <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-[#0A0E1A] transition-all">
                   <TrendingUp size={22} />
@@ -561,9 +561,9 @@ export default function DonguibogamPage() {
               </div>
             </div>
 
-            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-blue-500/30 transition-all group shadow-xl">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-emerald-600/30 transition-all group shadow-xl">
               <div className="flex justify-between items-start mb-6">
-                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                <div className="p-3 bg-emerald-600/10 rounded-2xl text-amber-500 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                   <Users size={22} />
                 </div>
                 <div className="text-right">
@@ -580,7 +580,7 @@ export default function DonguibogamPage() {
               </div>
             </div>
 
-            <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-emerald-500/30 transition-all group shadow-xl">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-emerald-500/30 transition-all group shadow-xl">
               <div className="flex justify-between items-start mb-6">
                 <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
                   <Plus size={22} />
@@ -593,8 +593,8 @@ export default function DonguibogamPage() {
                 </div>
               </div>
               <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">건강보험 대비 비급여 비율</h3>
-              <div className="relative h-4 w-full bg-slate-800 rounded-lg overflow-hidden flex mt-4">
-                <div className="h-full bg-blue-500" style={{ width: `${100 - nonCoveredRatio}%` }} />
+              <div className="relative h-4 w-full bg-emerald-900 rounded-lg overflow-hidden flex mt-4">
+                <div className="h-full bg-emerald-600" style={{ width: `${100 - nonCoveredRatio}%` }} />
                 <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
               </div>
             </div>
@@ -602,12 +602,12 @@ export default function DonguibogamPage() {
 
           {/* Premium Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                <div className="p-2 bg-emerald-600/10 rounded-xl text-amber-500 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                   <ShieldCheck size={20} />
                 </div>
-                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">Insurance</span>
+                <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-emerald-600/10 px-2 py-0.5 rounded-full mb-1 inline-block">Insurance</span>
               </div>
               <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">보험 수익 (본인+청구)</p>
               <div className="flex items-baseline gap-1">
@@ -616,7 +616,7 @@ export default function DonguibogamPage() {
               </div>
             </div>
 
-            <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
                   <AlertCircle size={20} />
@@ -630,7 +630,7 @@ export default function DonguibogamPage() {
               </div>
             </div>
 
-            <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
                   <Plus size={20} />
@@ -644,7 +644,7 @@ export default function DonguibogamPage() {
               </div>
             </div>
 
-            <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+            <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
                 <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-all">
                   <CreditCard size={20} />
@@ -662,7 +662,7 @@ export default function DonguibogamPage() {
           {/* Patient Metrics Summary Bar */}
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6 px-4">
-              <div className="h-6 w-1.5 bg-blue-500 rounded-full" />
+              <div className="h-6 w-1.5 bg-emerald-600 rounded-full" />
               <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Patient Flow Statistics</h3>
             </div>
             <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
@@ -673,7 +673,7 @@ export default function DonguibogamPage() {
               <div className="w-px h-10 bg-white/10 hidden md:block"></div>
               <div className="flex flex-col items-end">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">신규 환자 수</p>
-                <p className="text-2xl font-black text-blue-400 leading-none">{formatNumber(displayData.newPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                <p className="text-2xl font-black text-amber-400 leading-none">{formatNumber(displayData.newPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
               </div>
               <div className="w-px h-10 bg-white/10 hidden md:block"></div>
               <div className="flex flex-col items-end">
@@ -686,7 +686,7 @@ export default function DonguibogamPage() {
           {/* Treatment Breakdown List */}
           <div className="mb-12">
             <div className="space-y-8">
-              <div className="bg-[#111624] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
+              <div className="bg-[#0A3D2A] border border-white/5 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden group">
                 <div className="flex items-center justify-between mb-8 relative z-10">
                   <h2 className="text-2xl font-bold flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -742,7 +742,7 @@ export default function DonguibogamPage() {
             onClick={() => router.push("/ai-intelligence?emr=donguibogam")}
             className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 shadow-2xl shadow-amber-500/20 active:scale-[0.98] transition-all"
           >
-            <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+            <div className="relative bg-[#042418] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
               <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
                 <BrainCircuit size={300} />
               </div>

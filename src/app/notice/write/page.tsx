@@ -63,8 +63,8 @@ export default function NoticeWritePage() {
   if (status === "loading" || !isMaster) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#05080F] flex items-center justify-center">
-          <Loader2 size={32} className="text-blue-500 animate-spin" />
+        <div className="min-h-screen bg-[#031C13] flex items-center justify-center">
+          <Loader2 size={32} className="text-amber-500 animate-spin" />
         </div>
       </DashboardLayout>
     );
@@ -72,7 +72,7 @@ export default function NoticeWritePage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#05080F] text-white font-sans p-8 md:p-12 lg:p-20">
+      <div className="min-h-screen bg-[#031C13] text-white font-sans p-8 md:p-12 lg:p-20">
         <div className="max-w-4xl mx-auto space-y-12">
           
           {/* Header */}
@@ -83,14 +83,14 @@ export default function NoticeWritePage() {
             >
               <ArrowLeft size={20} />
             </button>
-            <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-              <PenTool size={24} className="text-blue-400" />
+            <div className="w-12 h-12 bg-emerald-600/10 rounded-2xl flex items-center justify-center border border-emerald-600/20">
+              <PenTool size={24} className="text-amber-400" />
             </div>
             <h1 className="text-4xl font-black tracking-tight">공지사항 작성</h1>
           </div>
 
           {/* Form */}
-          <div className="bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+          <div className="bg-[#083021]/80 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-6">
               
               <div className="space-y-2">
@@ -100,7 +100,7 @@ export default function NoticeWritePage() {
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
                   placeholder="공지사항 제목을 입력하세요"
-                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-600/50 focus:ring-1 focus:ring-emerald-500/50 transition-all"
                 />
               </div>
 
@@ -111,7 +111,7 @@ export default function NoticeWritePage() {
                   onChange={e => setFormData({ ...formData, content: e.target.value })}
                   placeholder="공지사항 내용을 입력하세요"
                   rows={12}
-                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all resize-none"
+                  className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-4 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-600/50 focus:ring-1 focus:ring-emerald-500/50 transition-all resize-none"
                 />
               </div>
 
@@ -121,7 +121,7 @@ export default function NoticeWritePage() {
                   id="isNew"
                   checked={formData.isNew}
                   onChange={e => setFormData({ ...formData, isNew: e.target.checked })}
-                  className="w-5 h-5 rounded border-white/20 bg-black/20 text-blue-500 focus:ring-blue-500/50"
+                  className="w-5 h-5 rounded border-white/20 bg-black/20 text-amber-500 focus:ring-emerald-500/50"
                 />
                 <label htmlFor="isNew" className="text-sm font-medium text-slate-300 cursor-pointer">
                   NEW 뱃지 표시하기
@@ -139,7 +139,7 @@ export default function NoticeWritePage() {
                 <button 
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-2 px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                  className="flex items-center gap-2 px-8 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:bg-emerald-700/50 text-white font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : <PenTool size={18} />}
                   등록하기

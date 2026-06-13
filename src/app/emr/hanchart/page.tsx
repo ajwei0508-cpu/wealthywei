@@ -241,7 +241,7 @@ export default function HanchartPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#0A0E1A] text-white font-sans selection:bg-gold-500/30">
+      <div className="min-h-screen bg-[#042418] text-white font-sans selection:bg-gold-500/30">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-24">
           
           {/* Header Section */}
@@ -362,12 +362,12 @@ export default function HanchartPage() {
                       : selectedMonth === m && !isManageMode
                       ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                       : compareMonth === m && !isManageMode
-                      ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                      ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
                       : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
                     }`}
                   >
                     {isManageMode && (
-                      <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#0A0E1A] border-white/20"}`}>
+                      <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${selectedMonthsForDelete.includes(m) ? "bg-rose-500 border-rose-500" : "bg-[#042418] border-white/20"}`}>
                          {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
                       </div>
                     )}
@@ -468,10 +468,10 @@ export default function HanchartPage() {
                           {m.split("-")[1]}월
                         </span>
                         
-                        <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-slate-800 border border-white/10 p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none min-w-[120px] shadow-2xl">
+                        <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-emerald-900 border border-white/10 p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none min-w-[120px] shadow-2xl">
                           <p className="text-[10px] font-black text-slate-500 mb-1 uppercase">{formatMonth(m)}</p>
                           <p className="text-sm font-black text-white">{formatNumber(rev)}원</p>
-                          <p className="text-[10px] font-bold text-blue-400 mt-1">{formatNumber(mData.count.total)}명 내원</p>
+                          <p className="text-[10px] font-bold text-amber-400 mt-1">{formatNumber(mData.count.total)}명 내원</p>
                         </div>
                       </div>
                     );
@@ -482,7 +482,7 @@ export default function HanchartPage() {
 
             {/* Comparison Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-gold-500/30 transition-all group shadow-xl">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-gold-500/30 transition-all group shadow-xl">
                 <div className="flex justify-between items-start mb-6">
                   <div className="p-3 bg-gold-500/10 rounded-2xl text-gold-500 group-hover:bg-gold-500 group-hover:text-[#0A0E1A] transition-all">
                     <TrendingUp size={22} />
@@ -504,7 +504,7 @@ export default function HanchartPage() {
                     <span className="text-[10px] text-gold-500 font-bold uppercase">{formatMonth(selectedMonth)}</span>
                     <span className="text-xl font-black text-white">{formatNumber(summary.total)}</span>
                   </div>
-                  <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden mt-2">
+                  <div className="h-1.5 w-full bg-emerald-900 rounded-full overflow-hidden mt-2">
                     <div 
                       className="h-full bg-gold-500" 
                       style={{ width: `${Math.min(100, (summary.total / (pSummary.total || 1)) * 50)}%` }}
@@ -513,9 +513,9 @@ export default function HanchartPage() {
                 </div>
               </div>
 
-              <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-blue-500/30 transition-all group shadow-xl">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-emerald-600/30 transition-all group shadow-xl">
                 <div className="flex justify-between items-start mb-6">
-                  <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                  <div className="p-3 bg-emerald-600/10 rounded-2xl text-amber-500 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                     <Users size={22} />
                   </div>
                   <div className="text-right">
@@ -530,12 +530,12 @@ export default function HanchartPage() {
                   <span className="text-3xl font-black text-white tracking-tighter">{formatNumber(Math.round(revenuePerPatient))}</span>
                   <span className="text-sm font-bold text-slate-500">원 / 명</span>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 text-[11px] text-blue-200/60 leading-relaxed">
-                  지난달 대비 객단가가 <span className="text-blue-400 font-bold">{formatNumber(Math.abs(Math.round(revenuePerPatient - pRevenuePerPatient)))}원</span> {revenuePerPatient >= pRevenuePerPatient ? "증가" : "감소"}했습니다.
+                <div className="p-3 rounded-xl bg-emerald-600/5 border border-emerald-600/10 text-[11px] text-blue-200/60 leading-relaxed">
+                  지난달 대비 객단가가 <span className="text-amber-400 font-bold">{formatNumber(Math.abs(Math.round(revenuePerPatient - pRevenuePerPatient)))}원</span> {revenuePerPatient >= pRevenuePerPatient ? "증가" : "감소"}했습니다.
                 </div>
               </div>
 
-              <div className="bg-[#111624] rounded-[2rem] p-6 border border-white/5 hover:border-amber-500/30 transition-all group shadow-xl">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 border border-white/5 hover:border-amber-500/30 transition-all group shadow-xl">
                 <div className="flex justify-between items-start mb-6">
                   <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
                     <Zap size={22} />
@@ -546,7 +546,7 @@ export default function HanchartPage() {
                   </div>
                 </div>
                 <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase tracking-tighter">비급여 매출 비중</h3>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden mt-4">
+                <div className="h-2 w-full bg-emerald-900 rounded-full overflow-hidden mt-4">
                   <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
                 </div>
                 <p className="text-[10px] text-slate-500 italic mt-4 text-center">
@@ -558,11 +558,11 @@ export default function HanchartPage() {
             {/* Premium Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
               {/* Insurance */}
-              <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform"><ShieldCheck size={80} /></div>
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-all"><ShieldCheck size={20} /></div>
-                  <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-full">Insurance</span>
+                  <div className="p-2 bg-emerald-600/10 rounded-xl text-amber-500 group-hover:bg-emerald-600 group-hover:text-white transition-all"><ShieldCheck size={20} /></div>
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-emerald-600/10 px-2 py-0.5 rounded-full">Insurance</span>
                 </div>
                 <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">보험 수익 (급여 총합)</p>
                 <div className="flex items-baseline gap-1">
@@ -576,7 +576,7 @@ export default function HanchartPage() {
               </div>
 
               {/* Non-Covered */}
-              <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform"><Zap size={80} /></div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all"><Zap size={20} /></div>
@@ -588,7 +588,7 @@ export default function HanchartPage() {
                   <span className="text-xs font-bold text-slate-500">원</span>
                 </div>
                 <div className="mt-6 space-y-2">
-                  <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full bg-emerald-900 rounded-full overflow-hidden">
                     <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
                   </div>
                   <p className="text-[10px] text-slate-500 font-bold">전체 매출의 {nonCoveredRatio.toFixed(1)}%</p>
@@ -596,7 +596,7 @@ export default function HanchartPage() {
               </div>
 
               {/* Auto Insurance */}
-              <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform"><ActivityIcon size={80} /></div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all"><ActivityIcon size={20} /></div>
@@ -613,7 +613,7 @@ export default function HanchartPage() {
               </div>
 
               {/* Total Patients */}
-              <div className="bg-[#111624] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
+              <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform"><Users size={80} /></div>
                 <div className="flex justify-between items-start mb-4">
                   <div className="p-2 bg-indigo-500/10 rounded-xl text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-all"><Users size={20} /></div>
@@ -651,7 +651,7 @@ export default function HanchartPage() {
                 <div className="flex flex-col items-center">
                   <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">신규 환자 수</p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-black text-blue-400">{formatNumber(summary.count.new)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                    <p className="text-2xl font-black text-amber-400">{formatNumber(summary.count.new)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
                     {compareMonth && (
                       <span className={`text-[10px] font-bold ${summary.count.new >= pSummary.count.new ? "text-emerald-400" : "text-rose-400"}`}>
                         {summary.count.new >= pSummary.count.new ? "▲" : "▼"} {Math.abs(summary.count.new - pSummary.count.new)}
@@ -691,7 +691,7 @@ export default function HanchartPage() {
                 onClick={() => router.push("/ai-intelligence?emr=hanchart")}
                 className="w-full relative group overflow-hidden rounded-[3rem] p-1 bg-gradient-to-r from-gold-400 via-amber-500 to-yellow-600 shadow-2xl shadow-gold-500/20 active:scale-[0.98] transition-all"
               >
-                <div className="relative bg-[#0A0E1A] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
+                <div className="relative bg-[#042418] rounded-[2.9rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8 overflow-hidden">
                   <div className="absolute top-0 right-0 p-20 opacity-[0.03] group-hover:scale-110 group-hover:rotate-12 transition-all duration-700">
                     <BrainCircuit size={300} />
                   </div>

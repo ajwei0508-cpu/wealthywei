@@ -146,7 +146,7 @@ export default function ChartingTemplatesPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+            <div className="p-2 bg-blue-100 text-amber-600 rounded-lg">
               <FileText className="w-6 h-6" />
             </div>
             <h1 className="text-3xl font-black tracking-tight text-gray-900">질환별 스마트 차팅</h1>
@@ -161,7 +161,7 @@ export default function ChartingTemplatesPage() {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all shadow-sm"
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-600 sm:text-sm transition-all shadow-sm"
             placeholder="질환명 또는 차팅 내용 검색..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -184,7 +184,7 @@ export default function ChartingTemplatesPage() {
               filteredData.map((category, catIdx) => (
                 <div key={catIdx} className="space-y-2">
                   <div className="flex items-center gap-2 px-3 py-1">
-                    <div className="text-blue-500">
+                    <div className="text-amber-500">
                       {category.icon}
                     </div>
                     <h3 className="font-bold text-gray-800 text-sm">{category.category}</h3>
@@ -203,7 +203,7 @@ export default function ChartingTemplatesPage() {
                         <span className={`text-sm font-medium ${selectedItem.title === item.title ? 'text-blue-700' : 'text-gray-600 group-hover:text-gray-900'}`}>
                           {item.title}
                         </span>
-                        <ChevronRight className={`w-4 h-4 ${selectedItem.title === item.title ? 'text-blue-500' : 'text-gray-300 group-hover:text-gray-500'}`} />
+                        <ChevronRight className={`w-4 h-4 ${selectedItem.title === item.title ? 'text-amber-500' : 'text-gray-300 group-hover:text-gray-500'}`} />
                       </button>
                     ))}
                   </div>
@@ -221,7 +221,7 @@ export default function ChartingTemplatesPage() {
           <div className="p-8 flex-1 flex flex-col">
             <div className="flex items-start justify-between mb-8">
               <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-xs font-bold mb-3 border border-blue-100">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-amber-600 text-xs font-bold mb-3 border border-blue-100">
                   <Sparkles className="w-3.5 h-3.5" />
                   스마트 차팅 템플릿
                 </span>

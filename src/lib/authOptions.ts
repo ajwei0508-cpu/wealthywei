@@ -77,6 +77,10 @@ export const authOptions: NextAuthOptions = {
 
           if (error || !data) return null;
 
+          if (data.is_blocked) {
+            throw new Error("보안 정책에 의해 해당 계정의 접속이 차단되었습니다.");
+          }
+
           if (data.password === credentials.password) {
             return {
               id: data.id,
@@ -84,7 +88,8 @@ export const authOptions: NextAuthOptions = {
               email: `staff_${data.phone}@bareun.app`, // fake email to satisfy NextAuth
               // @ts-ignore
               role: "staff",
-              parent_email: data.parent_email
+              parent_email: data.parent_email,
+              clinic_name: data.clinic_name
             };
           }
           return null;
@@ -135,6 +140,8 @@ export const authOptions: NextAuthOptions = {
           token.role = user.role;
           // @ts-ignore
           token.parent_email = user.parent_email;
+          // @ts-ignore
+          token.clinic_name = user.clinic_name;
         }
       }
       return token;
@@ -198,6 +205,10 @@ export const authOptions: NextAuthOptions = {
           session.user.approvalStatus = 'approved';
           // @ts-ignore
           session.user.approvedCategories = ['treatment']; // Staff only gets treatment videos by default
+          // @ts-ignore
+          session.user.clinicName = token.clinic_name;
+          // @ts-ignore
+          session.user.realName = token.name;
         }
       }
       return session;

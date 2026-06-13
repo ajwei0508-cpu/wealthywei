@@ -97,14 +97,14 @@ export default function DetailsPage() {
     { category: "generatedRevenue", key: "copay", label: "본인 부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
     { category: "generatedRevenue", key: "nonCovered", label: "비급여 매출", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
     { category: "generatedRevenue", key: "auto", label: "자동차 보험", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
-    { category: "patientMetrics", key: "total", label: "내원 환자수 (유입)", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+    { category: "patientMetrics", key: "total", label: "내원 환자수 (유입)", unit: "명", icon: Users, color: "text-amber-600", bg: "bg-blue-50" },
     { category: "patientMetrics", key: "new", label: "신규 환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
     { category: "generatedRevenue", key: "total", label: "발생 매출 (총진료비)", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
     { category: "custom", key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
     { category: "leakage", key: "discountTotal", label: "매출 누수 (할인)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-50" },
     { category: "leakage", key: "receivables", label: "매출 누수 (미수)", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
     { category: "paymentMethods", key: "cash", label: "현금 수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
-    { category: "paymentMethods", key: "card", label: "카드 수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
+    { category: "paymentMethods", key: "card", label: "카드 수납", unit: "원", icon: CreditCard, color: "text-amber-500", bg: "bg-blue-50" },
   ], []);
 
   // Analysis Insights Logic (Best/Worst)
@@ -357,7 +357,7 @@ export default function DetailsPage() {
         <section className="animate-in fade-in slide-in-from-top-4 duration-700">
           <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-none p-8 md:p-12 shadow-2xl relative overflow-hidden group rounded-[40px]">
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[120px] -mr-48 -mt-48 rounded-full group-hover:bg-primary/20 transition-colors duration-1000"></div>
-            <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/10 blur-[100px] -ml-36 -mb-36 rounded-full"></div>
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-emerald-600/10 blur-[100px] -ml-36 -mb-36 rounded-full"></div>
 
             <div className="relative z-10 space-y-10">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -501,9 +501,9 @@ export default function DetailsPage() {
               </Card>
 
               <Card className="glass-card p-8 flex flex-col gap-6 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/80"></div>
+                <div className="absolute top-0 left-0 w-2 h-full bg-emerald-600/80"></div>
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                  <div className="p-3 bg-blue-50 text-amber-600 rounded-2xl">
                     <AlertTriangle size={24} />
                   </div>
                   <h3 className="font-bold text-zinc-900 text-lg">집중 개선 지표</h3>
@@ -511,7 +511,7 @@ export default function DetailsPage() {
                 <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{insights.worst.label}</span>
-                    <span className="text-xl font-bold text-blue-500">
+                    <span className="text-xl font-bold text-amber-500">
                       ▼<AnimatedPercent value={Math.abs(parseFloat(insights.worst.delta?.percent || "0")).toString()} />%
                     </span>
                   </div>
@@ -583,7 +583,7 @@ export default function DetailsPage() {
                             key={`${selectedMonth}-${compareMonth}-${m.key}`}
                             initial={{ opacity: 0, x: 5 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className={`flex items-center gap-0.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${delta.isUp ? "bg-rose-50/80 text-rose-600" : "bg-blue-50/80 text-blue-600"}`}
+                            className={`flex items-center gap-0.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${delta.isUp ? "bg-rose-50/80 text-rose-600" : "bg-blue-50/80 text-amber-600"}`}
                           >
                             {delta.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                             <AnimatedPercent value={delta.percent} />%

@@ -390,7 +390,7 @@ export default function MasterDashboardPortal() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-primary/5 text-primary rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">데이터 보유 병원</p><p className="text-2xl font-extrabold text-slate-900">{unifiedData.length}곳</p></div></Card>
           <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><Database size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">매출 기록 총계</p><p className="text-2xl font-extrabold text-slate-900">{allData.length}건</p></div></Card>
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-blue-50 text-blue-600 rounded-2xl"><ClipboardList size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">워크북 작성 중</p><p className="text-2xl font-extrabold text-slate-900">{workbooks.length}건</p></div></Card>
+          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-blue-50 text-amber-600 rounded-2xl"><ClipboardList size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">워크북 작성 중</p><p className="text-2xl font-extrabold text-slate-900">{workbooks.length}건</p></div></Card>
           <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Check size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">워크북 제출 완료</p><p className="text-2xl font-extrabold text-slate-900">{workbooks.filter(w=>w.submitted).length}건</p></div></Card>
         </div>
         <Card className="bg-white overflow-hidden p-0 border-none shadow-2xl rounded-[32px]">
@@ -451,7 +451,7 @@ export default function MasterDashboardPortal() {
                                   </span>
                                 )}
                                 {item.revenue.changeType === "down" && (
-                                  <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                  <span className="bg-blue-50 text-amber-600 border border-blue-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
                                     <TrendingDown size={10} />
                                     {item.revenue.changeRate.toFixed(1)}%
                                   </span>
@@ -500,7 +500,7 @@ export default function MasterDashboardPortal() {
                                     className={`px-2 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 border shadow-sm transition-all hover:scale-105 ${
                                       isUp 
                                         ? "bg-rose-50 text-rose-600 border-rose-100" 
-                                        : "bg-blue-50 text-blue-600 border-blue-100"
+                                        : "bg-blue-50 text-amber-600 border-blue-100"
                                     }`}
                                   >
                                     {label} {isUp ? "+" : ""}{ind.rate.toFixed(1)}% {isUp ? "▲" : "▼"}
@@ -510,8 +510,8 @@ export default function MasterDashboardPortal() {
                             })()}
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded border border-blue-100">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
-                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
+                        <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-blue-50 text-amber-600 text-[9px] font-black rounded border border-blue-100">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
+                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-amber-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
                       </tr>
                       {isExpanded && (
                         <tr className="bg-slate-50/30">
@@ -644,7 +644,7 @@ export default function MasterDashboardPortal() {
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit">{perms.clinic_name || "한의원 미입력"}</span>
+                        <span className="text-xs font-bold text-amber-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit">{perms.clinic_name || "한의원 미입력"}</span>
                         {perms.age && <span className="text-[10px] text-zinc-500 font-medium ml-1">{perms.age}세</span>}
                       </div>
                     </td>
@@ -697,7 +697,7 @@ export default function MasterDashboardPortal() {
                     <td className="px-8 py-5">
                       <div className="flex items-center justify-center gap-2">
                         {hasRev && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100">매출</span>}
-                        {hasWb && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded-md border border-blue-100">워크북</span>}
+                        {hasWb && <span className="px-2 py-0.5 bg-blue-50 text-amber-600 text-[9px] font-bold rounded-md border border-blue-100">워크북</span>}
                       </div>
                     </td>
                   </tr>
@@ -770,7 +770,7 @@ export default function MasterDashboardPortal() {
           <div className="md:col-span-2 flex items-center justify-end">
             <button 
               onClick={handleMasterGenerateInvite}
-              className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg shadow-slate-900/20"
+              className="px-6 py-3 bg-emerald-950 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-emerald-900 transition shadow-lg shadow-slate-900/20"
             >
               <Crown size={16} className="text-amber-400" />
               마스터 대리 초대 코드 발급
@@ -857,7 +857,7 @@ export default function MasterDashboardPortal() {
       {renderHeader()}
       <div className="max-w-7xl mx-auto p-6 md:p-12">{renderContent()}</div>
       {selectedWorkbook && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-sm overflow-y-auto">
           <div className="bg-[#F2F4F6] w-full max-w-5xl rounded-[40px] shadow-2xl relative my-8">
             <div className="p-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6 bg-white p-6 rounded-[32px]">

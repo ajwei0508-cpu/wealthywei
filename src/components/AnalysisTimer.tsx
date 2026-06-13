@@ -41,7 +41,7 @@ export default function AnalysisTimer({ isLoading, estimatedSeconds = 30, onTime
   if (!isLoading) return null;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-black shadow-lg shadow-blue-500/5 animate-in fade-in slide-in-from-top-1 duration-500">
+    <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600/10 border border-emerald-600/20 text-amber-400 text-xs font-black shadow-lg shadow-emerald-500/5 animate-in fade-in slide-in-from-top-1 duration-500">
       <Clock size={14} className="animate-pulse" />
       <span className="tracking-widest uppercase">분석 완료까지 예상 시간: </span>
       <span className="text-white font-black tabular-nums">{formatTime(timeLeft)}</span>

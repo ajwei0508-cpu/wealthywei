@@ -18,7 +18,8 @@ import {
   Sparkles,
   RefreshCw,
   Bell,
-  MessageSquare
+  MessageSquare,
+  PhoneCall
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -50,7 +51,7 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
         }`}
       >
         <div className="flex items-center gap-3">
-          <Icon size={20} className={isLocked ? "text-white/20" : isActive ? "text-blue-400" : "group-hover:text-blue-400"} />
+          <Icon size={20} className={isLocked ? "text-white/20" : isActive ? "text-amber-400" : "group-hover:text-amber-400"} />
           <span className="text-sm font-semibold tracking-tight flex items-center gap-2">
             {label}
             {hasNew && (
@@ -157,8 +158,7 @@ export default function DashboardSidebar() {
       label: "직원", 
       items: [
         { label: "접수실교육", url: "/employee/reception" },
-        { label: "치료실교육", url: "/employee/treatment" },
-        { label: "재내원 해피콜", url: "/employee/happycall" }
+        { label: "치료실교육", url: "/employee/treatment" }
       ] 
     },
     { label: "실비", soon: true },
@@ -181,15 +181,15 @@ export default function DashboardSidebar() {
   };
 
   return (
-    <aside className="w-72 h-screen bg-[#1A365D] flex flex-col fixed left-0 top-0 z-50 text-white shadow-2xl overflow-hidden border-r border-white/5">
+    <aside className="w-72 h-screen bg-[#031C13] flex flex-col fixed left-0 top-0 z-50 text-white shadow-2xl overflow-hidden border-r border-white/5">
       {/* Logo Section */}
       <div className="p-8 pb-10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
           <TrendingUp size={24} className="text-white" strokeWidth={2.5} />
         </div>
         <div className="flex flex-col">
           <h1 className="text-lg font-black tracking-tighter leading-none">바른컨설팅</h1>
-          <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest mt-1">Management Platform</span>
+          <span className="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-1">Management Platform</span>
         </div>
       </div>
 
@@ -243,11 +243,11 @@ export default function DashboardSidebar() {
                                   href={item.url}
                                   target={isExternal ? "_blank" : undefined}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
-                                  className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-blue-300 transition-colors"
+                                  className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-amber-300 transition-colors"
                                 >
                                   <div className="w-1 h-[1px] bg-white/20"></div>
                                   {item.label}
-                                  <Sparkles size={10} className="text-blue-400 opacity-50" />
+                                  <Sparkles size={10} className="text-amber-400 opacity-50" />
                                 </Link>
                               );
                             })}
@@ -310,27 +310,19 @@ export default function DashboardSidebar() {
               <div className="mb-1 space-y-1 pl-4 pt-1">
                  <Link 
                    href="/employee/reception" 
-                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     접수실교육
-                    <Sparkles size={10} className="text-blue-400 opacity-50" />
+                    <Sparkles size={10} className="text-amber-400 opacity-50" />
                  </Link>
                  <Link 
                    href="/employee/treatment" 
-                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') === false && pathname.startsWith('/employee/treatment') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') === false && pathname.startsWith('/employee/treatment') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     치료실교육
-                    <Sparkles size={10} className="text-blue-400 opacity-50" />
-                 </Link>
-                 <Link 
-                   href="/employee/happycall" 
-                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/happycall') ? 'text-blue-300 font-bold' : 'text-white/50 hover:text-blue-300'}`}
-                 >
-                    <div className="w-1 h-[1px] bg-white/20"></div>
-                    재내원 해피콜
-                    <Sparkles size={10} className="text-blue-400 opacity-50" />
+                    <Sparkles size={10} className="text-amber-400 opacity-50" />
                  </Link>
               </div>
             </NavItem>
@@ -355,6 +347,15 @@ export default function DashboardSidebar() {
               isLocked={!isPrescriptionApproved && !isMaster} 
             />
           )}
+
+          {/* 재내원 해피콜 (Standalone Menu Item for all roles) */}
+          <NavItem 
+            icon={PhoneCall} 
+            label="재내원 해피콜" 
+            isLocked={userRole !== 'staff' && !isConsultingApproved && !isMaster}
+            isActive={pathname.startsWith("/happycall")}
+            onClick={() => router.push("/happycall")}
+          />
         </div>
 
         <div className="mt-10 mb-4 pt-10 border-t border-white/5">
@@ -406,9 +407,9 @@ export default function DashboardSidebar() {
           <div className="flex flex-col gap-2 mt-4">
             <Link 
               href="/master"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-blue-400/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-blue-400/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-emerald-500/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-emerald-500/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
             >
-              <BarChart3 size={14} className="text-blue-400 group-hover:scale-110 transition-transform" />
+              <BarChart3 size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
               마스터 매출 통계 관리
             </Link>
           </div>
@@ -418,7 +419,7 @@ export default function DashboardSidebar() {
         {userRole !== 'staff' && (
           <Link 
             href="/survey"
-            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-blue-500/10 border border-blue-400/20 hover:bg-blue-500/20 hover:border-blue-400/40 text-blue-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-emerald-600/10 border border-emerald-500/20 hover:bg-emerald-600/20 hover:border-emerald-500/40 text-amber-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
           >
             <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
             경영 진단 워크북 작성

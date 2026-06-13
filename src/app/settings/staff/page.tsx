@@ -103,7 +103,7 @@ export default function StaffManagementPage() {
           <header className="flex items-end justify-between">
             <div>
               <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-                <Users className="text-blue-600" />
+                <Users className="text-amber-600" />
                 직원 계정 관리
               </h1>
               <p className="text-slate-500 mt-2 font-medium leading-relaxed">
@@ -123,7 +123,7 @@ export default function StaffManagementPage() {
               <button 
                 onClick={() => handleGenerateCode(24)}
                 disabled={isGenerating}
-                className="px-6 py-3 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl font-bold transition-colors flex items-center gap-2 border border-blue-200"
+                className="px-6 py-3 bg-blue-50 text-amber-600 hover:bg-blue-100 rounded-xl font-bold transition-colors flex items-center gap-2 border border-blue-200"
               >
                 <Plus size={18} /> 24시간 유효 코드 만들기
               </button>
@@ -212,17 +212,17 @@ export default function StaffManagementPage() {
 
                       return (
                         <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 font-bold text-blue-600">{s.clinic_name}</td>
+                          <td className="px-6 py-4 font-bold text-amber-600">{s.clinic_name}</td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-slate-900">{s.name}</div>
-                            <div className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block font-bold">교육 전용</div>
+                            <div className="text-[10px] text-amber-500 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block font-bold">교육 전용</div>
                           </td>
                           <td className="px-6 py-4 font-medium text-slate-700">{s.phone}</td>
                           <td className="px-6 py-4 text-sm text-slate-500">{new Date(s.created_at).toLocaleDateString('ko-KR')}</td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex flex-col items-center gap-1.5 w-24 mx-auto">
                               <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden relative">
-                                <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${progressPct}%` }} />
+                                <div className="h-full bg-emerald-600 transition-all duration-1000" style={{ width: `${progressPct}%` }} />
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] font-black text-slate-600">{progressPct}%</span>

@@ -228,11 +228,11 @@ export default function AiIntelligencePage() {
   if (availableMonths.length === 0) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#05080F] text-white flex items-center justify-center p-8">
+        <div className="min-h-screen bg-[#031C13] text-white flex items-center justify-center p-8">
           <div className="text-center space-y-6">
             <div className="relative inline-block">
-               <BrainCircuit size={80} className="text-blue-500/20" />
-               <Sparkles size={40} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 animate-pulse" />
+               <BrainCircuit size={80} className="text-amber-500/20" />
+               <Sparkles size={40} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-400 animate-pulse" />
             </div>
             <h2 className="text-3xl font-black">분석할 데이터가 부족합니다.</h2>
             <p className="text-slate-500 max-w-sm mx-auto">한차트나 오케이차트 메뉴에서 월별 매출 통계 엑셀 파일을 먼저 업로드해 주세요.</p>
@@ -244,12 +244,12 @@ export default function AiIntelligencePage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#05080F] text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
+      <div className="min-h-screen bg-[#031C13] text-white font-sans selection:bg-emerald-600/30 overflow-x-hidden">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 pt-28">
           
           {/* Header & Controls */}
           <section className="flex flex-col lg:flex-row items-start justify-between gap-12 mb-20 relative">
-            <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none" />
+            <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-emerald-700/10 rounded-full blur-[150px] pointer-events-none" />
             
             <div className="relative z-10 space-y-6 max-w-3xl">
               <motion.div 
@@ -257,7 +257,7 @@ export default function AiIntelligencePage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-center gap-3"
               >
-                <span className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
+                <span className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-600/10 border border-emerald-600/20 text-amber-400 text-[10px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(59,130,246,0.1)]">
                   <BrainCircuit size={14} className="animate-pulse" /> 
                   AI Management Intelligence
                 </span>
@@ -273,7 +273,7 @@ export default function AiIntelligencePage() {
                  emrType === 'okchart' ? '오케이차트' : 
                  emrType === 'hanisarang' ? '한의사랑' : 
                  emrType === 'donguibogam' ? '동의보감' : '통합'} <br/>
-                <span className="text-blue-500">인텔리전스</span> 센터
+                <span className="text-amber-500">인텔리전스</span> 센터
               </motion.h1>
               
               <motion.p 
@@ -301,7 +301,7 @@ export default function AiIntelligencePage() {
                       className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(startMonth)}
-                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isStartOpen ? "rotate-180 text-blue-400" : ""}`} />
+                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isStartOpen ? "rotate-180 text-amber-400" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -310,13 +310,13 @@ export default function AiIntelligencePage() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#1A1F35] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
+                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#10563C] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
                         >
                           {availableMonths.map(m => (
                             <button
                               key={m}
                               onClick={() => { setStartMonth(m); setIsStartOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-blue-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -333,7 +333,7 @@ export default function AiIntelligencePage() {
                       className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(endMonth)}
-                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isEndOpen ? "rotate-180 text-blue-400" : ""}`} />
+                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isEndOpen ? "rotate-180 text-amber-400" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -342,13 +342,13 @@ export default function AiIntelligencePage() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#1A1F35] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
+                          className="absolute z-[100] top-full left-0 right-0 mt-2 max-h-[300px] overflow-y-auto no-scrollbar bg-[#10563C] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl p-2"
                         >
                           {availableMonths.map(m => (
                             <button
                               key={m}
                               onClick={() => { setEndMonth(m); setIsEndOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-blue-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -394,8 +394,8 @@ export default function AiIntelligencePage() {
                   className="bg-white/[0.02] border border-white/5 rounded-[4rem] p-20 flex flex-col items-center justify-center space-y-8 min-h-[600px]"
                 >
                   <div className="relative">
-                    <div className="w-24 h-24 border-4 border-blue-500/10 border-t-blue-500 rounded-full animate-spin" />
-                    <BrainCircuit size={32} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 animate-pulse" />
+                    <div className="w-24 h-24 border-4 border-emerald-600/10 border-t-blue-500 rounded-full animate-spin" />
+                    <BrainCircuit size={32} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-400 animate-pulse" />
                   </div>
                   <div className="text-center space-y-2">
                     <h3 className="text-2xl font-black text-white">AI 전략 데이터 큐레이션</h3>
@@ -419,12 +419,12 @@ export default function AiIntelligencePage() {
                     <div className="relative z-10">
                       <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 border-b border-white/5 pb-12">
                         <div className="flex items-center gap-6">
-                           <div className="h-20 w-20 rounded-3xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                           <div className="h-20 w-20 rounded-3xl bg-emerald-600/10 flex items-center justify-center text-amber-400 border border-emerald-600/20">
                              <BarChart3 size={40} />
                            </div>
                            <div>
                              <h2 className="text-3xl font-black text-white tracking-tight">심층 경영 전략 브리핑</h2>
-                             <p className="text-blue-500/60 text-sm font-black uppercase tracking-[0.3em] mt-1">Full Executive Intelligence</p>
+                             <p className="text-amber-500/60 text-sm font-black uppercase tracking-[0.3em] mt-1">Full Executive Intelligence</p>
                            </div>
                         </div>
                         <div className="flex items-center gap-4">
@@ -433,11 +433,11 @@ export default function AiIntelligencePage() {
                              <p className="text-sm font-bold text-emerald-400">HIGH FIDELITY</p>
                            </div>
                            <div className="h-12 w-[1px] bg-white/10 hidden md:block" />
-                           <ShieldCheck size={32} className="text-blue-500/50" />
+                           <ShieldCheck size={32} className="text-amber-500/50" />
                         </div>
                       </div>
 
-                      <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed prose-h3:text-blue-400 prose-h3:text-2xl prose-h3:font-black prose-li:text-slate-400">
+                      <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed prose-h3:text-amber-400 prose-h3:text-2xl prose-h3:font-black prose-li:text-slate-400">
                         <div className="whitespace-pre-wrap font-light tracking-wide">
                           {aiData?.detailedAnalysis || briefing}
                         </div>
@@ -448,16 +448,16 @@ export default function AiIntelligencePage() {
                   {/* Action Plan & Video Recommendation */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Action Plan */}
-                    <div className="lg:col-span-2 bg-[#111624]/60 border border-white/5 rounded-[3rem] p-12">
+                    <div className="lg:col-span-2 bg-[#0A3D2A]/60 border border-white/5 rounded-[3rem] p-12">
                        <div className="flex items-center gap-4 mb-12">
-                          <div className="p-3 bg-white/5 rounded-2xl text-blue-400"><ClipboardList size={24} /></div>
+                          <div className="p-3 bg-white/5 rounded-2xl text-amber-400"><ClipboardList size={24} /></div>
                           <h3 className="text-2xl font-black text-white">AI 전략 실행 로드맵</h3>
                        </div>
                        
                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           {aiData?.actionPlan?.map((plan: any, idx: number) => (
-                            <div key={idx} className="bg-black/40 border border-white/5 rounded-[2rem] p-8 hover:border-blue-500/30 transition-all">
-                               <div className="text-4xl font-black text-blue-500/20 mb-4">0{idx + 1}</div>
+                            <div key={idx} className="bg-black/40 border border-white/5 rounded-[2rem] p-8 hover:border-emerald-600/30 transition-all">
+                               <div className="text-4xl font-black text-amber-500/20 mb-4">0{idx + 1}</div>
                                <h4 className="text-white font-bold mb-3">{plan.phase}</h4>
                                <p className="text-slate-500 text-xs leading-relaxed mb-6">{plan.task}</p>
                                <div className="pt-4 border-t border-white/5 text-emerald-400 text-[10px] font-black">🎯 {plan.expectedEffect}</div>

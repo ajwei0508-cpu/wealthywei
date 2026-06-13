@@ -27,7 +27,7 @@ export default function DirectorTreatmentPage() {
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shadow-sm border border-blue-200">
-              <Stethoscope className="w-6 h-6 text-blue-600" />
+              <Stethoscope className="w-6 h-6 text-amber-600" />
             </div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">핵심 진료법 가이드</h1>
           </div>
@@ -43,7 +43,7 @@ export default function DirectorTreatmentPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               onClick={() => setSelectedVideo(video)}
-              className="group relative cursor-pointer rounded-2xl overflow-hidden bg-gray-900 aspect-[9/16] shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 hover:border-blue-400"
+              className="group relative cursor-pointer rounded-2xl overflow-hidden bg-gray-900 aspect-[9/16] shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 hover:border-emerald-500"
             >
               {/* Thumbnail Background */}
               <div 
@@ -53,7 +53,7 @@ export default function DirectorTreatmentPage() {
               
               {/* Play Button Overlay */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-14 h-14 bg-blue-500/90 text-white rounded-full flex items-center justify-center backdrop-blur-sm scale-90 group-hover:scale-110 shadow-lg shadow-blue-500/30 transition-transform duration-300">
+                <div className="w-14 h-14 bg-emerald-600/90 text-white rounded-full flex items-center justify-center backdrop-blur-sm scale-90 group-hover:scale-110 shadow-lg shadow-emerald-500/30 transition-transform duration-300">
                   <Play fill="currentColor" className="ml-1 w-6 h-6" />
                 </div>
               </div>
@@ -61,7 +61,7 @@ export default function DirectorTreatmentPage() {
               {/* Title Bar */}
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-5 pt-12">
                 <h3 className="text-white font-bold text-lg">{video.title}</h3>
-                <p className="text-blue-300 text-xs mt-1 font-medium">진료 포인트 1분 요약</p>
+                <p className="text-amber-300 text-xs mt-1 font-medium">진료 포인트 1분 요약</p>
               </div>
             </motion.div>
           ))}

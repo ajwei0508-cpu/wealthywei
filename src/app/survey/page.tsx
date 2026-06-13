@@ -96,18 +96,18 @@ const SAFETY_ITEMS = [
 ];
 
 const CHAPTER_CONFIG = [
-  { id: 1, icon: User,          title: "원장님 브랜딩 & 비전",   subtitle: "Who You Are",        color: "from-blue-500 to-indigo-600",    bg: "#3182f6" },
-  { id: 2, icon: Stethoscope,   title: "진료 시스템 & 공간",    subtitle: "Clinic UX & Space",   color: "from-cyan-500 to-blue-600",     bg: "#06b6d4" },
+  { id: 1, icon: User,          title: "원장님 브랜딩 & 비전",   subtitle: "Who You Are",        color: "from-emerald-600 to-indigo-600",    bg: "#3182f6" },
+  { id: 2, icon: Stethoscope,   title: "진료 시스템 & 공간",    subtitle: "Clinic UX & Space",   color: "from-cyan-500 to-emerald-700",     bg: "#06b6d4" },
   { id: 3, icon: ClipboardList, title: "임상 루틴 & 처방",    subtitle: "Clinical Routine",    color: "from-indigo-500 to-purple-600", bg: "#6366f1" },
   { id: 4, icon: BarChart3,     title: "지표와 경영 목표",      subtitle: "Numbers & Goals",    color: "from-violet-500 to-indigo-600", bg: "#8b5cf6" },
-  { id: 5, icon: Users,         title: "팀 빌딩 & 조직 문화",   subtitle: "HR Management",       color: "from-blue-600 to-cyan-500",     bg: "#2563eb" },
-  { id: 6, icon: Shield,        title: "위험 관리 & 마케팅",    subtitle: "Safety & Marketing", color: "from-slate-700 to-blue-800",    bg: "#334155" },
+  { id: 5, icon: Users,         title: "팀 빌딩 & 조직 문화",   subtitle: "HR Management",       color: "from-emerald-700 to-cyan-500",     bg: "#2563eb" },
+  { id: 6, icon: Shield,        title: "위험 관리 & 마케팅",    subtitle: "Safety & Marketing", color: "from-slate-700 to-emerald-900",    bg: "#334155" },
 ];
 
 const getLevel = (pct: number) => {
   if (pct < 40) return { name: "수련생", icon: "🌱", color: "text-green-600", bg: "bg-green-50" };
   if (pct < 70) return { name: "전문의", icon: "⚕️", color: "text-indigo-600", bg: "bg-indigo-50" };
-  if (pct < 90) return { name: "명의", icon: "🏅", color: "text-blue-600", bg: "bg-blue-50" };
+  if (pct < 90) return { name: "명의", icon: "🏅", color: "text-amber-600", bg: "bg-blue-50" };
   return { name: "경영 명인", icon: "👑", color: "text-amber-600", bg: "bg-amber-50" };
 };
 
@@ -163,7 +163,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
   // 파일 확장자별 아이콘 및 색상 결정
   const getFileIcon = (url: string) => {
     const ext = url.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || "")) return { icon: <Sparkles size={16} />, color: "bg-blue-500", label: "IMG" };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || "")) return { icon: <Sparkles size={16} />, color: "bg-emerald-600", label: "IMG" };
     if (['pdf'].includes(ext || "")) return { icon: <ClipboardList size={16} />, color: "bg-rose-500", label: "PDF" };
     if (['xlsx', 'xls', 'csv'].includes(ext || "")) return { icon: <BarChart3 size={16} />, color: "bg-emerald-500", label: "XLS" };
     if (['zip', '7z', 'rar'].includes(ext || "")) return { icon: <Shield size={16} />, color: "bg-amber-500", label: "ZIP" };
@@ -239,7 +239,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{meta.label}</p>
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-slate-700 truncate block hover:text-blue-600 hover:underline">
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-slate-700 truncate block hover:text-amber-600 hover:underline">
                     파일 {idx + 1} 보기
                   </a>
                 </div>
@@ -257,13 +257,13 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
       {/* 업로드 영역 */}
       {!disabled && (
         <label className={`flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${
-          uploading ? "bg-slate-50 border-blue-300 animate-pulse" : "bg-white border-slate-100 hover:border-blue-400 hover:bg-blue-50/30"
+          uploading ? "bg-slate-50 border-blue-300 animate-pulse" : "bg-white border-slate-100 hover:border-emerald-500 hover:bg-blue-50/30"
         }`}>
           <input type="file" className="hidden" onChange={handleFile} multiple disabled={uploading} />
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
             uploading ? "bg-blue-100" : "bg-slate-50 group-hover:bg-blue-100"
           }`}>
-            {uploading ? <Sparkles size={28} className="text-blue-500" /> : <Upload size={28} className="text-slate-400 group-hover:text-blue-500" />}
+            {uploading ? <Sparkles size={28} className="text-amber-500" /> : <Upload size={28} className="text-slate-400 group-hover:text-amber-500" />}
           </div>
           <div className="text-center">
             <p className="text-sm font-black text-slate-600">{uploading ? "업로드 중..." : "파일들 선택 또는 드래그"}</p>
@@ -286,7 +286,7 @@ const Inp = ({ value, onChange, placeholder, type = "text", err, readOnly }: any
   <input type={type} value={value} readOnly={readOnly}
     onChange={e => onChange(e.target.value)} placeholder={placeholder}
     className={`w-full px-4 py-3 rounded-xl border text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${
-      err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-blue-500/30 focus:border-blue-400"
+      err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-emerald-500/30 focus:border-emerald-500"
     } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
   />
 );
@@ -296,13 +296,13 @@ const STATextarea = ({ id, value, onChange, placeholder, rows = 4, err, readOnly
     <textarea id={id} rows={rows} value={value} readOnly={readOnly}
       onChange={e => onChange(e.target.value)} placeholder={placeholder}
       className={`w-full px-4 py-3 pr-12 rounded-xl border text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all resize-none ${
-        err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-blue-500/30 focus:border-blue-400"
+        err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-emerald-500/30 focus:border-emerald-500"
       } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
     />
     {!readOnly && (
       <button onClick={() => onMic(id, (t: string) => onChange(value ? value + " " + t : t))}
         className={`absolute top-2.5 right-2.5 p-2 rounded-xl transition-all ${
-          listeningId === id ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:text-blue-500"
+          listeningId === id ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:text-amber-500"
         }`}>
         {listeningId === id ? <MicOff size={14} /> : <Mic size={14} />}
       </button>
@@ -534,7 +534,7 @@ export default function SurveyPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-8 border-t border-slate-50">
           <div>
             <Lbl>원장님의 MBTI (Q3)</Lbl>
-            <select value={data.ch1.mbti} onChange={e => upd1("mbti", e.target.value)} disabled={isReadOnly} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 active:scale-95 transition-all outline-none">
+            <select value={data.ch1.mbti} onChange={e => upd1("mbti", e.target.value)} disabled={isReadOnly} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 active:scale-95 transition-all outline-none">
               <option value="">MBTI 선택</option>
               {MBTI_LIST.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -562,7 +562,7 @@ export default function SurveyPage() {
               <Inp value={data.ch2.clinicSize} onChange={(v: string) => upd2("clinicSize", v)} placeholder="예: 45평, 베드 10개" readOnly={isReadOnly} />
             </div>
             <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
-              <p className="text-xs text-blue-600 font-bold mb-1">PRO TIP</p>
+              <p className="text-xs text-amber-600 font-bold mb-1">PRO TIP</p>
               <p className="text-[11px] text-slate-500 leading-relaxed font-medium">환자 동선 최적화를 위해 실평수 대비 베드 배치가 중요합니다.</p>
             </div>
           </div>
@@ -793,7 +793,7 @@ export default function SurveyPage() {
             </table>
             {!isReadOnly && (
               <button onClick={() => { setData(d => ({ ...d, ch4: { ...d.ch4, expenses: [...d.ch4.expenses, { item: "", amount: "" }] } })); }}
-                className="mt-6 px-6 py-3 text-xs font-black text-blue-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100 flex items-center gap-2">
+                className="mt-6 px-6 py-3 text-xs font-black text-amber-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100 flex items-center gap-2">
                 <PlusCircle size={14} /> 항목 추가하기
               </button>
             )}
@@ -828,7 +828,7 @@ export default function SurveyPage() {
           </table>
           {!isReadOnly && (
             <button onClick={() => setData(d => ({ ...d, ch5: { ...d.ch5, staff: [...data.ch5.staff, { role: "", salary: "", days: "", hours: "", incentive: "" }] } }))}
-              className="mt-6 px-6 py-3 text-xs font-black text-blue-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100">
+              className="mt-6 px-6 py-3 text-xs font-black text-amber-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100">
               + 직원 추가하기
             </button>
           )}
@@ -959,12 +959,12 @@ export default function SurveyPage() {
               const isChecked = data.ch6.safetyItems[item];
               const fileUrl = data.ch6.safetyFiles[item];
               return (
-                <div key={item} className={`p-6 rounded-3xl border-2 transition-all ${isChecked ? "border-blue-400 bg-blue-50/30" : "border-slate-100 bg-white"}`}>
+                <div key={item} className={`p-6 rounded-3xl border-2 transition-all ${isChecked ? "border-emerald-500 bg-blue-50/30" : "border-slate-100 bg-white"}`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <button disabled={isReadOnly}
                       onClick={() => setData(d => ({ ...d, ch6: { ...d.ch6, safetyItems: { ...d.ch6.safetyItems, [item]: !isChecked } } }))}
                       className="flex items-center gap-4 text-left group">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all shadow-md ${isChecked ? "bg-blue-600 text-white" : "bg-white text-slate-300 border border-slate-200"}`}>
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all shadow-md ${isChecked ? "bg-emerald-700 text-white" : "bg-white text-slate-300 border border-slate-200"}`}>
                         {isChecked ? <Check size={20} /> : "X"}
                       </div>
                       <div>
@@ -984,12 +984,12 @@ export default function SurveyPage() {
               );
             })}
           </div>
-          <div className="mt-10 p-8 bg-slate-900 rounded-[2.5rem] shadow-xl text-white">
+          <div className="mt-10 p-8 bg-emerald-950 rounded-[2.5rem] shadow-xl text-white">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-black text-blue-400">SAFETY SYSTEM PROGRESS</p>
+              <p className="text-sm font-black text-amber-400">SAFETY SYSTEM PROGRESS</p>
               <p className="text-xl font-black">{Math.round(Object.values(data.ch6.safetyItems).filter(Boolean).length / SAFETY_ITEMS.length * 100)}%</p>
             </div>
-            <div className="w-full bg-slate-800 rounded-full h-3"><div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${Object.values(data.ch6.safetyItems).filter(Boolean).length / SAFETY_ITEMS.length * 100}%` }} /></div>
+            <div className="w-full bg-emerald-900 rounded-full h-3"><div className="h-full bg-gradient-to-r from-emerald-600 to-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${Object.values(data.ch6.safetyItems).filter(Boolean).length / SAFETY_ITEMS.length * 100}%` }} /></div>
             <p className="text-[10px] text-slate-500 mt-4 text-center">전체 {SAFETY_ITEMS.length}개 항목 중 {Object.values(data.ch6.safetyItems).filter(Boolean).length}개 완료</p>
           </div>
         </div>
@@ -1045,16 +1045,16 @@ export default function SurveyPage() {
       <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-10 text-center text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.15)_0%,transparent_70%)]" />
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full">
-            <Sparkles size={14} className="text-blue-400" />
-            <span className="text-xs font-black text-blue-300 uppercase tracking-widest">AI Powered Analysis</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-600/20 border border-emerald-500/30 rounded-full">
+            <Sparkles size={14} className="text-amber-400" />
+            <span className="text-xs font-black text-amber-300 uppercase tracking-widest">AI Powered Analysis</span>
           </div>
           <h3 className="text-2xl md:text-3xl font-black leading-tight">
             이 모든 답변은 AI 분석을 통해 <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">원장님만을 위한 맞춤형 컨설팅 리포트</span>로<br />자동 변환됩니다.
           </h3>
           <div className="flex items-center justify-center gap-6 pt-2">
-            {[{ icon: Star, label: "브랜딩 분석", color: "text-amber-400" }, { icon: Target, label: "경영 목표", color: "text-rose-400" }, { icon: Zap, label: "AI 맞춤 전략", color: "text-blue-400" }].map(({ icon: I, label, color }) => (
+            {[{ icon: Star, label: "브랜딩 분석", color: "text-amber-400" }, { icon: Target, label: "경영 목표", color: "text-rose-400" }, { icon: Zap, label: "AI 맞춤 전략", color: "text-amber-400" }].map(({ icon: I, label, color }) => (
               <div key={label} className="flex items-center gap-2"><I size={16} className={color} /><span className="text-xs text-slate-300 font-bold">{label}</span></div>
             ))}
           </div>
@@ -1067,7 +1067,7 @@ export default function SurveyPage() {
   const ch = CHAPTER_CONFIG[step - 1];
   const Icon = ch.icon;
 
-  if (status === "loading") return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full" /></div>;
+  if (status === "loading") return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full" /></div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-white">
@@ -1078,13 +1078,13 @@ export default function SurveyPage() {
         <div className="fixed left-6 bottom-6 z-40">
           <button 
             onClick={() => router.push("/survey/admin")}
-            className="flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-[2.5rem] shadow-2xl hover:bg-blue-600 hover:-translate-y-1 active:scale-95 transition-all group border border-white/10"
+            className="flex items-center gap-3 px-6 py-4 bg-emerald-950 text-white rounded-[2.5rem] shadow-2xl hover:bg-emerald-700 hover:-translate-y-1 active:scale-95 transition-all group border border-white/10"
           >
-            <div className="w-10 h-10 bg-blue-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:bg-white group-hover:text-blue-600 transition-colors">
+            <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:bg-white group-hover:text-amber-600 transition-colors">
               <Shield size={20} />
             </div>
             <div className="text-left pr-2">
-              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-0.5">Administrator</p>
+              <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-0.5">Administrator</p>
               <p className="text-sm font-black text-white">마스터 워크북 관리</p>
             </div>
           </button>
@@ -1093,7 +1093,7 @@ export default function SurveyPage() {
 
       {stampStep !== null && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <div className="animate-bounce-once bg-white rounded-[40px] p-10 shadow-2xl border-4 border-blue-500 text-center">
+          <div className="animate-bounce-once bg-white rounded-[40px] p-10 shadow-2xl border-4 border-emerald-600 text-center">
             <div className="text-6xl mb-3">✅</div>
             <p className="font-black text-blue-700 text-xl">Chapter {stampStep} 완료!</p>
           </div>
@@ -1117,7 +1117,7 @@ export default function SurveyPage() {
               <div className="text-right">
                 <span className="text-xs font-black text-slate-700">{fillPct.total}%</span>
               </div>
-              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-blue-50 border-blue-200 text-blue-600 animate-pulse" : "bg-amber-50 border-amber-200 text-amber-600"}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-blue-50 border-blue-200 text-amber-600 animate-pulse" : "bg-amber-50 border-amber-200 text-amber-600"}`}>
                 <Save size={12} />{saveStatus === "saved" ? "저장됨" : saveStatus === "saving" ? "저장 중..." : "미저장"}
               </div>
             </div>
@@ -1189,19 +1189,19 @@ export default function SurveyPage() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md">
           <div className="bg-white rounded-[40px] p-12 max-w-md w-full mx-4 text-center shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-300">
             <div className="relative mb-8">
-              <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/30">
+              <div className="w-28 h-28 bg-gradient-to-br from-emerald-600 to-indigo-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
                 <span className="text-5xl">🏆</span>
               </div>
             </div>
             <h2 className="text-4xl font-black text-slate-900 mb-2">수고하셨습니다!</h2>
-            <p className="text-lg text-blue-600 font-bold mb-4">워크북 제출 완료! 🎉</p>
+            <p className="text-lg text-amber-600 font-bold mb-4">워크북 제출 완료! 🎉</p>
             <p className="text-slate-500 text-sm leading-relaxed mb-8">
               원장님의 모든 답변이 성공적으로 저장되었습니다.<br />
               <span className="font-bold text-slate-700">바른컨설팅 AI</span>가 맞춤형 분석 리포트를 곧 준비합니다.
             </p>
             <button
               onClick={() => router.push("/")}
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-blue-500/30 hover:opacity-90 active:scale-95 transition-all"
+              className="w-full py-4 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-emerald-500/30 hover:opacity-90 active:scale-95 transition-all"
             >
               ✅ 확인 — 메인으로 이동
             </button>

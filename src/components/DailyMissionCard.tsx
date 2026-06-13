@@ -61,8 +61,8 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         title: "신규 환자 사후 관리",
         description: `이번 달 신규 환자가 ${patientMetrics.new}명입니다. 오늘 그 중 3분께 안부 문자를 보내보세요.`,
         icon: <Users size={20} />,
-        color: "text-blue-400",
-        bg: "bg-blue-500/10"
+        color: "text-amber-400",
+        bg: "bg-emerald-600/10"
       },
       {
         title: "미수금 점검",
@@ -108,8 +108,8 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         <div className="flex justify-between items-start mb-8">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Target size={18} className="text-blue-500" />
-              <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Today's Mission</span>
+              <Target size={18} className="text-amber-500" />
+              <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.2em]">Today's Mission</span>
             </div>
             <h3 className="text-2xl font-black text-white tracking-tight">{mission.title}</h3>
           </div>
@@ -124,7 +124,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
 
         <div className="flex items-center gap-4">
           <div className="h-1 bg-white/10 grow rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 w-1/3" />
+            <div className="h-full bg-emerald-600 w-1/3" />
           </div>
           <span className="text-[10px] font-black text-slate-500">PROCEEDING</span>
         </div>
@@ -135,7 +135,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         initial={{ opacity: 0, x: 20 }}
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
-        className="bg-[#111624] border border-white/5 rounded-[3rem] p-10 flex flex-col justify-center relative overflow-hidden group"
+        className="bg-[#0A3D2A] border border-white/5 rounded-[3rem] p-10 flex flex-col justify-center relative overflow-hidden group"
       >
         <div className="absolute -top-10 -right-10 p-12 opacity-5 group-hover:scale-110 transition-transform">
           <Quote size={200} />
@@ -151,7 +151,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
             "{currentQuote.text}"
           </p>
           <div className="flex flex-col items-center">
-            <div className="w-8 h-px bg-blue-500/50 mb-4" />
+            <div className="w-8 h-px bg-emerald-600/50 mb-4" />
             <p className="text-slate-500 text-sm font-black uppercase tracking-widest">{currentQuote.author}</p>
           </div>
         </div>

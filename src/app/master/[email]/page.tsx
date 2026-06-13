@@ -303,7 +303,7 @@ export default function MasterUserDetailsPage() {
     { key: "newPatientCount", label: "신규환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
     { key: "totalTreatmentFee", label: "총진료비", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
     { key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
-    { key: "patientCount", label: "내원환자수", unit: "명", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+    { key: "patientCount", label: "내원환자수", unit: "명", icon: Users, color: "text-amber-600", bg: "bg-blue-50" },
     { key: "patientPay", label: "본인부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
     { key: "insuranceClaim", label: "보험청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
     { key: "autoInsuranceClaim", label: "자보청구액", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
@@ -311,7 +311,7 @@ export default function MasterUserDetailsPage() {
     { key: "industrialAccidentClaim", label: "산재청구액", unit: "원", icon: Briefcase, color: "text-red-600", bg: "bg-red-50" },
     { key: "accountsReceivable", label: "미수금", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
     { key: "cashCollection", label: "현금수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
-    { key: "cardCollection", label: "카드수납", unit: "원", icon: CreditCard, color: "text-blue-500", bg: "bg-blue-50" },
+    { key: "cardCollection", label: "카드수납", unit: "원", icon: CreditCard, color: "text-amber-500", bg: "bg-blue-50" },
   ], []);
 
   const getDelta = (current: number, reference: number) => {
@@ -635,10 +635,10 @@ export default function MasterUserDetailsPage() {
                             if (active && payload && payload.length) {
                               const dataPoint = payload[0].payload;
                               return (
-                                <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-slate-800 text-xs font-bold space-y-1">
+                                <div className="bg-emerald-950 text-white p-4 rounded-2xl shadow-xl border border-emerald-900 text-xs font-bold space-y-1">
                                   <p className="text-zinc-400 font-extrabold">{selectedYear}년 {dataPoint.name}</p>
                                   {dataPoint.hasData ? (
-                                    <p className="text-sm font-black text-blue-400">
+                                    <p className="text-sm font-black text-amber-400">
                                       매출액: {new Intl.NumberFormat("ko-KR").format(dataPoint["매출액"])}원
                                     </p>
                                   ) : (
@@ -682,7 +682,7 @@ export default function MasterUserDetailsPage() {
                   <div className="flex justify-between items-start mb-3">
                     <span className="text-base font-black text-slate-900">{selectedYear}년 {t.monthLabel}</span>
                     {t.hasData ? (
-                      <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">매출 집계완료</span>
+                      <span className="text-[9px] font-black text-amber-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">매출 집계완료</span>
                     ) : (
                       <span className="relative flex h-5 items-center justify-center">
                         <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-teal-400 opacity-75"></span>
@@ -701,7 +701,7 @@ export default function MasterUserDetailsPage() {
                       {/* 가로 프로그레스 바 */}
                       <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden shadow-inner relative">
                         <div 
-                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
+                          className="h-full bg-gradient-to-r from-emerald-600 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
                           style={{ width: `${t.ratio}%` }}
                         />
                       </div>
@@ -727,11 +727,11 @@ export default function MasterUserDetailsPage() {
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">🗂️ 다중 선택 월별 데이터 교차 분석 (Multi-Selector)</h3>
                 <p className="text-xs text-zinc-500 font-medium mt-1">
-                  비교 분석할 개월들을 아래 체크박스에서 자유롭게 다중 선택하면 즉시 시계열 교차 비교표가 생성됩니다. 각 항목별 최고 수치는 <span className="text-blue-600 font-black">블루</span>, 최저 수치는 <span className="text-rose-600 font-black">레드</span>로 하이라이트됩니다.
+                  비교 분석할 개월들을 아래 체크박스에서 자유롭게 다중 선택하면 즉시 시계열 교차 비교표가 생성됩니다. 각 항목별 최고 수치는 <span className="text-amber-600 font-black">블루</span>, 최저 수치는 <span className="text-rose-600 font-black">레드</span>로 하이라이트됩니다.
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">교차 분석</span>
+                <span className="text-[10px] font-black text-amber-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">교차 분석</span>
                 {multiCompareMonths.length > 0 && (
                   <button 
                     onClick={() => setMultiCompareMonths([])}
@@ -828,9 +828,9 @@ export default function MasterUserDetailsPage() {
 
                             if (multiCompareMonths.length > 1 && !allEqual) {
                               if (val === maxVal) {
-                                textClass = "text-blue-600 font-black";
+                                textClass = "text-amber-600 font-black";
                                 cellBg = "bg-blue-50/40";
-                                indicator = <span className="inline-block w-1.5 h-1.5 bg-blue-500 rounded-full ml-1.5"></span>;
+                                indicator = <span className="inline-block w-1.5 h-1.5 bg-emerald-600 rounded-full ml-1.5"></span>;
                               } else if (val === minVal) {
                                 textClass = "text-rose-600 font-black";
                                 cellBg = "bg-rose-50/40";

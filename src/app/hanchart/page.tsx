@@ -160,7 +160,7 @@ export default function HanChartDashboard() {
             </button>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">HANCHART EXCLUSIVE</span>
+                <span className="text-[10px] font-black text-amber-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">HANCHART EXCLUSIVE</span>
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Premium Analysis</span>
               </div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">한차트 전용 경영 전략 Dashboard</h1>
@@ -194,7 +194,7 @@ export default function HanChartDashboard() {
                 </div>
                 <ChevronRight size={14} className="text-zinc-300" />
                 <div className="relative group">
-                   <button className="px-4 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-lg shadow-slate-900/10 flex items-center gap-1">
+                   <button className="px-4 py-3 bg-emerald-950 text-white rounded-xl text-xs font-bold shadow-lg shadow-slate-900/10 flex items-center gap-1">
                       {formatMonth(selectedMonth)} (기준) <ChevronDown size={12} />
                    </button>
                    <div className="absolute top-full right-0 mt-2 bg-white rounded-2xl border border-zinc-100 shadow-xl p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[120px]">
@@ -222,7 +222,7 @@ export default function HanChartDashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 bg-${item.color}-50 rounded-2xl text-${item.color}-600`}>{item.icon}</div>
                   {comp && (
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${comp.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"} flex items-center gap-0.5`}>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${comp.isUp ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-amber-600"} flex items-center gap-0.5`}>
                       {comp.isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                       {comp.percent}%
                     </span>
@@ -253,7 +253,7 @@ export default function HanChartDashboard() {
                           <span className="text-[10px] font-bold text-zinc-400">{formatMonth(compareMonth)}</span>
                        </div>
                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 bg-slate-900 rounded-full"></div>
+                          <div className="w-3 h-3 bg-emerald-950 rounded-full"></div>
                           <span className="text-[10px] font-bold text-zinc-500">{formatMonth(selectedMonth)}</span>
                        </div>
                     </div>
@@ -275,8 +275,8 @@ export default function HanChartDashboard() {
            </div>
 
            <div className="space-y-6">
-              <Card className="bg-slate-900 text-white p-8 border-none shadow-xl shadow-slate-900/20 relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+              <Card className="bg-emerald-950 text-white p-8 border-none shadow-xl shadow-slate-900/20 relative overflow-hidden">
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-600/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                  <p className="text-slate-400 text-xs font-bold mb-1 uppercase tracking-widest">Growth Summary</p>
                  <h4 className="text-white text-lg font-bold mb-6 flex items-center gap-2">
                    전월 대비 성장률 <TrendingUp size={18} className="text-emerald-400" />
@@ -303,12 +303,12 @@ export default function HanChartDashboard() {
 
                  <div className="mt-10 p-5 bg-white/5 rounded-2xl border border-white/5">
                     <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
-                      * 현재 매출 구조에서 가장 큰 변화는 <span className="text-blue-400 font-bold">비급여 항목의 MoM 성장</span>입니다. 보험 매출이 안정적인 가운데 비급여 비중이 {getComp("generatedRevenue", "nonCovered")?.percent || 0}% 증가한 점이 고무적입니다.
+                      * 현재 매출 구조에서 가장 큰 변화는 <span className="text-amber-400 font-bold">비급여 항목의 MoM 성장</span>입니다. 보험 매출이 안정적인 가운데 비급여 비중이 {getComp("generatedRevenue", "nonCovered")?.percent || 0}% 증가한 점이 고무적입니다.
                     </p>
                  </div>
               </Card>
 
-              <Card className="bg-blue-600 text-white p-7 shadow-lg shadow-blue-500/20">
+              <Card className="bg-emerald-700 text-white p-7 shadow-lg shadow-emerald-500/20">
                  <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-white/20 rounded-xl text-white"><CheckCircle2 size={18} /></div>
                     <h4 className="font-bold text-blue-50">HanChart 전략 리포트</h4>
@@ -325,7 +325,7 @@ export default function HanChartDashboard() {
            <div className="lg:col-span-2 space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-5 bg-blue-600 rounded-full"></div>
+                  <div className="w-1.5 h-5 bg-emerald-700 rounded-full"></div>
                   <h3 className="text-lg font-bold text-slate-900">한차트 2026 표준 데이터 분석 리포트</h3>
                 </div>
                 <span className="text-[10px] text-zinc-400 font-medium">단위: 원</span>
@@ -343,8 +343,8 @@ export default function HanChartDashboard() {
                    <tbody className="divide-y divide-zinc-50">
                      <tr className="hover:bg-blue-50/30 transition-colors">
                        <td className="px-6 py-4 font-bold text-slate-900">매출 합계</td>
-                       <td className="px-6 py-4 text-blue-600 font-bold">총매출액 (A)</td>
-                       <td className="px-6 py-4 text-right font-black text-blue-600">{formatNumber(data.generatedRevenue.total)}</td>
+                       <td className="px-6 py-4 text-amber-600 font-bold">총매출액 (A)</td>
+                       <td className="px-6 py-4 text-right font-black text-amber-600">{formatNumber(data.generatedRevenue.total)}</td>
                      </tr>
                      <tr>
                        <td className="px-6 py-4"></td>
@@ -411,7 +411,7 @@ export default function HanChartDashboard() {
               <Card className="p-7 border-zinc-100 shadow-sm bg-zinc-50/50">
                  <button 
                   onClick={() => router.push("/details")}
-                  className="w-full bg-white border border-zinc-200 py-3 rounded-xl text-xs font-black text-zinc-900 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                  className="w-full bg-white border border-zinc-200 py-3 rounded-xl text-xs font-black text-zinc-900 hover:bg-emerald-950 hover:text-white transition-all shadow-sm"
                  >
                    심층 AI 분석 리포트 확인 <ArrowRight size={12} className="inline ml-1" />
                  </button>

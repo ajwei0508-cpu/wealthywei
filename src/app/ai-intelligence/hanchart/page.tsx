@@ -159,7 +159,7 @@ export default function HanchartAiIntelligencePage() {
   if (history.length === 0) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-[#0A0E1A] text-white flex flex-col items-center justify-center p-8">
+        <div className="min-h-screen bg-[#042418] text-white flex flex-col items-center justify-center p-8">
           <div className="text-center max-w-md">
             <Sparkles size={48} className="mx-auto mb-6 text-amber-500 animate-pulse" />
             <h2 className="text-2xl font-black mb-4">분석할 한차트 데이터가 없습니다.</h2>

@@ -25,12 +25,40 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Protect routes for staff
   React.useEffect(() => {
     if (userRole === 'staff') {
-      const allowedPaths = ['/employee', '/notice', '/requests'];
+      const allowedPaths = ['/employee', '/notice', '/requests', '/happycall'];
       if (!allowedPaths.some(p => pathname.startsWith(p))) {
         router.push('/employee/reception');
       }
     }
   }, [userRole, pathname, router]);
+
+  // Security: Auto-logout after 10 minutes of inactivity
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        signOut({ callbackUrl: '/' });
+      }, 10 * 60 * 1000); // 10 minutes
+    };
+
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('scroll', resetTimer);
+    window.addEventListener('click', resetTimer);
+
+    resetTimer(); // initialize
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('scroll', resetTimer);
+      window.removeEventListener('click', resetTimer);
+    };
+  }, [status]);
 
   if (status === "loading") return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
   if (!isMaster && approvalStatus !== 'approved') {
@@ -52,7 +80,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <button 
             onClick={() => signOut()}
-            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all"
+            className="w-full py-4 bg-emerald-950 text-white rounded-2xl font-bold hover:bg-emerald-900 transition-all"
           >
             로그아웃
           </button>
@@ -74,7 +102,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </motion.div>
       </main>
-      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none z-0"></div>
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-emerald-600/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none z-0"></div>
     </div>
   );
 }

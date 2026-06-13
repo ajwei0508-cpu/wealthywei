@@ -136,7 +136,7 @@ export default function AdminSurveyPage() {
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm mb-8">
         <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <h3 className="font-black text-slate-800 flex items-center gap-2 text-lg">
-            <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+            <div className="w-1.5 h-6 bg-emerald-700 rounded-full" />
             {title}
           </h3>
         </div>
@@ -167,7 +167,7 @@ export default function AdminSurveyPage() {
                 ) : item.type === "kv" ? (
                   <div className="flex flex-wrap gap-2 pt-1 pl-1">
                     {(Object.entries(item.value) as [string, any][]).map(([k, v]) => v && (
-                      <span key={k} className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-black border border-blue-100 shadow-sm">
+                      <span key={k} className="px-3 py-1.5 bg-blue-50 text-amber-600 rounded-xl text-xs font-black border border-blue-100 shadow-sm">
                         {k}
                       </span>
                     ))}
@@ -248,7 +248,7 @@ export default function AdminSurveyPage() {
                           </div>
                         </td>
                         <td className="px-8 py-6">
-                           <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-black rounded-lg border border-blue-100">
+                           <span className="px-3 py-1 bg-blue-50 text-amber-600 text-xs font-black rounded-lg border border-blue-100">
                              {userMap.get(sub.user_id.toLowerCase()) || "이름 없음"}
                            </span>
                         </td>
@@ -266,14 +266,14 @@ export default function AdminSurveyPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-8 py-6 text-center text-blue-600 font-black text-xs">
-                          <div className="inline-flex px-3 py-1 bg-blue-50 rounded-full shadow-sm shadow-blue-500/5">
+                        <td className="px-8 py-6 text-center text-amber-600 font-black text-xs">
+                          <div className="inline-flex px-3 py-1 bg-blue-50 rounded-full shadow-sm shadow-emerald-500/5">
                             {totalFiles}개의 파일
                           </div>
                         </td>
                         <td className="px-8 py-6 text-right">
                           <button onClick={() => setSelectedUser(sub)} 
-                            className="px-6 py-2.5 bg-slate-900 text-white rounded-2xl font-black text-xs hover:bg-blue-600 hover:-translate-y-0.5 shadow-lg active:scale-95 transition-all">
+                            className="px-6 py-2.5 bg-emerald-950 text-white rounded-2xl font-black text-xs hover:bg-emerald-700 hover:-translate-y-0.5 shadow-lg active:scale-95 transition-all">
                             상세 답변 보기
                           </button>
                         </td>
@@ -290,12 +290,12 @@ export default function AdminSurveyPage() {
       {/* Full-screen Overlay Modal for User Detail */}
       {selectedUser && (
         <div className="fixed inset-0 z-[10000] flex animate-in fade-in duration-300 overflow-hidden">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+          <div className="absolute inset-0 bg-emerald-950/60 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
           <div className="relative w-full max-w-5xl ml-auto bg-white shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col h-full border-l border-slate-200">
             {/* Modal Header */}
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden border-2 border-white">
+                <div className="w-12 h-12 bg-emerald-950 rounded-2xl flex items-center justify-center text-white shadow-lg overflow-hidden border-2 border-white">
                   {allUsers.find(u => u.email?.toLowerCase() === selectedUser.user_id.toLowerCase())?.image ? (
                     <img src={allUsers.find(u => u.email?.toLowerCase() === selectedUser.user_id.toLowerCase())?.image} alt="profile" className="w-full h-full object-cover" />
                   ) : (
@@ -312,7 +312,7 @@ export default function AdminSurveyPage() {
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => window.print()} 
-                  className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                  className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs hover:bg-emerald-700 hover:text-white transition-all shadow-sm"
                 >
                   <Download size={16} /> 인쇄하기
                 </button>
@@ -406,10 +406,10 @@ export default function AdminSurveyPage() {
               <div className="pt-16 border-t border-slate-200">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-2xl font-black text-slate-800 flex items-center gap-3">
-                    <Download className="text-blue-600" size={28} />
+                    <Download className="text-amber-600" size={28} />
                     증빙 및 첨부 파일 목록
                   </h3>
-                  <div className="px-4 py-1.5 bg-blue-50 text-blue-600 text-[11px] font-black rounded-full border border-blue-100 uppercase tracking-widest">
+                  <div className="px-4 py-1.5 bg-blue-50 text-amber-600 text-[11px] font-black rounded-full border border-blue-100 uppercase tracking-widest">
                     Verified Documents
                   </div>
                 </div>
@@ -424,7 +424,7 @@ export default function AdminSurveyPage() {
                     {getFilesList(selectedUser.data).map((category, idx) => (
                       <div key={idx} className="bg-white p-7 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-5 hover:shadow-md transition-shadow group">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                          <div className="w-12 h-12 bg-blue-50 text-amber-600 rounded-2xl flex items-center justify-center font-black group-hover:bg-emerald-700 group-hover:text-white transition-colors shadow-sm">
                             {(idx + 1).toString().padStart(2, '0')}
                           </div>
                           <h4 className="font-black text-slate-700 tracking-tight">{category.category}</h4>
@@ -435,11 +435,11 @@ export default function AdminSurveyPage() {
                             return (
                               <a key={uidx} href={url} target="_blank" rel="noopener noreferrer" 
                                 className="flex items-center justify-between p-5 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 group over:bg-blue-50/50 hover:border-blue-200 transition-all shadow-sm">
-                                <span className="flex items-center gap-3 text-sm font-black text-slate-500 group-hover:text-blue-600 transition-colors">
-                                  {isImage ? <FileImage size={20} className="text-blue-400" /> : <File size={20} className="text-amber-400" />}
+                                <span className="flex items-center gap-3 text-sm font-black text-slate-500 group-hover:text-amber-600 transition-colors">
+                                  {isImage ? <FileImage size={20} className="text-amber-400" /> : <File size={20} className="text-amber-400" />}
                                   파일 {uidx + 1} 열기
                                 </span>
-                                <Download size={18} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                <Download size={18} className="text-slate-300 group-hover:text-amber-500 transition-colors" />
                               </a>
                             );
                           })}
@@ -453,7 +453,7 @@ export default function AdminSurveyPage() {
             
             {/* Modal Bottom Padding or Extra actions */}
             <div className="absolute bottom-10 right-10 z-20 pointer-events-none">
-                <div className="w-32 h-32 bg-blue-600/5 rounded-full blur-3xl" />
+                <div className="w-32 h-32 bg-emerald-700/5 rounded-full blur-3xl" />
             </div>
           </div>
         </div>

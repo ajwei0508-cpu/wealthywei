@@ -42,15 +42,15 @@ export default function NoticePage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-[#05080F] text-white font-sans p-8 md:p-12 lg:p-20">
+      <div className="min-h-screen bg-[#031C13] text-white font-sans p-8 md:p-12 lg:p-20">
         <div className="max-w-5xl mx-auto space-y-12">
           
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                  <Bell size={24} className="text-blue-400" />
+                <div className="w-12 h-12 bg-emerald-600/10 rounded-2xl flex items-center justify-center border border-emerald-600/20">
+                  <Bell size={24} className="text-amber-400" />
                 </div>
                 <h1 className="text-4xl font-black tracking-tight">공지사항</h1>
               </div>
@@ -62,7 +62,7 @@ export default function NoticePage() {
             {isMaster && (
               <button 
                 onClick={() => router.push("/notice/write")}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
               >
                 <Plus size={18} />
                 공지사항 작성
@@ -71,10 +71,10 @@ export default function NoticePage() {
           </div>
 
           {/* Notice List */}
-          <div className="bg-[#0D1117]/80 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl min-h-[400px]">
+          <div className="bg-[#083021]/80 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl min-h-[400px]">
             {loading ? (
               <div className="h-[400px] flex items-center justify-center">
-                <Loader2 size={32} className="text-blue-500 animate-spin" />
+                <Loader2 size={32} className="text-amber-500 animate-spin" />
               </div>
             ) : notices.length === 0 ? (
               <div className="h-[400px] flex flex-col items-center justify-center text-slate-500 gap-4">
@@ -91,7 +91,7 @@ export default function NoticePage() {
                     <div className="flex items-center gap-4 mb-2 md:mb-0">
                       <div className="w-12 flex-shrink-0 flex justify-center">
                         {notice.isNew ? (
-                          <span className="px-2 py-1 rounded bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-wider border border-blue-500/30">
+                          <span className="px-2 py-1 rounded bg-emerald-600/20 text-amber-400 text-[10px] font-black uppercase tracking-wider border border-emerald-600/30">
                             NEW
                           </span>
                         ) : (
@@ -108,7 +108,7 @@ export default function NoticePage() {
                         <Calendar size={14} className="opacity-50" />
                         {notice.date}
                       </div>
-                      <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-blue-400" />
+                      <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-amber-400" />
                     </div>
                   </div>
                 ))}

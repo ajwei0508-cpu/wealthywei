@@ -70,12 +70,12 @@ const SAFETY_ITEMS = [
 ];
 
 const CHAPTER_CONFIG = [
-  { id: 1, icon: User,          title: "원장님 브랜딩",       subtitle: "Who You Are",          color: "from-blue-500 to-indigo-600" },
-  { id: 2, icon: Stethoscope,   title: "진료 시스템 & 동선",  subtitle: "Clinic UX",             color: "from-cyan-500 to-blue-600" },
+  { id: 1, icon: User,          title: "원장님 브랜딩",       subtitle: "Who You Are",          color: "from-emerald-600 to-indigo-600" },
+  { id: 2, icon: Stethoscope,   title: "진료 시스템 & 동선",  subtitle: "Clinic UX",             color: "from-cyan-500 to-emerald-700" },
   { id: 3, icon: ClipboardList, title: "임상 루틴 & 처방",    subtitle: "Clinical Routine",      color: "from-indigo-500 to-purple-600" },
   { id: 4, icon: BarChart3,     title: "지표와 경영",          subtitle: "Numbers & Goals",      color: "from-violet-500 to-indigo-600" },
-  { id: 5, icon: Users,         title: "팀 빌딩 & 조직 문화", subtitle: "HR Management",         color: "from-blue-600 to-cyan-500" },
-  { id: 6, icon: Shield,        title: "위험 관리 & 매뉴얼",  subtitle: "Safety & Education",   color: "from-slate-700 to-blue-800" },
+  { id: 5, icon: Users,         title: "팀 빌딩 & 조직 문화", subtitle: "HR Management",         color: "from-emerald-700 to-cyan-500" },
+  { id: 6, icon: Shield,        title: "위험 관리 & 매뉴얼",  subtitle: "Safety & Education",   color: "from-slate-700 to-emerald-900" },
 ];
 
 const encouragements = [
@@ -138,7 +138,7 @@ const Input = ({ value, onChange, placeholder, type = "text" }: {
     value={value}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
   />
 );
 
@@ -150,7 +150,7 @@ const Textarea = ({ value, onChange, placeholder, rows = 4 }: {
     value={value}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all resize-none"
+    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
   />
 );
 
@@ -242,7 +242,7 @@ export default function SurveyPage() {
           <select
             value={data.ch1.mbti}
             onChange={e => updateCh1("mbti", e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
           >
             <option value="">MBTI 유형 선택</option>
             {MBTI_LIST.map(m => <option key={m} value={m}>{m}</option>)}
@@ -401,7 +401,7 @@ export default function SurveyPage() {
           </table>
           <button
             onClick={() => setData(d => ({ ...d, ch4: { ...d.ch4, expenses: [...d.ch4.expenses, { item: "", amount: "" }] } }))}
-            className="mt-3 text-xs text-blue-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors"
+            className="mt-3 text-xs text-amber-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors"
           >
             + 항목 추가
           </button>
@@ -456,7 +456,7 @@ export default function SurveyPage() {
           </table>
           <button
             onClick={() => setData(d => ({ ...d, ch5: { ...d.ch5, staff: [...d.ch5.staff, { role: "", salary: "", welfare: "", incentive: "" }] } }))}
-            className="mt-3 text-xs text-blue-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors"
+            className="mt-3 text-xs text-amber-500 hover:text-blue-700 font-bold flex items-center gap-1 transition-colors"
           >
             + 직원 추가
           </button>
@@ -479,7 +479,7 @@ export default function SurveyPage() {
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => handleDrop(e, 5)}
-            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
           >
             <Upload className="mx-auto mb-3 text-slate-300" size={32} />
             <p className="text-sm font-bold text-slate-400">파일을 여기에 드래그하거나 클릭하여 업로드하세요</p>
@@ -521,11 +521,11 @@ export default function SurveyPage() {
                 }))}
                 className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
                   isChecked
-                    ? "border-blue-400 bg-blue-50 text-blue-700"
+                    ? "border-emerald-500 bg-blue-50 text-blue-700"
                     : "border-slate-100 bg-white text-slate-400 hover:border-slate-200"
                 }`}
               >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all ${isChecked ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-300"}`}>
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all ${isChecked ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-300"}`}>
                   {isChecked ? "O" : "X"}
                 </div>
                 <span className="text-sm font-semibold">{item}</span>
@@ -545,7 +545,7 @@ export default function SurveyPage() {
           onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={e => handleDrop(e, 6)}
-          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
+          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
         >
           <Upload className="mx-auto mb-3 text-slate-300" size={32} />
           <p className="text-sm font-bold text-slate-400">교육 자료, 안전 매뉴얼 파일을 업로드하세요</p>
@@ -564,9 +564,9 @@ export default function SurveyPage() {
       <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 rounded-3xl p-10 text-center text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(59,130,246,0.15)_0%,_transparent_70%)]" />
         <div className="relative z-10 space-y-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full">
-            <Sparkles size={14} className="text-blue-400" />
-            <span className="text-xs font-black text-blue-300 uppercase tracking-widest">AI Powered Analysis</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-600/20 border border-emerald-500/30 rounded-full">
+            <Sparkles size={14} className="text-amber-400" />
+            <span className="text-xs font-black text-amber-300 uppercase tracking-widest">AI Powered Analysis</span>
           </div>
           <h3 className="text-2xl md:text-3xl font-black leading-tight">
             이 모든 답변은 AI 분석을 통해 <br />
@@ -581,7 +581,7 @@ export default function SurveyPage() {
           <div className="flex items-center justify-center gap-6 pt-2">
             <div className="flex items-center gap-2"><Star size={16} className="text-amber-400" /><span className="text-xs text-slate-300 font-bold">브랜딩 분석</span></div>
             <div className="flex items-center gap-2"><Target size={16} className="text-rose-400" /><span className="text-xs text-slate-300 font-bold">경영 목표</span></div>
-            <div className="flex items-center gap-2"><Zap size={16} className="text-blue-400" /><span className="text-xs text-slate-300 font-bold">AI 맞춤 전략</span></div>
+            <div className="flex items-center gap-2"><Zap size={16} className="text-amber-400" /><span className="text-xs text-slate-300 font-bold">AI 맞춤 전략</span></div>
           </div>
         </div>
       </div>
@@ -656,14 +656,14 @@ export default function SurveyPage() {
       <main className="max-w-4xl mx-auto px-6 py-10">
         {/* Chapter Header */}
         <div className="mb-8 flex items-start gap-5">
-          <div className={`p-4 bg-gradient-to-br ${chapterConfig.color} rounded-3xl shadow-lg shadow-blue-500/20 flex-shrink-0`}>
+          <div className={`p-4 bg-gradient-to-br ${chapterConfig.color} rounded-3xl shadow-lg shadow-emerald-500/20 flex-shrink-0`}>
             <Icon size={32} className="text-white" />
           </div>
           <div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Chapter {step} • {chapterConfig.subtitle}</p>
             <h2 className="text-3xl font-black text-slate-900">{chapterConfig.title}</h2>
             {step > 1 && (
-              <p className="mt-2 text-sm text-blue-600 font-semibold bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full inline-block">
+              <p className="mt-2 text-sm text-amber-600 font-semibold bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full inline-block">
                 {encouragements[step - 1]}
               </p>
             )}
