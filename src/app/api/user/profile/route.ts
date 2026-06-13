@@ -15,9 +15,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { realName, clinicName, age } = await req.json();
+    const { realName, clinicName, age, phone } = await req.json();
 
-    if (!realName || !clinicName || !age) {
+    if (!realName || !clinicName || !age || !phone) {
       return NextResponse.json({ error: "모든 필수 항목을 입력해주세요." }, { status: 400 });
     }
 
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
         real_name: realName,
         clinic_name: clinicName,
         age: parseInt(age, 10),
+        phone: phone,
       }, { onConflict: "user_email" });
 
     if (error) {

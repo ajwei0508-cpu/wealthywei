@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -29,9 +30,11 @@ import { Patient, CallLog } from '@/types/happycall';
 import { DEFAULT_TEMPLATES, replaceTemplate } from '@/lib/happycallTemplates';
 import * as XLSX from 'xlsx';
 
+
 export default function HappyCallDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+
 
   // State
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -51,9 +54,11 @@ export default function HappyCallDashboard() {
   const [isRefining, setIsRefining] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
 
     toast.loading("엑셀 데이터를 분석하여 업로드 중입니다...", { id: "upload" });
     try {
@@ -321,10 +326,12 @@ export default function HappyCallDashboard() {
       const res = await fetch('/api/happycall/targets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+
         body: JSON.stringify({
           patient_id: selectedPatient.id,
           call_type: selectedPatient.target_stage,
           status: callStatus,
+
           memo: callMemo
         })
       });
@@ -778,5 +785,6 @@ export default function HappyCallDashboard() {
         </div>
       )}
     </DashboardLayout>
+
   );
 }

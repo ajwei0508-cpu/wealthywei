@@ -36,9 +36,11 @@ export default function Home() {
   const userName = session?.user?.name || "원장";
   const realName = (session?.user as any)?.realName;
   const clinicName = (session?.user as any)?.clinicName;
+  const age = (session?.user as any)?.age;
+  const phone = (session?.user as any)?.phone;
 
   const [showProfileSetup, setShowProfileSetup] = React.useState(false);
-  const [profileForm, setProfileForm] = React.useState({ realName: userName, clinicName: "", age: "" });
+  const [profileForm, setProfileForm] = React.useState({ realName: userName, clinicName: "", age: "", phone: "" });
   const [isSaving, setIsSaving] = React.useState(false);
 
   // AI Chat State
@@ -63,16 +65,29 @@ export default function Home() {
   const [isSigningUp, setIsSigningUp] = React.useState(false);
 
   React.useEffect(() => {
-    if (status === "authenticated" && (!realName || !clinicName)) {
-      setShowProfileSetup(true);
-    } else {
-      setShowProfileSetup(false);
+    if (status === "authenticated") {
+      if (!realName || !clinicName || !phone) {
+        setShowProfileSetup(true);
+        setProfileForm(prev => ({
+          ...prev,
+          realName: realName || userName,
+          clinicName: clinicName || "",
+          age: age?.toString() || "",
+          phone: phone || ""
+        }));
+        
+        if (realName && clinicName && !phone) {
+          toast("기존 회원님의 원활한 서비스 이용을 위해 전화번호를 추가로 입력해주세요.", { icon: "🔔", id: "profile-update", duration: 5000 });
+        }
+      } else {
+        setShowProfileSetup(false);
+      }
     }
-  }, [status, realName, clinicName]);
+  }, [status, realName, clinicName, phone, age, userName]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileForm.realName || !profileForm.clinicName || !profileForm.age) {
+    if (!profileForm.realName || !profileForm.clinicName || !profileForm.age || !profileForm.phone) {
       toast.error("모든 항목을 입력해주세요.");
       return;
     }
@@ -287,7 +302,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-            ) : (
+            ) : loginMode === "staff-signup" ? (
               <div className="space-y-5 text-left">
                 <div className="text-center space-y-2 mb-6">
                   <h3 className="text-lg font-black text-amber-600">직원 전용 회원가입</h3>
@@ -393,7 +408,7 @@ export default function Home() {
                   </button>
                 </form>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </main>
@@ -450,10 +465,21 @@ export default function Home() {
                   placeholder="35"
                 />
               </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-slate-700">휴대폰 번호</label>
+                <input
+                  type="text"
+                  required
+                  value={profileForm.phone}
+                  onChange={e => setProfileForm({ ...profileForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                  placeholder="- 제외 숫자만 입력"
+                />
+              </div>
 
               <button
                 type="submit"
-                disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age}
+                disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age || !profileForm.phone}
                 className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
               >
                 {isSaving ? "저장 중..." : "저장하고 시작하기"}

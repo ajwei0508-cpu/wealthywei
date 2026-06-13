@@ -58,3 +58,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email || session.user.email.toLowerCase() !== MASTER_EMAIL.toLowerCase()) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+
+    if (!email) {
+      return NextResponse.json({ error: "Email parameter is required" }, { status: 400 });
+    }
+
+    // 1. Delete from public.user_permissions ONLY
+    // 로그인 계정 정보나 워크북/매출 데이터는 유지한 채 프로필 입력창이 다시 뜨도록 권한 테이블만 초기화합니다.
+    const supabasePublic = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    const { error: pError } = await supabasePublic
+      .from("user_permissions")
+      .delete()
+      .eq("user_email", email.toLowerCase());
+
+    if (pError) throw pError;
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("User profile reset error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

@@ -25,7 +25,8 @@ import {
   CreditCard,
   Trophy,
   AlertTriangle,
-  Check
+  Check,
+  Eye
 } from "lucide-react";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { useVideoHistory } from "@/context/VideoHistoryContext";
@@ -89,24 +90,39 @@ const getFlatMetrics = (dm: DataMetrics | null | undefined): FlatMetrics => {
   const leak = dm.leakage || {};
   const pm = dm.paymentMethods || {};
   
-  const totalRevenue = rev.total || 0;
-  const patientCount = pat.total || 0;
+  // EMR-specific data takes precedence to ensure 100% accuracy with user's view
+  const ok = dm.okchartData;
+  const hs = dm.hanisarangData;
+  const dbg = dm.donguibogamData;
+
+  const totalRevenue = ok?.totalRevenue || hs?.totalRevenue || dbg?.totalRevenue || rev.total || 0;
+  const patientCount = ok?.totalPatients || hs?.totalPatients || dbg?.totalPatients || pat.total || 0;
+  const newPatientCount = ok?.newPatients || hs?.newPatients || dbg?.newPatients || pat.new || 0;
+  const patientPay = ok?.copay || hs?.copay || dbg?.copay || rev.copay || 0;
+  const insuranceClaim = ok?.insuranceClaim || hs?.insuranceClaim || dbg?.insuranceClaim || rev.insurance || 0;
+  const autoInsuranceClaim = ok?.autoClaim || hs?.autoClaim || rev.auto || 0;
+  const autoInsuranceCount = ok?.autoPatients || pat.auto || 0;
+  const nonBenefit = ok?.nonCovered || hs?.nonCovered || dbg?.nonCovered || rev.nonCovered || 0;
+  const industrialAccidentClaim = ok?.workerClaim || hs?.workerClaim || rev.worker || 0;
+  const accountsReceivable = ok?.receivables || hs?.receivables || dbg?.receivables || leak.receivables || 0;
+  const cashCollection = ok?.cashPayment || hs?.cashPayment || dbg?.cashTotal || pm.cash || 0;
+  const cardCollection = ok?.cardPayment || hs?.cardPayment || dbg?.cardTotal || pm.card || 0;
 
   return {
-    basicRevenue: (rev.copay || 0) + (rev.insurance || 0) + (rev.auto || 0),
-    nonBenefit: rev.nonCovered || 0,
-    newPatientCount: pat.new || 0,
+    basicRevenue: patientPay + insuranceClaim + autoInsuranceClaim,
+    nonBenefit: nonBenefit,
+    newPatientCount: newPatientCount,
     totalTreatmentFee: totalRevenue,
     arpu: totalRevenue / Math.max(patientCount || 1, 1),
     patientCount: patientCount,
-    patientPay: rev.copay || 0,
-    insuranceClaim: rev.insurance || 0,
-    autoInsuranceClaim: rev.auto || 0,
-    autoInsuranceCount: pat.auto || 0,
-    industrialAccidentClaim: rev.worker || 0,
-    accountsReceivable: leak.receivables || 0,
-    cashCollection: pm.cash || 0,
-    cardCollection: pm.card || 0,
+    patientPay: patientPay,
+    insuranceClaim: insuranceClaim,
+    autoInsuranceClaim: autoInsuranceClaim,
+    autoInsuranceCount: autoInsuranceCount,
+    industrialAccidentClaim: industrialAccidentClaim,
+    accountsReceivable: accountsReceivable,
+    cashCollection: cashCollection,
+    cardCollection: cardCollection,
     totalRevenue: totalRevenue
   };
 };
@@ -133,7 +149,8 @@ export default function MasterUserDetailsPage() {
   };
 
   useEffect(() => {
-    if (status === "unauthenticated" || (status === "authenticated" && session?.user?.email !== "wei0508@naver.com")) {
+    const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
+    if (status === "unauthenticated" || (status === "authenticated" && session?.user?.email?.toLowerCase() !== masterEmail.toLowerCase())) {
       router.push("/");
     }
   }, [session, status, router]);
@@ -205,7 +222,8 @@ export default function MasterUserDetailsPage() {
   }, [analysisPeriodMode, selectedMonth, monthlyData]);
 
   useEffect(() => {
-    if (session?.user?.email === "wei0508@naver.com") {
+    const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
+    if (session?.user?.email?.toLowerCase() === masterEmail.toLowerCase()) {
       fetchUserData();
     }
   }, [decodedEmail, session]);
@@ -530,9 +548,29 @@ export default function MasterUserDetailsPage() {
             >
               <ArrowLeft size={20} />
             </button>
-            <div className="hidden sm:block">
+            <div className="hidden sm:flex flex-col">
               <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">[{decodedEmail}] 분석 리포트</h2>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.open(`/emr/okchart?viewAs=${encodeURIComponent(decodedEmail)}`, "_blank")}
+              className="px-4 py-2 bg-primary/10 text-primary hover:bg-primary/20 transition-all rounded-xl text-[11px] font-black shadow-sm flex items-center gap-1.5"
+            >
+              <Eye size={14} /> 오케이차트 화면
+            </button>
+            <button
+              onClick={() => window.open(`/emr/hanisarang?viewAs=${encodeURIComponent(decodedEmail)}`, "_blank")}
+              className="px-4 py-2 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-all rounded-xl text-[11px] font-black shadow-sm flex items-center gap-1.5"
+            >
+              <Eye size={14} /> 한의사랑 화면
+            </button>
+            <button
+              onClick={() => window.open(`/emr/hanchart?viewAs=${encodeURIComponent(decodedEmail)}`, "_blank")}
+              className="px-4 py-2 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all rounded-xl text-[11px] font-black shadow-sm flex items-center gap-1.5 hidden md:flex"
+            >
+              <Eye size={14} /> 한차트 화면
+            </button>
           </div>
         </div>
       </header>

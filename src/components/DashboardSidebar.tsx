@@ -291,6 +291,17 @@ export default function DashboardSidebar() {
             />
           )}
 
+          {/* Happy Call Management - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={PhoneCall} 
+              label="해피콜 환자관리" 
+              isLocked={false}
+              isActive={pathname.startsWith("/happycall")}
+              onClick={() => router.push("/happycall")}
+            />
+          )}
+
           {/* 2. 바른개원법 - Not for staff */}
           {userRole !== 'staff' && (
             <NavItem 
@@ -322,7 +333,9 @@ export default function DashboardSidebar() {
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     치료실교육
+
                     <Sparkles size={10} className="text-amber-400 opacity-50" />
+
                  </Link>
               </div>
             </NavItem>

@@ -98,6 +98,29 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
       }
+    }),
+    CredentialsProvider({
+      id: "master-login",
+      name: "마스터 로그인",
+      credentials: {
+        password: { label: "마스터 비밀번호", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.password) return null;
+        
+        const expectedPassword = process.env.MASTER_PASSWORD || "master1234!";
+        if (credentials.password === expectedPassword) {
+          const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
+          return {
+            id: "master",
+            name: "최고 관리자",
+            email: masterEmail,
+            // @ts-ignore
+            role: "master"
+          };
+        }
+        return null;
+      }
     })
   ],
 
@@ -174,7 +197,7 @@ export const authOptions: NextAuthOptions = {
             );
             const { data } = await supabase
               .from("user_permissions")
-              .select("approval_status, approved_category, approved_categories, selected_emr, real_name, clinic_name, age")
+              .select("approval_status, approved_category, approved_categories, selected_emr, real_name, clinic_name, age, phone")
               .eq("user_email", token.email?.toLowerCase())
               .single();
 
@@ -191,6 +214,8 @@ export const authOptions: NextAuthOptions = {
               session.user.clinicName = data.clinic_name;
               // @ts-ignore
               session.user.age = data.age;
+              // @ts-ignore
+              session.user.phone = data.phone;
             } else {
               // @ts-ignore
               session.user.approvalStatus = 'pending';

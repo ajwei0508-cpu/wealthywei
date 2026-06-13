@@ -153,10 +153,23 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // 1. Try Supabase first if logged in
       if (session?.user?.email) {
         try {
+          let targetEmail = session.user.email.toLowerCase();
+          const masterEmail = (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
+          let isImpersonating = false;
+          
+          if (targetEmail === masterEmail && typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewAs = urlParams.get('viewAs');
+            if (viewAs) {
+              targetEmail = viewAs.toLowerCase();
+              isImpersonating = true;
+            }
+          }
+
           const { data: dbData, error } = await supabase
             .from('clinic_metrics')
             .select('month, metrics')
-            .eq('user_id', session.user.email.toLowerCase());
+            .eq('user_id', targetEmail);
 
           if (dbData) {
             const transformed: Record<string, DataMetrics> = {};
@@ -316,17 +329,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     setTimeout(async () => {
       if (session?.user?.email && finalMetrics) {
+        let targetEmail = session.user.email.toLowerCase();
+        let targetName = session.user.name || '';
+        const masterEmail = (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
+        let isImpersonating = false;
+        
+        if (targetEmail === masterEmail && typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const viewAs = urlParams.get('viewAs');
+          if (viewAs) {
+            targetEmail = viewAs.toLowerCase();
+            targetName = '마스터 (관리자 대행)';
+            isImpersonating = true;
+          }
+        }
+
         try {
           await supabase.from('clinic_metrics').upsert({
-            user_id: session.user.email.toLowerCase(),
-            user_email: session.user.email.toLowerCase(),
-            user_name: session.user.name || '',
+            user_id: targetEmail,
+            user_email: targetEmail,
+            user_name: targetName,
             month: month,
             metrics: finalMetrics
           }, { onConflict: 'user_id,month' });
-
-          // 알림 발송 (실제 사용자가 직접 업로드한 경우만)
-          if (isManualUpload) {
+          
+          if (isManualUpload && !isImpersonating) {
             let emrType = '알 수 없음';
             if (newData.okchartData) emrType = '오케이차트';
             else if (newData.hanchartData) emrType = '한차트';
