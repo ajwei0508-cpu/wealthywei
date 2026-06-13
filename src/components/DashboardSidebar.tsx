@@ -19,7 +19,9 @@ import {
   RefreshCw,
   Bell,
   MessageSquare,
-  PhoneCall
+  PhoneCall,
+  Home,
+  PhoneForwarded
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -195,6 +197,16 @@ export default function DashboardSidebar() {
 
       {/* Navigation Section */}
       <nav className="flex-1 px-4 sidebar-scroll overflow-y-auto">
+        <div className="flex justify-center mb-6 mt-2 px-2">
+          <Link 
+            href="/"
+            className={`flex items-center justify-center w-full gap-2 py-3.5 rounded-[1rem] transition-all duration-300 group shadow-lg ${pathname === "/" || pathname === "/details" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-black/20 text-white/50 hover:bg-black/40 hover:text-white border border-white/5"}`}
+          >
+            <Home size={16} className={`transition-transform duration-500 ${pathname === "/" ? "" : "group-hover:-translate-y-0.5"}`} />
+            <span className="text-xs font-bold tracking-widest uppercase">대시보드 홈</span>
+          </Link>
+        </div>
+
         <div className="mb-4">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
@@ -206,7 +218,7 @@ export default function DashboardSidebar() {
               isLocked={!isConsultingApproved && !isMaster}
               isOpen={isConsultingOpen} 
               onClick={() => setIsConsultingOpen(!isConsultingOpen)}
-              isActive={pathname === "/" || pathname === "/details"}
+              isActive={pathname === "/details"}
             >
               {consultingSubMenus.map((sub, idx) => {
                 if (typeof sub === "string") return null; // Old format fallback
@@ -291,16 +303,7 @@ export default function DashboardSidebar() {
             />
           )}
 
-          {/* Happy Call Management - Not for staff */}
-          {userRole !== 'staff' && (
-            <NavItem 
-              icon={PhoneCall} 
-              label="해피콜 환자관리" 
-              isLocked={false}
-              isActive={pathname.startsWith("/happycall")}
-              onClick={() => router.push("/happycall")}
-            />
-          )}
+
 
           {/* 2. 바른개원법 - Not for staff */}
           {userRole !== 'staff' && (
@@ -363,8 +366,8 @@ export default function DashboardSidebar() {
 
           {/* 재내원 해피콜 (Standalone Menu Item for all roles) */}
           <NavItem 
-            icon={PhoneCall} 
-            label="재내원 해피콜" 
+            icon={PhoneForwarded} 
+            label="재내원 시스템" 
             isLocked={userRole !== 'staff' && !isConsultingApproved && !isMaster}
             isActive={pathname.startsWith("/happycall")}
             onClick={() => router.push("/happycall")}
