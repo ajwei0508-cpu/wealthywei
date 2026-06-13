@@ -197,8 +197,18 @@ export default function DashboardSidebar() {
 
       {/* Navigation Section */}
       <nav className="flex-1 px-4 sidebar-scroll overflow-y-auto">
+        <div className="flex justify-center mb-6 mt-2 px-2">
+          <Link 
+            href="/"
+            className={`flex items-center justify-center w-full gap-2 py-3.5 rounded-[1rem] transition-all duration-300 group shadow-lg ${pathname === "/" || pathname === "/details" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-black/20 text-white/50 hover:bg-black/40 hover:text-white border border-white/5"}`}
+          >
+            <Home size={16} className={`transition-transform duration-500 ${pathname === "/" ? "" : "group-hover:-translate-y-0.5"}`} />
+            <span className="text-xs font-bold tracking-widest uppercase">HOME</span>
+          </Link>
+        </div>
+
         <div className="mb-4">
-          <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 mt-6">Core Services</p>
+          <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
           {/* 1. 바른컨설팅 (Accordion) - Not for staff */}
           {userRole !== 'staff' && (
