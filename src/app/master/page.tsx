@@ -336,6 +336,28 @@ export default function MasterDashboardPortal() {
     }
   };
 
+  const handleMasterDeleteUser = async (email: string, name: string) => {
+    if (!window.confirm(`"${name}" 원장님의 [회원정보(프로필)]를 초기화하시겠습니까? \n\n※ 카카오 로그인 계정 및 기존 매출/워크북 데이터는 삭제되지 않으며, 해당 원장님이 다음 번 접속 시 이름/한의원명/전화번호를 다시 입력하게 됩니다.`)) return;
+    try {
+      const res = await fetch(`/api/master/users?email=${encodeURIComponent(email)}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("회원정보 입력 상태로 성공적으로 초기화되었습니다.");
+        // We only reset the user's profile info in UI, so they look 'uninitialized'
+        // Actually the best is to fetch users again
+        const uRes = await fetch("/api/master/users");
+        if (uRes.ok) {
+          const { data } = await uRes.json();
+          setAllUsers(data || []);
+        }
+      } else {
+        const errData = await res.json();
+        toast.error(`초기화 실패: ${errData.error || "알 수 없는 오류"}`);
+      }
+    } catch (err) {
+      toast.error("초기화 중 오류가 발생했습니다.");
+    }
+  };
+
   const CATEGORIES = [
     { id: 'consulting', name: '바른컨설팅' },
     { id: 'treatment', name: '바른진료법' },
@@ -602,113 +624,172 @@ export default function MasterDashboardPortal() {
     );
   };
 
-  const renderUsersView = () => (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">전체 가입자 수</p><p className="text-2xl font-extrabold text-slate-900">{allUsers.filter(u => u.email?.toLowerCase() !== masterEmail.toLowerCase()).length}명</p></div></Card>
-      </div>
-      <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
-        <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50"><h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-[#FAFAFB]">
-              <tr>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">사용자 (프로필)</th>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">가입 정보</th>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">이메일</th>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 상태</th>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 분류</th>
-                <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">활동 현황</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              {allUsers
-                .filter(u => u.email?.toLowerCase() !== masterEmail.toLowerCase())
-                .map((user) => {
-                const hasRev = allData.some(d => d.user_email?.toLowerCase() === user.email?.toLowerCase());
-                const hasWb = workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase());
-                const perms = user.permissions || { approval_status: 'pending', approved_category: null };
-                
-                return (
-                  <tr key={user.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-zinc-100 overflow-hidden border border-zinc-100">
-                          {user.image ? <img src={user.image} alt="p" className="w-full h-full object-cover" /> : <Users size={14} className="m-auto mt-1.5" />}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-extrabold text-slate-900">{perms.real_name || user.name || "이름 없음"}</span>
-                          <span className="text-[10px] text-zinc-500 font-bold bg-zinc-100 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.name}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit">{perms.clinic_name || "한의원 미입력"}</span>
-                        {perms.age && <span className="text-[10px] text-zinc-500 font-medium ml-1">{perms.age}세</span>}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-sm text-zinc-500 font-medium">{user.email}</td>
-                    <td className="px-8 py-5">
-                      <select 
-                        value={perms.approval_status}
-                        onChange={(e) => handleApprove(user.email, e.target.value, perms.approved_categories || [])}
-                        className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none transition-colors ${
-                          perms.approval_status === 'approved' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                          perms.approval_status === 'rejected' ? "bg-rose-50 text-rose-600 border-rose-100" :
-                          "bg-amber-50 text-amber-600 border-amber-100"
-                        }`}
-                      >
-                        <option value="pending">대기</option>
-                        <option value="approved">승인</option>
-                        <option value="rejected">거절</option>
-                      </select>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex flex-col gap-1.5">
-                        {CATEGORIES.map(cat => {
-                          const isChecked = perms.approved_categories?.includes(cat.id);
-                          return (
-                            <label key={cat.id} className="flex items-center gap-2 cursor-pointer group/item">
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isChecked ? "bg-primary border-primary shadow-sm" : "bg-white border-zinc-200 group-hover/item:border-primary/50"}`}>
-                                <input 
-                                  type="checkbox" 
-                                  checked={isChecked}
-                                  disabled={perms.approval_status !== 'approved'}
-                                  onChange={(e) => {
-                                    let newList = [...(perms.approved_categories || [])];
-                                    if (e.target.checked) {
-                                      if (!newList.includes(cat.id)) newList.push(cat.id);
-                                    } else {
-                                      newList = newList.filter(id => id !== cat.id);
-                                    }
-                                    handleApprove(user.email, perms.approval_status, newList);
-                                  }}
-                                  className="sr-only"
-                                />
-                                {isChecked && <Check size={10} className="text-white" strokeWidth={4} />}
-                              </div>
-                              <span className={`text-[11px] font-bold ${isChecked ? "text-slate-900" : "text-zinc-400 group-hover/item:text-slate-600"}`}>{cat.name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <div className="flex items-center justify-center gap-2">
-                        {hasRev && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100">매출</span>}
-                        {hasWb && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded-md border border-blue-100">워크북</span>}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+  const renderUsersView = () => {
+    const combinedUsers = [
+      ...allUsers
+        .filter(u => u.email?.toLowerCase() !== masterEmail.toLowerCase())
+        .map(u => ({
+          type: 'director' as const,
+          id: u.id,
+          name: u.permissions?.real_name || u.name || "이름 없음",
+          kakaoName: u.name,
+          clinicName: u.permissions?.clinic_name || "한의원 미입력",
+          phone: u.permissions?.phone || "-",
+          age: u.permissions?.age,
+          email: u.email,
+          image: u.image,
+          perms: u.permissions || { approval_status: 'pending', approved_category: null },
+          raw: u
+        })),
+      ...allStaff.map(s => ({
+        type: 'staff' as const,
+        id: `staff_${s.id}`,
+        name: s.name,
+        kakaoName: null,
+        clinicName: s.clinic_name || "한의원 미입력",
+        phone: s.phone || "-",
+        age: null,
+        email: `소속: ${s.parent_email}`,
+        image: null,
+        perms: null,
+        raw: s
+      }))
+    ];
+
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">전체 가입자 수</p><p className="text-2xl font-extrabold text-slate-900">{combinedUsers.length}명</p></div></Card>
         </div>
-      </Card>
-    </div>
-  );
+        <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
+          <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50"><h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-[#FAFAFB]">
+                <tr>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">사용자 (프로필)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">가입 정보</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">연락처 / 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 상태 (권한)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 분류</th>
+                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">활동 현황</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {combinedUsers.map((user) => {
+                  const isDirector = user.type === 'director';
+                  const hasRev = isDirector ? allData.some(d => d.user_email?.toLowerCase() === user.email?.toLowerCase()) : false;
+                  const hasWb = isDirector ? workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase()) : false;
+                  
+                  return (
+                    <tr key={user.id} className="hover:bg-zinc-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-zinc-100 overflow-hidden border border-zinc-100 flex items-center justify-center">
+                            {user.image ? <img src={user.image} alt="p" className="w-full h-full object-cover" /> : <Users size={14} className="text-zinc-400" />}
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-extrabold text-slate-900">{user.name}</span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${isDirector ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                {isDirector ? '원장' : '직원'}
+                              </span>
+                            </div>
+                            {user.kakaoName && <span className="text-[10px] text-zinc-500 font-bold bg-zinc-100 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.kakaoName}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md w-fit">{user.clinicName}</span>
+                          {user.age && <span className="text-[10px] text-zinc-500 font-medium ml-1">{user.age}세</span>}
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 flex flex-col gap-1">
+                        <span className="text-sm text-slate-700 font-bold">{user.phone}</span>
+                        <span className="text-xs text-zinc-500 font-medium">{user.email}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        {isDirector ? (
+                          <select 
+                            value={user.perms?.approval_status || 'pending'}
+                            onChange={(e) => handleApprove(user.email!, e.target.value, user.perms?.approved_categories || [])}
+                            className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none transition-colors ${
+                              user.perms?.approval_status === 'approved' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                              user.perms?.approval_status === 'rejected' ? "bg-rose-50 text-rose-600 border-rose-100" :
+                              "bg-amber-50 text-amber-600 border-amber-100"
+                            }`}
+                          >
+                            <option value="pending">대기</option>
+                            <option value="approved">승인</option>
+                            <option value="rejected">거절</option>
+                          </select>
+                        ) : (
+                          <span className="text-[11px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded-lg border border-slate-200">
+                            직원 (자동승인)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-8 py-5">
+                        {isDirector ? (
+                          <div className="flex flex-col gap-1.5">
+                            {CATEGORIES.map(cat => {
+                              const isChecked = user.perms?.approved_categories?.includes(cat.id);
+                              return (
+                                <label key={cat.id} className="flex items-center gap-2 cursor-pointer group/item">
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isChecked ? "bg-primary border-primary shadow-sm" : "bg-white border-zinc-200 group-hover/item:border-primary/50"}`}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={isChecked}
+                                      disabled={user.perms?.approval_status !== 'approved'}
+                                      onChange={(e) => {
+                                        let newList = [...(user.perms?.approved_categories || [])];
+                                        if (e.target.checked) {
+                                          if (!newList.includes(cat.id)) newList.push(cat.id);
+                                        } else {
+                                          newList = newList.filter(id => id !== cat.id);
+                                        }
+                                        handleApprove(user.email!, user.perms?.approval_status || 'pending', newList);
+                                      }}
+                                      className="sr-only"
+                                    />
+                                    {isChecked && <Check size={10} className="text-white" strokeWidth={4} />}
+                                  </div>
+                                  <span className={`text-[11px] font-bold ${isChecked ? "text-slate-900" : "text-zinc-400 group-hover/item:text-slate-600"}`}>{cat.name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-zinc-400 font-medium">-</span>
+                        )}
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center justify-center gap-2">
+                          {hasRev && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100">매출</span>}
+                          {hasWb && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded-md border border-blue-100">워크북</span>}
+                          {!isDirector && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded-md border border-indigo-100">교육영상</span>}
+                          {isDirector && (
+                            <button
+                              onClick={() => handleMasterDeleteUser(user.email!, user.name)}
+                              className="ml-2 p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/50"
+                              title="계정 완전 초기화 (삭제)"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    );
+  };
 
   const handleMasterGenerateInvite = async () => {
     const email = window.prompt("초대 코드를 대신 발급해줄 원장님의 이메일을 입력하세요:");
