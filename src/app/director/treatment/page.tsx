@@ -27,7 +27,7 @@ export default function DirectorTreatmentPage() {
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center shadow-sm border border-blue-200">
-              <Stethoscope className="w-6 h-6 text-amber-600" />
+              <Stethoscope className="w-6 h-6 text-amber-400" />
             </div>
             <h1 className="text-3xl font-black text-gray-900 tracking-tight">핵심 진료법 가이드</h1>
           </div>
@@ -88,7 +88,7 @@ export default function DirectorTreatmentPage() {
               <div className="absolute top-4 right-4 z-50">
                 <button 
                   onClick={() => setSelectedVideo(null)}
-                  className="w-10 h-10 bg-black/50 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors border border-white/10"
+                  className="w-10 h-10 bg-black/50 hover:bg-white/5/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors border border-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>

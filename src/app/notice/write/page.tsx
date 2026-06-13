@@ -79,7 +79,7 @@ export default function NoticeWritePage() {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => router.back()}
-              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+              className="w-10 h-10 rounded-full bg-white/5/5 flex items-center justify-center hover:bg-white/5/10 transition-colors"
             >
               <ArrowLeft size={20} />
             </button>
@@ -132,7 +132,7 @@ export default function NoticeWritePage() {
                 <button 
                   type="button"
                   onClick={() => router.back()}
-                  className="px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all"
+                  className="px-6 py-3 rounded-xl bg-white/5/5 hover:bg-white/5/10 text-white font-bold transition-all"
                 >
                   취소
                 </button>

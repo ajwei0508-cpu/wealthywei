@@ -278,7 +278,7 @@ export default function DonguibogamPage() {
           <div className="flex items-center justify-between mb-8">
             <button 
               onClick={() => router.push("/")} 
-              className="text-slate-500 hover:text-amber-400 flex items-center gap-2 text-sm transition-all group"
+              className="text-white/50 hover:text-amber-400 flex items-center gap-2 text-sm transition-all group"
             >
               <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> EMR 선택
             </button>
@@ -293,7 +293,7 @@ export default function DonguibogamPage() {
               </button>
               <button
                 onClick={() => { if(confirm("현재 보고 계신 월의 데이터를 초기화할까요?")) deleteMonthlyData(selectedMonth); }}
-                className="group p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
+                className="group p-2.5 rounded-2xl bg-white/5/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
                 title="데이터 초기화"
               >
                 <Trash2 size={18} />
@@ -316,10 +316,10 @@ export default function DonguibogamPage() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 bg-white/5/5 p-1.5 rounded-2xl border border-white/10">
               <button 
                 onClick={setYoY}
-                className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5 transition-all text-slate-400 hover:text-white"
+                className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5/5 transition-all text-slate-400 hover:text-white"
               >
                 작년 대비 (YoY)
               </button>
@@ -347,7 +347,7 @@ export default function DonguibogamPage() {
                 </span>
               </div>
               {!displayData.hasFinancialData || !displayData.hasTreatmentData ? (
-                <p className="text-slate-500 text-[10px] font-medium flex items-center gap-2 animate-pulse">
+                <p className="text-white/50 text-[10px] font-medium flex items-center gap-2 animate-pulse">
                   <AlertTriangle size={14} className="text-amber-500" />
                   동의보감은 두 종류의 파일을 모두 업로드해야 정확한 분석이 가능합니다.
                 </p>
@@ -369,8 +369,8 @@ export default function DonguibogamPage() {
                   onClick={() => setDisplayYear(year)}
                   className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
                     displayYear === year 
-                    ? "bg-white/10 border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/5" 
-                    : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
+                    ? "bg-white/5/10 border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/5" 
+                    : "bg-white/5/5 border-white/5 text-white/50 hover:border-white/20"
                   }`}
                 >
                   {year}년
@@ -382,7 +382,7 @@ export default function DonguibogamPage() {
               {!isManageMode ? (
                 <button 
                   onClick={() => setIsManageMode(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/5/10 transition-all hover:text-white group"
                 >
                   <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
                 </button>
@@ -390,7 +390,7 @@ export default function DonguibogamPage() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={toggleSelectAll}
-                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
+                    className="px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/5/10 transition-all"
                   >
                     {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
                   </button>
@@ -403,7 +403,7 @@ export default function DonguibogamPage() {
                   </button>
                   <button 
                     onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                    className="px-4 py-2 rounded-xl bg-white/5/10 text-white text-[10px] font-black uppercase hover:bg-white/5/20 transition-all"
                   >
                     닫기
                   </button>
@@ -426,7 +426,7 @@ export default function DonguibogamPage() {
                     ? "bg-amber-500 border-amber-600 text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                     : compareMonth === m && !isManageMode
                     ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
-                    : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
+                    : "bg-white/5/5 border-white/10 text-white/50 hover:border-white/20"
                   }`}
                 >
                   {isManageMode && (
@@ -434,7 +434,7 @@ export default function DonguibogamPage() {
                        {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
                     </div>
                   )}
-                  <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
+                  <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-white/70"}`}>
                     {m.split("-")[0].slice(2)}년
                   </span>
                   <span className="text-sm font-black tracking-tighter">
@@ -443,7 +443,7 @@ export default function DonguibogamPage() {
                 </button>
               ))}
               {filteredMonths.length === 0 && (
-                <div className="text-slate-600 text-sm font-medium py-4 px-2 italic">
+                <div className="text-white/70 text-sm font-medium py-4 px-2 italic">
                   {displayYear}년 데이터가 없습니다.
                 </div>
               )}
@@ -467,13 +467,13 @@ export default function DonguibogamPage() {
                   <h2 className="text-white text-xl font-medium mb-1">
                     <span className="text-amber-400 font-black">{formatMonth(selectedMonth)}</span> 총 진료비 매출액
                   </h2>
-                  <p className="text-slate-500 text-sm">동의보감 시스템에서 집계된 전체 발생 매출입니다.</p>
+                  <p className="text-white/50 text-sm">동의보감 시스템에서 집계된 전체 발생 매출입니다.</p>
                 </div>
                 
                 <div className="text-center md:text-right">
                   <div className="inline-flex items-baseline gap-2 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-3xl border border-white/10 shadow-2xl">
                     <RollingNumber value={displayData.totalRevenue} color="amber" />
-                    <span className="text-2xl font-black text-slate-500">원</span>
+                    <span className="text-2xl font-black text-white/50">원</span>
                   </div>
                   {compareMonth && (
                     <div className={`mt-4 flex items-center justify-center md:justify-end gap-2 font-bold ${displayData.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
@@ -481,7 +481,7 @@ export default function DonguibogamPage() {
                         {displayData.totalRevenue >= pData.totalRevenue ? "▲" : "▼"} 
                         {formatNumber(Math.abs(displayData.totalRevenue - pData.totalRevenue))}원
                       </span>
-                      <span className="text-slate-600 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
+                      <span className="text-white/70 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
                     </div>
                   )}
                 </div>
@@ -490,11 +490,11 @@ export default function DonguibogamPage() {
           </section>
 
           {/* Monthly Trend Mini Chart */}
-          <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
+          <div className="mb-12 bg-white/5/5 border border-white/10 rounded-[2.5rem] p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-lg font-bold text-white mb-1">매출 및 내원 환자 추세</h3>
-                <p className="text-slate-500 text-xs">최근 업로드된 12개월간의 경영 흐름 분석</p>
+                <p className="text-white/50 text-xs">최근 업로드된 12개월간의 경영 흐름 분석</p>
               </div>
             </div>
             
@@ -518,13 +518,13 @@ export default function DonguibogamPage() {
                       onClick={() => handleMonthClick(m)}
                       className="group relative flex-1 flex flex-col items-center gap-2 cursor-pointer"
                     >
-                      <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
+                      <div className="w-full bg-white/5/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
                         <div 
-                          className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-white/10 group-hover:bg-white/20"}`}
+                          className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.6)]" : "bg-white/5/10 group-hover:bg-white/5/20"}`}
                           style={{ height: `${height}%` }}
                         />
                       </div>
-                      <span className={`text-[9px] font-black transition-colors whitespace-nowrap ${selectedMonth === m ? "text-amber-500" : "text-slate-600"}`}>
+                      <span className={`text-[9px] font-black transition-colors whitespace-nowrap ${selectedMonth === m ? "text-amber-500" : "text-white/70"}`}>
                         {m.split("-")[1]}월
                       </span>
                     </div>
@@ -542,7 +542,7 @@ export default function DonguibogamPage() {
                   <TrendingUp size={22} />
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Monthly Growth</p>
+                  <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Monthly Growth</p>
                   <p className={`text-sm font-black ${displayData.totalRevenue >= pData.totalRevenue ? "text-emerald-400" : "text-rose-400"}`}>
                     {pData.totalRevenue > 0 ? ((displayData.totalRevenue - pData.totalRevenue) / pData.totalRevenue * 100).toFixed(1) : 0}%
                   </p>
@@ -551,8 +551,8 @@ export default function DonguibogamPage() {
               <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">전월 대비 매출 비교</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-end">
-                  <span className="text-[10px] text-slate-600 font-bold uppercase">{formatMonth(compareMonth || prevMonthKey)}</span>
-                  <span className="text-sm font-bold text-zinc-400">{formatNumber(pData.totalRevenue)}</span>
+                  <span className="text-[10px] text-white/70 font-bold uppercase">{formatMonth(compareMonth || prevMonthKey)}</span>
+                  <span className="text-sm font-bold text-white/40">{formatNumber(pData.totalRevenue)}</span>
                 </div>
                 <div className="flex justify-between items-end">
                   <span className="text-[10px] text-amber-500 font-bold uppercase">{formatMonth(selectedMonth)}</span>
@@ -567,7 +567,7 @@ export default function DonguibogamPage() {
                   <Users size={22} />
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Efficiency</p>
+                  <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Efficiency</p>
                   <p className={`text-sm font-black ${revenuePerPatient >= pRevenuePerPatient ? "text-emerald-400" : "text-rose-400"}`}>
                     {pRevenuePerPatient > 0 ? ((revenuePerPatient - pRevenuePerPatient) / pRevenuePerPatient * 100).toFixed(1) : 0}%
                   </p>
@@ -576,7 +576,7 @@ export default function DonguibogamPage() {
               <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">평균 객단가 분석</h3>
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-3xl font-black text-white tracking-tighter">{formatNumber(Math.round(revenuePerPatient))}</span>
-                <span className="text-sm font-bold text-slate-500">원 / 명</span>
+                <span className="text-sm font-bold text-white/50">원 / 명</span>
               </div>
             </div>
 
@@ -586,7 +586,7 @@ export default function DonguibogamPage() {
                   <Plus size={22} />
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Revenue Mix</p>
+                  <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Revenue Mix</p>
                   <p className="text-sm font-black text-emerald-400">
                     {nonCoveredRatio.toFixed(1)}%
                   </p>
@@ -612,13 +612,13 @@ export default function DonguibogamPage() {
               <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">보험 수익 (본인+청구)</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(insuranceRevenue)}</span>
-                <span className="text-xs font-bold text-slate-500">원</span>
+                <span className="text-xs font-bold text-white/50">원</span>
               </div>
             </div>
 
             <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all">
+                <div className="p-2 bg-rose-500/10 rounded-xl text-rose-400 group-hover:bg-rose-500 group-hover:text-white transition-all">
                   <AlertCircle size={20} />
                 </div>
                 <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-2 py-0.5 rounded-full mb-1 inline-block">Full-Pay</span>
@@ -626,7 +626,7 @@ export default function DonguibogamPage() {
               <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">전액 본인부담금</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(displayData.fullCopay)}</span>
-                <span className="text-xs font-bold text-slate-500">원</span>
+                <span className="text-xs font-bold text-white/50">원</span>
               </div>
             </div>
 
@@ -640,7 +640,7 @@ export default function DonguibogamPage() {
               <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">비급여 진료 수익</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(displayData.nonCovered)}</span>
-                <span className="text-xs font-bold text-slate-500">원</span>
+                <span className="text-xs font-bold text-white/50">원</span>
               </div>
             </div>
 
@@ -654,7 +654,7 @@ export default function DonguibogamPage() {
               <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">실수납 합계액</p>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(displayData.totalReceived)}</span>
-                <span className="text-xs font-bold text-slate-500">원</span>
+                <span className="text-xs font-bold text-white/50">원</span>
               </div>
             </div>
           </div>
@@ -665,20 +665,20 @@ export default function DonguibogamPage() {
               <div className="h-6 w-1.5 bg-emerald-600 rounded-full" />
               <h3 className="text-sm font-black text-white/40 uppercase tracking-[0.3em]">Patient Flow Statistics</h3>
             </div>
-            <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
+            <div className="bg-white/5/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
               <div className="flex flex-col items-end">
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">총 내원 환자</p>
-                <p className="text-2xl font-black text-amber-500 leading-none">{formatNumber(displayData.totalPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">총 내원 환자</p>
+                <p className="text-2xl font-black text-amber-500 leading-none">{formatNumber(displayData.totalPatients)}<span className="text-xs font-bold ml-1 text-white/50">명</span></p>
               </div>
-              <div className="w-px h-10 bg-white/10 hidden md:block"></div>
+              <div className="w-px h-10 bg-white/5/10 hidden md:block"></div>
               <div className="flex flex-col items-end">
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">신규 환자 수</p>
-                <p className="text-2xl font-black text-amber-400 leading-none">{formatNumber(displayData.newPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">신규 환자 수</p>
+                <p className="text-2xl font-black text-amber-400 leading-none">{formatNumber(displayData.newPatients)}<span className="text-xs font-bold ml-1 text-white/50">명</span></p>
               </div>
-              <div className="w-px h-10 bg-white/10 hidden md:block"></div>
+              <div className="w-px h-10 bg-white/5/10 hidden md:block"></div>
               <div className="flex flex-col items-end">
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-0.5">재진 환자 수</p>
-                <p className="text-2xl font-black text-emerald-400 leading-none">{formatNumber(displayData.recurringPatients)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">재진 환자 수</p>
+                <p className="text-2xl font-black text-emerald-400 leading-none">{formatNumber(displayData.recurringPatients)}<span className="text-xs font-bold ml-1 text-white/50">명</span></p>
               </div>
             </div>
           </section>
@@ -700,7 +700,7 @@ export default function DonguibogamPage() {
                   <div className="space-y-3">
                     <p className="text-amber-500/40 text-[10px] font-black uppercase tracking-widest mb-2 border-b border-amber-500/10 pb-2">가장 빈번한 처방 항목</p>
                     {top10.map(([name, count], idx) => (
-                      <div key={name} className="flex items-center justify-between group/item p-2 hover:bg-white/5 rounded-lg transition-all">
+                      <div key={name} className="flex items-center justify-between group/item p-2 hover:bg-white/5/5 rounded-lg transition-all">
                          <div className="flex items-center gap-3">
                            <span className="w-5 text-[10px] font-black text-amber-700">0{idx + 1}</span>
                            <span className="text-sm font-medium text-amber-100/80">{name}</span>
@@ -714,7 +714,7 @@ export default function DonguibogamPage() {
                     <p className="text-amber-100/20 text-[10px] font-black uppercase tracking-widest mb-2 border-b border-white/5 pb-2 ml-4">기타 모든 행위 통계</p>
                     <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-amber-900 scrollbar-track-transparent">
                        {others.map(([name, count]) => (
-                         <div key={name} className="flex flex-col p-3 bg-white/[0.02] rounded-xl border border-white/5 hover:border-amber-900 transition-colors">
+                         <div key={name} className="flex flex-col p-3 bg-white/5/[0.02] rounded-xl border border-white/5 hover:border-amber-900 transition-colors">
                             <span className="text-amber-100/40 text-[10px] font-medium mb-1 truncate">{name}</span>
                             <span className="text-lg font-black text-white">{count as any}<span className="text-[10px] ml-1 text-amber-900">건</span></span>
                          </div>
@@ -763,9 +763,9 @@ export default function DonguibogamPage() {
               <div className="relative z-10 flex items-center gap-4">
                 <div className="flex flex-col items-end mr-4 hidden md:block">
                   <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Upgrade Strategy</span>
-                  <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                  <span className="text-sm font-bold text-white/50">Go to Intelligence Center</span>
                 </div>
-                <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-amber-500 group-hover:border-amber-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                <div className="h-16 w-16 rounded-full bg-white/5/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-amber-500 group-hover:border-amber-500 group-hover:text-[#0A0E1A] transition-all duration-300">
                   <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </div>
               </div>
@@ -776,7 +776,7 @@ export default function DonguibogamPage() {
 
         {/* Footer Info */}
         <div className="text-center p-12 mt-12 border-t border-white/5">
-           <p className="text-slate-600 text-xs font-medium tracking-widest uppercase mb-4">Clinic Performance Management System • WealthyWei Platform</p>
+           <p className="text-white/70 text-xs font-medium tracking-widest uppercase mb-4">Clinic Performance Management System • WealthyWei Platform</p>
         </div>
 
         </main>

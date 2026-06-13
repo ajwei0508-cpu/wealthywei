@@ -103,7 +103,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         initial={{ opacity: 0, x: -20 }}
         whileInView={{ opacity: 1, x: 0 }}
         viewport={{ once: true }}
-        className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[3rem] p-10 flex flex-col justify-between group hover:bg-white/[0.05] transition-all"
+        className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[3rem] p-10 flex flex-col justify-between group hover:bg-white/5/[0.05] transition-all"
       >
         <div className="flex justify-between items-start mb-8">
           <div>
@@ -123,10 +123,10 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         </p>
 
         <div className="flex items-center gap-4">
-          <div className="h-1 bg-white/10 grow rounded-full overflow-hidden">
+          <div className="h-1 bg-white/5/10 grow rounded-full overflow-hidden">
             <div className="h-full bg-emerald-600 w-1/3" />
           </div>
-          <span className="text-[10px] font-black text-slate-500">PROCEEDING</span>
+          <span className="text-[10px] font-black text-white/50">PROCEEDING</span>
         </div>
       </motion.div>
 
@@ -143,7 +143,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
         
         <div className="relative z-10 text-center space-y-8">
           <div className="flex justify-center">
-            <div className="p-3 bg-white/5 rounded-full text-slate-500">
+            <div className="p-3 bg-white/5/5 rounded-full text-white/50">
               <Quote size={24} />
             </div>
           </div>
@@ -152,7 +152,7 @@ export const DailyMissionCard = ({ data, userName, emrType }: DailyMissionCardPr
           </p>
           <div className="flex flex-col items-center">
             <div className="w-8 h-px bg-emerald-600/50 mb-4" />
-            <p className="text-slate-500 text-sm font-black uppercase tracking-widest">{currentQuote.author}</p>
+            <p className="text-white/50 text-sm font-black uppercase tracking-widest">{currentQuote.author}</p>
           </div>
         </div>
       </motion.div>

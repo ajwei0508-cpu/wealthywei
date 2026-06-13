@@ -48,8 +48,8 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
           isLocked 
             ? "cursor-not-allowed text-white/30" 
             : isActive 
-              ? "bg-white/10 text-white shadow-lg" 
-              : "text-white/60 hover:bg-white/5 hover:text-white"
+              ? "bg-white/5/10 text-white shadow-lg" 
+              : "text-white/60 hover:bg-white/5/5 hover:text-white"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -197,18 +197,8 @@ export default function DashboardSidebar() {
 
       {/* Navigation Section */}
       <nav className="flex-1 px-4 sidebar-scroll overflow-y-auto">
-        <div className="flex justify-center mb-6 mt-2 px-2">
-          <Link 
-            href="/"
-            className={`flex items-center justify-center w-full gap-2 py-3.5 rounded-[1rem] transition-all duration-300 group shadow-lg ${pathname === "/" || pathname === "/details" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-black/20 text-white/50 hover:bg-black/40 hover:text-white border border-white/5"}`}
-          >
-            <Home size={16} className={`transition-transform duration-500 ${pathname === "/" ? "" : "group-hover:-translate-y-0.5"}`} />
-            <span className="text-xs font-bold tracking-widest uppercase">대시보드 홈</span>
-          </Link>
-        </div>
-
         <div className="mb-4">
-          <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
+          <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4 mt-6">Core Services</p>
           
           {/* 1. 바른컨설팅 (Accordion) - Not for staff */}
           {userRole !== 'staff' && (
@@ -257,7 +247,7 @@ export default function DashboardSidebar() {
                                   rel={isExternal ? "noopener noreferrer" : undefined}
                                   className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-amber-300 transition-colors"
                                 >
-                                  <div className="w-1 h-[1px] bg-white/20"></div>
+                                  <div className="w-1 h-[1px] bg-white/5/20"></div>
                                   {item.label}
                                   <Sparkles size={10} className="text-amber-400 opacity-50" />
                                 </Link>
@@ -276,9 +266,9 @@ export default function DashboardSidebar() {
                     className="text-[13px] font-medium py-2 text-white/40 cursor-not-allowed flex items-center gap-2 group/sub"
                     title={`${sub.label} 서비스는 현재 준비 중입니다.`}
                   >
-                    <div className="w-1 h-1 bg-white/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
+                    <div className="w-1 h-1 bg-white/5/20 rounded-full group-hover/sub:bg-blue-400 transition-colors"></div>
                     {sub.label}
-                    <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
+                    <span className="text-[9px] bg-white/5/5 px-1.5 py-0.5 rounded-md ml-auto opacity-40">SOON</span>
                   </div>
                 );
               })}
@@ -326,7 +316,7 @@ export default function DashboardSidebar() {
                    href="/employee/reception" 
                    className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
                  >
-                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    <div className="w-1 h-[1px] bg-white/5/20"></div>
                     접수실교육
                     <Sparkles size={10} className="text-amber-400 opacity-50" />
                  </Link>
@@ -334,7 +324,7 @@ export default function DashboardSidebar() {
                    href="/employee/treatment" 
                    className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') === false && pathname.startsWith('/employee/treatment') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
                  >
-                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    <div className="w-1 h-[1px] bg-white/5/20"></div>
                     치료실교육
 
                     <Sparkles size={10} className="text-amber-400 opacity-50" />
@@ -404,7 +394,7 @@ export default function DashboardSidebar() {
       {/* User Info Section */}
       <div className="p-6 mt-auto bg-black/10 border-t border-white/5 relative z-[100] pointer-events-auto">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 overflow-hidden">
+          <div className="w-10 h-10 bg-white/5/10 rounded-xl flex items-center justify-center border border-white/10 overflow-hidden">
             {session?.user?.image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={session.user.image} alt="Profile" className="w-full h-full object-cover" />
@@ -455,7 +445,7 @@ export default function DashboardSidebar() {
 
         <button 
           onClick={() => signOut()}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/50 text-xs font-bold transition-all mt-2"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5/5 hover:bg-rose-500/20 hover:text-rose-400 text-white/50 text-xs font-bold transition-all mt-2"
         >
           <LogOut size={14} />
           로그아웃

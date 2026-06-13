@@ -47,7 +47,7 @@ export default function MeridianTestPage() {
             transition={{ delay: 0.1 }}
             className="w-full lg:w-2/3 flex flex-col gap-6"
           >
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex-1">
+            <div className="bg-white/5 rounded-3xl p-8 shadow-sm border border-gray-100 flex-1">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Info className="w-6 h-6 text-purple-500" />
                 원장님을 위한 설명 가이드
@@ -61,14 +61,14 @@ export default function MeridianTestPage() {
                   </p>
                 </div>
 
-                <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 transition-all hover:bg-blue-50">
+                <div className="p-6 bg-amber-500/10/50 rounded-2xl border border-amber-500/20 transition-all hover:bg-amber-500/10">
                   <h3 className="font-bold text-blue-900 text-lg mb-3">2. 오장육부 경락 활성도 (기혈 흐름)</h3>
                   <p className="text-gray-600 leading-relaxed">
                     손발 끝의 주요 혈자리를 통해 각 장부의 에너지(기혈) 흐름을 측정합니다. 특정 장부의 기능이 항진되어 있는지, 혹은 저하되어 있는지를 그래프를 통해 알기 쉽게 안내합니다.
                   </p>
                 </div>
 
-                <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100 transition-all hover:bg-emerald-50">
+                <div className="p-6 bg-emerald-500/10/50 rounded-2xl border border-emerald-500/20 transition-all hover:bg-emerald-500/10">
                   <h3 className="font-bold text-emerald-900 text-lg mb-3">3. 맞춤형 치료 방향 제시 (상담 포인트)</h3>
                   <p className="text-gray-600 leading-relaxed">
                     검사 결과를 바탕으로 현재의 통증이나 질환이 단순한 근골격계 문제가 아닌, 내부 장기의 불균형이나 자율신경계 이상에서 기인했음을 설명하고, <strong>한약 및 침 치료의 필요성</strong>을 효과적으로 강조합니다.

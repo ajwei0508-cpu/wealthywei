@@ -125,7 +125,7 @@ const initialData: SurveyData = {
 
 const Label = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
   <div className="mb-2">
-    <label className="block text-sm font-bold text-slate-700">{children}</label>
+    <label className="block text-sm font-bold text-white/80">{children}</label>
     {hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
   </div>
 );
@@ -138,7 +138,7 @@ const Input = ({ value, onChange, placeholder, type = "text" }: {
     value={value}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
   />
 );
 
@@ -150,16 +150,16 @@ const Textarea = ({ value, onChange, placeholder, rows = 4 }: {
     value={value}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
-    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
+    className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all resize-none"
   />
 );
 
 const SectionCard = ({ title, children, accent = "blue" }: {
   title: string; children: React.ReactNode; accent?: string;
 }) => (
-  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-    <div className={`px-8 py-5 bg-gradient-to-r ${accent === "blue" ? "from-blue-50 to-indigo-50" : "from-slate-50 to-blue-50"} border-b border-slate-100`}>
-      <h3 className="font-bold text-slate-800 text-base">{title}</h3>
+  <div className="bg-white/5 rounded-3xl border border-white/5 shadow-sm overflow-hidden">
+    <div className={`px-8 py-5 bg-gradient-to-r ${accent === "blue" ? "from-blue-50 to-indigo-50" : "from-slate-50 to-blue-50"} border-b border-white/5`}>
+      <h3 className="font-bold text-white/90 text-base">{title}</h3>
     </div>
     <div className="p-8 space-y-6">{children}</div>
   </div>
@@ -242,7 +242,7 @@ export default function SurveyPage() {
           <select
             value={data.ch1.mbti}
             onChange={e => updateCh1("mbti", e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+            className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-white/90 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
           >
             <option value="">MBTI 유형 선택</option>
             {MBTI_LIST.map(m => <option key={m} value={m}>{m}</option>)}
@@ -298,15 +298,15 @@ export default function SurveyPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left py-3 pr-4 font-bold text-slate-500 text-xs w-1/3">대표 질환</th>
-                <th className="text-left py-3 pr-4 font-bold text-slate-500 text-xs w-1/3">치료 접근법</th>
-                <th className="text-left py-3 font-bold text-slate-500 text-xs w-1/3">주요 청구 항목</th>
+              <tr className="border-b border-white/5">
+                <th className="text-left py-3 pr-4 font-bold text-white/50 text-xs w-1/3">대표 질환</th>
+                <th className="text-left py-3 pr-4 font-bold text-white/50 text-xs w-1/3">치료 접근법</th>
+                <th className="text-left py-3 font-bold text-white/50 text-xs w-1/3">주요 청구 항목</th>
               </tr>
             </thead>
             <tbody className="space-y-2">
               {data.ch3.charting.map((row, idx) => (
-                <tr key={idx} className="border-b border-slate-50">
+                <tr key={idx} className="border-b border-white/5">
                   <td className="py-2 pr-3">
                     <Input value={row.disease} onChange={v => {
                       const arr = [...data.ch3.charting];
@@ -373,14 +373,14 @@ export default function SurveyPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left py-3 pr-4 font-bold text-slate-500 text-xs w-1/2">경비 항목</th>
-                <th className="text-left py-3 font-bold text-slate-500 text-xs w-1/2">월 금액 (만 원)</th>
+              <tr className="border-b border-white/5">
+                <th className="text-left py-3 pr-4 font-bold text-white/50 text-xs w-1/2">경비 항목</th>
+                <th className="text-left py-3 font-bold text-white/50 text-xs w-1/2">월 금액 (만 원)</th>
               </tr>
             </thead>
             <tbody>
               {data.ch4.expenses.map((row, idx) => (
-                <tr key={idx} className="border-b border-slate-50">
+                <tr key={idx} className="border-b border-white/5">
                   <td className="py-2 pr-3">
                     <Input value={row.item} onChange={v => {
                       const arr = [...data.ch4.expenses];
@@ -420,16 +420,16 @@ export default function SurveyPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left py-3 pr-3 font-bold text-slate-500 text-xs">직책</th>
-                <th className="text-left py-3 pr-3 font-bold text-slate-500 text-xs">연봉 (만 원)</th>
-                <th className="text-left py-3 pr-3 font-bold text-slate-500 text-xs">복지 혜택</th>
-                <th className="text-left py-3 font-bold text-slate-500 text-xs">인센티브</th>
+              <tr className="border-b border-white/5">
+                <th className="text-left py-3 pr-3 font-bold text-white/50 text-xs">직책</th>
+                <th className="text-left py-3 pr-3 font-bold text-white/50 text-xs">연봉 (만 원)</th>
+                <th className="text-left py-3 pr-3 font-bold text-white/50 text-xs">복지 혜택</th>
+                <th className="text-left py-3 font-bold text-white/50 text-xs">인센티브</th>
               </tr>
             </thead>
             <tbody>
               {data.ch5.staff.map((row, idx) => (
-                <tr key={idx} className="border-b border-slate-50">
+                <tr key={idx} className="border-b border-white/5">
                   <td className="py-2 pr-2"><Input value={row.role} onChange={v => {
                     const arr = [...data.ch5.staff];
                     arr[idx] = { ...arr[idx], role: v };
@@ -479,7 +479,7 @@ export default function SurveyPage() {
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={e => handleDrop(e, 5)}
-            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
+            className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-amber-500/10" : "border-white/10 hover:border-blue-300 hover:bg-amber-500/10/30"}`}
           >
             <Upload className="mx-auto mb-3 text-slate-300" size={32} />
             <p className="text-sm font-bold text-slate-400">파일을 여기에 드래그하거나 클릭하여 업로드하세요</p>
@@ -521,11 +521,11 @@ export default function SurveyPage() {
                 }))}
                 className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
                   isChecked
-                    ? "border-emerald-500 bg-blue-50 text-blue-700"
-                    : "border-slate-100 bg-white text-slate-400 hover:border-slate-200"
+                    ? "border-emerald-500 bg-amber-500/10 text-blue-700"
+                    : "border-white/5 bg-white/5 text-slate-400 hover:border-white/10"
                 }`}
               >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all ${isChecked ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-300"}`}>
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all ${isChecked ? "bg-emerald-600 text-white" : "bg-white/10 text-slate-300"}`}>
                   {isChecked ? "O" : "X"}
                 </div>
                 <span className="text-sm font-semibold">{item}</span>
@@ -533,8 +533,8 @@ export default function SurveyPage() {
             );
           })}
         </div>
-        <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
-          <p className="text-xs text-slate-500 font-bold">
+        <div className="mt-4 p-4 bg-white/5 rounded-2xl">
+          <p className="text-xs text-white/50 font-bold">
             현재 {Object.values(data.ch6.safetyItems).filter(Boolean).length} / {SAFETY_ITEMS.length} 항목 완비
           </p>
         </div>
@@ -545,7 +545,7 @@ export default function SurveyPage() {
           onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={e => handleDrop(e, 6)}
-          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-blue-50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
+          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${isDragging ? "border-emerald-500 bg-amber-500/10" : "border-white/10 hover:border-blue-300 hover:bg-amber-500/10/30"}`}
         >
           <Upload className="mx-auto mb-3 text-slate-300" size={32} />
           <p className="text-sm font-bold text-slate-400">교육 자료, 안전 매뉴얼 파일을 업로드하세요</p>
@@ -604,16 +604,16 @@ export default function SurveyPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-white">
       {/* Sticky Top Progress Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm">
+      <header className="sticky top-0 z-50 bg-white/5/80 backdrop-blur-xl border-b border-white/5 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100 transition text-slate-400">
+              <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-white/10 transition text-slate-400">
                 <ChevronLeft size={18} />
               </button>
               <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">바른컨설팅 정밀 진단 워크북</p>
-                <h1 className="text-slate-900 font-black text-sm">Chapter {step} / 6 — {chapterConfig.title}</h1>
+                <h1 className="text-white font-black text-sm">Chapter {step} / 6 — {chapterConfig.title}</h1>
               </div>
             </div>
             <div className="text-right">
@@ -621,7 +621,7 @@ export default function SurveyPage() {
             </div>
           </div>
           {/* Progress Bar */}
-          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
             <div
               className={`h-full bg-gradient-to-r ${chapterConfig.color} rounded-full transition-all duration-700 ease-out`}
               style={{ width: `${Math.max(5, progress)}%` }}
@@ -639,8 +639,8 @@ export default function SurveyPage() {
                     step === ch.id
                       ? `bg-gradient-to-r ${ch.color} text-white shadow-md`
                       : step > ch.id
-                        ? "bg-slate-100 text-slate-500"
-                        : "bg-slate-50 text-slate-300"
+                        ? "bg-white/10 text-white/50"
+                        : "bg-white/5 text-slate-300"
                   }`}
                 >
                   {step > ch.id ? <Check size={10} /> : <ChIcon size={10} />}
@@ -661,9 +661,9 @@ export default function SurveyPage() {
           </div>
           <div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Chapter {step} • {chapterConfig.subtitle}</p>
-            <h2 className="text-3xl font-black text-slate-900">{chapterConfig.title}</h2>
+            <h2 className="text-3xl font-black text-white">{chapterConfig.title}</h2>
             {step > 1 && (
-              <p className="mt-2 text-sm text-amber-600 font-semibold bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full inline-block">
+              <p className="mt-2 text-sm text-amber-400 font-semibold bg-amber-500/10 border border-amber-500/20 px-4 py-1.5 rounded-full inline-block">
                 {encouragements[step - 1]}
               </p>
             )}
@@ -674,11 +674,11 @@ export default function SurveyPage() {
         {renderStep()}
 
         {/* Navigation Buttons */}
-        <div className={`flex items-center mt-10 pt-8 border-t border-slate-100 ${step === 1 ? "justify-end" : "justify-between"}`}>
+        <div className={`flex items-center mt-10 pt-8 border-t border-white/5 ${step === 1 ? "justify-end" : "justify-between"}`}>
           {step > 1 && (
             <button
               onClick={() => { setStep(s => s - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5 transition-all"
             >
               <ChevronLeft size={16} />
               이전 챕터

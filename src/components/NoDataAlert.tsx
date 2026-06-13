@@ -24,7 +24,7 @@ export const NoDataAlert = ({
       <div className="absolute inset-0 bg-rose-500/5 backdrop-blur-xl border border-rose-500/20 rounded-3xl" />
       <div className="relative z-10 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-5">
-          <div className="h-14 w-14 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-500 shadow-lg shadow-rose-500/10">
+          <div className="h-14 w-14 rounded-2xl bg-rose-500/20 flex items-center justify-center text-rose-400 shadow-lg shadow-rose-500/10">
             <AlertCircle size={28} />
           </div>
           <div>

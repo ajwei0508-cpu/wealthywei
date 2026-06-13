@@ -60,19 +60,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [status]);
 
-  if (status === "loading") return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
+  if (status === "loading") return <div className="min-h-screen bg-white/5 flex items-center justify-center">Loading...</div>;
   if (!isMaster && approvalStatus !== 'approved') {
     return (
       <div className="flex min-h-screen bg-[#F8F9FA] items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white p-12 rounded-[2rem] shadow-xl border border-slate-100 text-center space-y-8 animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+        <div className="max-w-md w-full bg-white/5 p-12 rounded-[2rem] shadow-xl border border-white/5 text-center space-y-8 animate-in fade-in zoom-in duration-500">
+          <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto">
             {approvalStatus === 'pending' ? <Activity size={40} /> : <Lock size={40} />}
           </div>
           <div className="space-y-4">
-            <h1 className="text-2xl font-black text-slate-900">
+            <h1 className="text-2xl font-black text-white">
               {approvalStatus === 'pending' ? "승인 대기 중" : "접근 제한됨"}
             </h1>
-            <p className="text-slate-500 font-medium">
+            <p className="text-white/50 font-medium">
               {approvalStatus === 'pending' 
                 ? "관리자가 원장님의 가입 신청을 확인 중입니다. 승인이 완료되면 모든 서비스를 이용하실 수 있습니다."
                 : "죄송합니다. 원장님의 계정은 접근이 거부되었습니다. 마스터에게 문의해주세요."}

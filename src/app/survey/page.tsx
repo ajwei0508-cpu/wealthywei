@@ -106,9 +106,9 @@ const CHAPTER_CONFIG = [
 
 const getLevel = (pct: number) => {
   if (pct < 40) return { name: "수련생", icon: "🌱", color: "text-green-600", bg: "bg-green-50" };
-  if (pct < 70) return { name: "전문의", icon: "⚕️", color: "text-indigo-600", bg: "bg-indigo-50" };
-  if (pct < 90) return { name: "명의", icon: "🏅", color: "text-amber-600", bg: "bg-blue-50" };
-  return { name: "경영 명인", icon: "👑", color: "text-amber-600", bg: "bg-amber-50" };
+  if (pct < 70) return { name: "전문의", icon: "⚕️", color: "text-indigo-400", bg: "bg-indigo-500/10" };
+  if (pct < 90) return { name: "명의", icon: "🏅", color: "text-amber-400", bg: "bg-amber-500/10" };
+  return { name: "경영 명인", icon: "👑", color: "text-amber-400", bg: "bg-amber-500/10" };
 };
 
 const initialData: SurveyData = {
@@ -233,13 +233,13 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
           {normalizedValue.map((url, idx) => {
             const meta = getFileIcon(url);
             return (
-              <div key={idx} className="group relative flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
+              <div key={idx} className="group relative flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl shadow-sm hover:shadow-md transition-all">
                 <div className={`w-10 h-10 ${meta.color} rounded-xl flex items-center justify-center text-white shadow-sm`}>
                   {meta.icon}
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{meta.label}</p>
-                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-slate-700 truncate block hover:text-amber-600 hover:underline">
+                  <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-white/80 truncate block hover:text-amber-400 hover:underline">
                     파일 {idx + 1} 보기
                   </a>
                 </div>
@@ -257,16 +257,16 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
       {/* 업로드 영역 */}
       {!disabled && (
         <label className={`flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed rounded-3xl cursor-pointer transition-all ${
-          uploading ? "bg-slate-50 border-blue-300 animate-pulse" : "bg-white border-slate-100 hover:border-emerald-500 hover:bg-blue-50/30"
+          uploading ? "bg-white/5 border-blue-300 animate-pulse" : "bg-white/5 border-white/5 hover:border-emerald-500 hover:bg-amber-500/10/30"
         }`}>
           <input type="file" className="hidden" onChange={handleFile} multiple disabled={uploading} />
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-            uploading ? "bg-blue-100" : "bg-slate-50 group-hover:bg-blue-100"
+            uploading ? "bg-blue-100" : "bg-white/5 group-hover:bg-blue-100"
           }`}>
             {uploading ? <Sparkles size={28} className="text-amber-500" /> : <Upload size={28} className="text-slate-400 group-hover:text-amber-500" />}
           </div>
           <div className="text-center">
-            <p className="text-sm font-black text-slate-600">{uploading ? "업로드 중..." : "파일들 선택 또는 드래그"}</p>
+            <p className="text-sm font-black text-white/70">{uploading ? "업로드 중..." : "파일들 선택 또는 드래그"}</p>
             <p className="text-[11px] text-slate-400 mt-1 font-bold">압축 파일(.zip), 문서, 이미지 모두 가능</p>
           </div>
         </label>
@@ -277,7 +277,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
 
 const Lbl = ({ children, hint }: { children: React.ReactNode; hint?: string }) => (
   <div className="mb-2">
-    <label className="block text-sm font-bold text-slate-700">{children}</label>
+    <label className="block text-sm font-bold text-white/80">{children}</label>
     {hint && <p className="text-xs text-slate-400 mt-0.5">{hint}</p>}
   </div>
 );
@@ -285,8 +285,8 @@ const Lbl = ({ children, hint }: { children: React.ReactNode; hint?: string }) =
 const Inp = ({ value, onChange, placeholder, type = "text", err, readOnly }: any) => (
   <input type={type} value={value} readOnly={readOnly}
     onChange={e => onChange(e.target.value)} placeholder={placeholder}
-    className={`w-full px-4 py-3 rounded-xl border text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${
-      err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-emerald-500/30 focus:border-emerald-500"
+    className={`w-full px-4 py-3 rounded-xl border text-white/90 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all ${
+      err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-white/10 bg-white/5 focus:ring-emerald-500/30 focus:border-emerald-500"
     } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
   />
 );
@@ -295,14 +295,14 @@ const STATextarea = ({ id, value, onChange, placeholder, rows = 4, err, readOnly
   <div className="relative">
     <textarea id={id} rows={rows} value={value} readOnly={readOnly}
       onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      className={`w-full px-4 py-3 pr-12 rounded-xl border text-slate-800 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all resize-none ${
-        err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-slate-200 bg-white focus:ring-emerald-500/30 focus:border-emerald-500"
+      className={`w-full px-4 py-3 pr-12 rounded-xl border text-white/90 text-sm font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 transition-all resize-none ${
+        err ? "border-red-400 bg-red-50 focus:ring-red-300" : "border-white/10 bg-white/5 focus:ring-emerald-500/30 focus:border-emerald-500"
       } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
     />
     {!readOnly && (
       <button onClick={() => onMic(id, (t: string) => onChange(value ? value + " " + t : t))}
         className={`absolute top-2.5 right-2.5 p-2 rounded-xl transition-all ${
-          listeningId === id ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 text-slate-400 hover:text-amber-500"
+          listeningId === id ? "bg-red-500 text-white animate-pulse" : "bg-white/10 text-slate-400 hover:text-amber-500"
         }`}>
         {listeningId === id ? <MicOff size={14} /> : <Mic size={14} />}
       </button>
@@ -311,9 +311,9 @@ const STATextarea = ({ id, value, onChange, placeholder, rows = 4, err, readOnly
 );
 
 const SCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-    <div className="px-8 py-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100">
-      <h3 className="font-bold text-slate-800 text-base">{title}</h3>
+  <div className="bg-white/5 rounded-3xl border border-white/5 shadow-sm overflow-hidden">
+    <div className="px-8 py-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-white/5">
+      <h3 className="font-bold text-white/90 text-base">{title}</h3>
     </div>
     <div className="p-8 space-y-6">{children}</div>
   </div>
@@ -321,7 +321,7 @@ const SCard = ({ title, children }: { title: string; children: React.ReactNode }
 
 const RadarWidget = ({ radarData }: { radarData: any[] }) => (
   <div className="fixed right-4 top-1/2 -translate-y-1/2 z-40 hidden xl:block">
-    <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-slate-100 shadow-2xl p-4 w-52">
+    <div className="bg-white/5/90 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl p-4 w-52">
       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">경영 진단 레이더</p>
       <ResponsiveContainer width="100%" height={160}>
         <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
@@ -507,7 +507,7 @@ export default function SurveyPage() {
             <Lbl hint="[Q2] 현재 운영 중인 병원의 장기적 목표와 비전">앞으로의 비전/미션/목표 (Q2)</Lbl>
             <STATextarea id="ch1-vision" value={data.ch1.vision} onChange={(v: string) => upd1("vision", v)} placeholder="상세하게 정리해서 말씀 부탁드립니다." rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-slate-50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
             <div>
               <Lbl hint="[Q3] 목표 달성을 위해 반드시 바뀌어야 할 점">반드시 실행되어야 할 변화 (Q3)</Lbl>
               <STATextarea value={data.ch1.actionStep} onChange={(v: string) => upd1("actionStep", v)} placeholder="구체적인 실행 행동을 적어주세요." rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
@@ -531,10 +531,10 @@ export default function SurveyPage() {
             <STATextarea value={data.ch1.whyLeave} onChange={(v: string) => upd1("whyLeave", v)} placeholder="개선이 필요한 약점이나 경쟁력 차이" rows={4} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-8 border-t border-slate-50">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 pt-8 border-t border-white/5">
           <div>
             <Lbl>원장님의 MBTI (Q3)</Lbl>
-            <select value={data.ch1.mbti} onChange={e => upd1("mbti", e.target.value)} disabled={isReadOnly} className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 active:scale-95 transition-all outline-none">
+            <select value={data.ch1.mbti} onChange={e => upd1("mbti", e.target.value)} disabled={isReadOnly} className="w-full px-4 py-3 rounded-xl border border-white/10 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 active:scale-95 transition-all outline-none">
               <option value="">MBTI 선택</option>
               {MBTI_LIST.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
@@ -561,9 +561,9 @@ export default function SurveyPage() {
               <Lbl hint="[Q42] 대기실, 진료실, 치료실 등 병원 전체 크기">병원 실평수 및 베드 수</Lbl>
               <Inp value={data.ch2.clinicSize} onChange={(v: string) => upd2("clinicSize", v)} placeholder="예: 45평, 베드 10개" readOnly={isReadOnly} />
             </div>
-            <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100">
-              <p className="text-xs text-amber-600 font-bold mb-1">PRO TIP</p>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-medium">환자 동선 최적화를 위해 실평수 대비 베드 배치가 중요합니다.</p>
+            <div className="p-5 bg-amber-500/10/50 rounded-2xl border border-amber-500/20">
+              <p className="text-xs text-amber-400 font-bold mb-1">PRO TIP</p>
+              <p className="text-[11px] text-white/50 leading-relaxed font-medium">환자 동선 최적화를 위해 실평수 대비 베드 배치가 중요합니다.</p>
             </div>
           </div>
         </div>
@@ -575,7 +575,7 @@ export default function SurveyPage() {
             <Lbl hint="[Q11] 환자가 내원하여 수납하고 나갈 때까지의 전 과정">전체 환자 내원 동선 리허설</Lbl>
             <STATextarea id="ch2-flow" value={data.ch2.patientFlow} onChange={(v: string) => upd2("patientFlow", v)} placeholder="접수 -> 대기 -> 문진 -> 치료 -> 사후 안내 등 세밀하게 적어주세요." rows={6} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-slate-50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
             <div>
               <Lbl hint="[Q12] 초진 환자에게 원장님이 직접 하시는 고정 멘트">원장님만의 진단/상담 멘트</Lbl>
               <STATextarea id="ch2-script" value={data.ch2.consultScript} onChange={(v: string) => upd2("consultScript", v)} placeholder="환자의 신뢰를 얻는 특별한 멘트가 있다면?" rows={6} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
@@ -636,13 +636,13 @@ export default function SurveyPage() {
               <Lbl hint="[Q10] 환자들이 자주 묻는 질문 10~20가지와 표준 답변 리스트가 있나요?">환자 Q&A 리스트 현황 (10~20문항)</Lbl>
               <STATextarea id="ch3-patientQna" value={data.ch3.patientQna} onChange={(v: string) => upd3("patientQna", v)} placeholder="표준 답변 매뉴얼 보유 여부 및 주요 항목을 적어주세요." rows={6} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
             </div>
-            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center">
+            <div className="p-6 bg-white/5 rounded-2xl border border-white/5 flex flex-col justify-center">
               <FileUpload label="환자 Q&A 리스트 파일 제출 (Q10)" value={data.ch3.patientQnaFile} 
                           onUpload={(urls: string[]) => upd3("patientQnaFile", urls)} 
                           hint="워드, 엑셀, 이미지 등 매뉴얼 파일을 업로드해주세요." disabled={isReadOnly} />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-50 pt-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-white/5 pt-8">
             <div>
               <Lbl hint="[Q13] 질환별로 정해진 치료 계획(기간, 횟수 등)이 있나요?">질환별 표준 치료 계획 여부</Lbl>
               <STATextarea id="ch3-diseasePlans" value={data.ch3.diseasePlans} onChange={(v: string) => upd3("diseasePlans", v)} placeholder="예: 급성 염좌 2주 6회, 만성 요통 4주 12회 등" rows={6} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
@@ -658,7 +658,7 @@ export default function SurveyPage() {
       <SCard title="📝 [16] 차팅 및 청구 루틴 (주요 사례 3종)">
         <div className="space-y-8">
           {data.ch3.charting.map((row, idx) => (
-            <div key={idx} className="p-8 rounded-3xl bg-slate-50 border border-slate-200 space-y-6">
+            <div key={idx} className="p-8 rounded-3xl bg-white/5 border border-white/10 space-y-6">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-indigo-200">
                   {idx + 1}
@@ -733,7 +733,7 @@ export default function SurveyPage() {
             </div>
           ))}
         </div>
-        <div className="mt-8 pt-8 border-t border-slate-50">
+        <div className="mt-8 pt-8 border-t border-white/5">
           <Lbl hint="[Q23] 순이익 발생 시 어떻게 관리하거나 투자하실 계획인가요?">수익 사용 계획 (Profit Usage)</Lbl>
           <STATextarea id="ch4-usage" value={data.ch4.profitUsage} onChange={(v: string) => upd4("profitUsage", v)} placeholder="수익 배정 비율이나 개인 연금, 병원 재투자 계획 등을 적어주세요." rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
         </div>
@@ -750,7 +750,7 @@ export default function SurveyPage() {
             <STATextarea value={data.ch4.growthInvestment} onChange={(v: string) => upd4("growthInvestment", v)} placeholder="예: 매출 상승폭에 따라 월 300~500만 원까지 가능" rows={4} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
         </div>
-        <div className="border-t border-slate-50 pt-8">
+        <div className="border-t border-white/5 pt-8">
           <Lbl hint="[Q25] 더 빠른 성장을 위해 지금 당장 투입 가능한 투자금이 있으신가요?">즉시 투자 가능 금액</Lbl>
           <Inp value={data.ch4.immediateInvestment} onChange={(v: string) => upd4("immediateInvestment", v)} placeholder="예: 2,000만 원" readOnly={isReadOnly} />
         </div>
@@ -762,25 +762,25 @@ export default function SurveyPage() {
             <Lbl hint="[Q27] 매일/매주 확인하시는 핵심 지표와 관리 자료가 있나요?">관찰 지표 및 관리 방법</Lbl>
             <STATextarea id="ch4-ind" value={data.ch4.indicators} onChange={(v: string) => upd4("indicators", v)} placeholder="예: '일일 신환수와 총 매출액을 엑셀로 별기 중'" rows={6} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center">
+          <div className="p-6 bg-white/5 rounded-2xl border border-white/5 flex flex-col justify-center">
             <FileUpload label="지표 관리 양식/자료 제출 (Q27)" value={data.ch4.indicatorsFile} 
                         onUpload={(urls: string[]) => upd4("indicatorsFile", urls)} 
                         hint="평소 기록하시는 대시보드나 엑셀 양식을 업로드해주세요." disabled={isReadOnly} />
           </div>
         </div>
         
-        <div className="border-t border-slate-50 pt-8">
+        <div className="border-t border-white/5 pt-8">
           <Lbl hint="[Q29] 현재 한 달 평균 지출되는 경비 내역을 상세히 알려주세요.">월평균 경비 내역 상세</Lbl>
-          <div className="overflow-x-auto mt-4 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+          <div className="overflow-x-auto mt-4 p-6 bg-white/5 rounded-3xl border border-white/5">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  {["경비 항목 (Q29)", "월 금액 (만 원)"].map(h => <th key={h} className="text-left py-4 pr-4 font-black text-slate-500 text-xs uppercase tracking-wider">{h}</th>)}
+                <tr className="border-b border-white/10">
+                  {["경비 항목 (Q29)", "월 금액 (만 원)"].map(h => <th key={h} className="text-left py-4 pr-4 font-black text-white/50 text-xs uppercase tracking-wider">{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {data.ch4.expenses.map((row, idx) => (
-                  <tr key={idx} className="border-b border-slate-100 last:border-0">
+                  <tr key={idx} className="border-b border-white/5 last:border-0">
                     <td className="py-4 pr-4">
                       <Inp value={row.item} onChange={(v: string) => { const a = [...data.ch4.expenses]; a[idx] = { ...a[idx], item: v }; setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } })); }} placeholder="예: 임대료" readOnly={isReadOnly} />
                     </td>
@@ -793,7 +793,7 @@ export default function SurveyPage() {
             </table>
             {!isReadOnly && (
               <button onClick={() => { setData(d => ({ ...d, ch4: { ...d.ch4, expenses: [...d.ch4.expenses, { item: "", amount: "" }] } })); }}
-                className="mt-6 px-6 py-3 text-xs font-black text-amber-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100 flex items-center gap-2">
+                className="mt-6 px-6 py-3 text-xs font-black text-amber-400 bg-white/5 rounded-xl shadow-sm hover:shadow-md transition-all border border-amber-500/20 flex items-center gap-2">
                 <PlusCircle size={14} /> 항목 추가하기
               </button>
             )}
@@ -806,17 +806,17 @@ export default function SurveyPage() {
   const renderCh5 = () => (
     <div className="space-y-10">
       <SCard title="👥 [34, 43] 직원 구성 & 파트별 인원">
-        <div className="overflow-x-auto p-6 bg-slate-50 rounded-3xl border border-slate-100">
+        <div className="overflow-x-auto p-6 bg-white/5 rounded-3xl border border-white/5">
           <Lbl hint="[Q34] 현재 함께 일하고 있는 직원분들의 상세 처우 현황을 파악합니다.">상세 직원 리스트 (Q34)</Lbl>
           <table className="w-full text-sm mt-4">
             <thead>
-              <tr className="border-b border-slate-200">
-                {["직책", "급여(만/월)", "근무일", "근무시간", "인센티브"].map(h => <th key={h} className="text-left py-4 pr-3 font-black text-slate-500 text-xs uppercase tracking-wider">{h}</th>)}
+              <tr className="border-b border-white/10">
+                {["직책", "급여(만/월)", "근무일", "근무시간", "인센티브"].map(h => <th key={h} className="text-left py-4 pr-3 font-black text-white/50 text-xs uppercase tracking-wider">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {data.ch5.staff.map((row, idx) => (
-                <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-100/50 transition-colors">
+                <tr key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/10/50 transition-colors">
                   <td className="py-4 pr-2"><Inp value={row.role} onChange={(v: string) => { const a = [...data.ch5.staff]; a[idx] = { ...a[idx], role: v }; setData(d => ({ ...d, ch5: { ...d.ch5, staff: a } })); }} placeholder="실장" readOnly={isReadOnly} /></td>
                   <td className="py-4 pr-2"><Inp value={row.salary} onChange={(v: string) => { const a = [...data.ch5.staff]; a[idx] = { ...a[idx], salary: v }; setData(d => ({ ...d, ch5: { ...d.ch5, staff: a } })); }} placeholder="350" readOnly={isReadOnly} /></td>
                   <td className="py-4 pr-2"><Inp value={row.days} onChange={(v: string) => { const a = [...data.ch5.staff]; a[idx] = { ...a[idx], days: v }; setData(d => ({ ...d, ch5: { ...d.ch5, staff: a } })); }} placeholder="주 5일" readOnly={isReadOnly} /></td>
@@ -828,7 +828,7 @@ export default function SurveyPage() {
           </table>
           {!isReadOnly && (
             <button onClick={() => setData(d => ({ ...d, ch5: { ...d.ch5, staff: [...data.ch5.staff, { role: "", salary: "", days: "", hours: "", incentive: "" }] } }))}
-              className="mt-6 px-6 py-3 text-xs font-black text-amber-600 bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-blue-100">
+              className="mt-6 px-6 py-3 text-xs font-black text-amber-400 bg-white/5 rounded-xl shadow-sm hover:shadow-md transition-all border border-amber-500/20">
               + 직원 추가하기
             </button>
           )}
@@ -880,7 +880,7 @@ export default function SurveyPage() {
             <Lbl hint="[Q46] 어떤 성향과 능력을 가진 사람과 일하고 싶으신가요?">함께 일하고 싶은 원장님의 인재상</Lbl>
             <STATextarea id="ch5-idealStaff" value={data.ch5.idealStaff} onChange={(v: string) => upd5("idealStaff", v)} placeholder="예: '환자에게 따뜻하고 학습 성장이 빠른 사람'" rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-slate-50">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-white/5">
             <div>
               <Lbl hint="[Q47] 팀장/실장에게 기대하는 핵심 역할">중간관리자 역할 기대치</Lbl>
               <STATextarea id="ch5-managerExp" value={data.ch5.expectations.manager} onChange={(v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, expectations: { ...d.ch5.expectations, manager: v } } }))} placeholder="기대하는 핵심 역량과 책임" rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
@@ -908,7 +908,7 @@ export default function SurveyPage() {
             <Inp value={data.ch5.chatSystem.channels} onChange={(v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, chatSystem: { ...d.ch5.chatSystem, channels: v } } }))} placeholder="예: 공지방, 진료보고방, 행정지원방 분리" readOnly={isReadOnly} />
           </div>
         </div>
-        <div className="p-8 bg-slate-100 rounded-3xl border border-slate-200">
+        <div className="p-8 bg-white/10 rounded-3xl border border-white/10">
           <Lbl hint="[Q49] 원내 채팅 채널 구분 사진 및 실제 대화 내용 캡처, 가이드라인 파일을 제출해주세요.">채팅 시스템 증빙 자료 (파일 3개 세트)</Lbl>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
             <FileUpload label="캡처1: 전체 채널 구분" value={data.ch5.chatSystem.capture1 || ""} 
@@ -930,7 +930,7 @@ export default function SurveyPage() {
             <Lbl hint="[Q50] 매주/매월 정기 교육 및 회의 시스템 정보를 알려주세요.">원내 교육/회의 주기 및 운영 방식</Lbl>
             <STATextarea id="ch1-eduMeeting" value={data.ch5.eduMeeting} onChange={(v: string) => upd5("eduMeeting", v)} placeholder="예: 매주 화요일 진료 전 30분 직무 교육 개최" rows={5} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
           </div>
-          <div className="p-8 bg-blue-50/50 rounded-3xl border border-blue-100/50">
+          <div className="p-8 bg-amber-500/10/50 rounded-3xl border border-amber-500/20/50">
             <Lbl hint="[Q51] 현재 병원에 구비된 원내 교육 자료 3가지 정도를 첨부 부탁드립니다.">핵심 교육 자료 공유 (최대 3개)</Lbl>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
               {[0, 1, 2].map(idx => (
@@ -959,12 +959,12 @@ export default function SurveyPage() {
               const isChecked = data.ch6.safetyItems[item];
               const fileUrl = data.ch6.safetyFiles[item];
               return (
-                <div key={item} className={`p-6 rounded-3xl border-2 transition-all ${isChecked ? "border-emerald-500 bg-blue-50/30" : "border-slate-100 bg-white"}`}>
+                <div key={item} className={`p-6 rounded-3xl border-2 transition-all ${isChecked ? "border-emerald-500 bg-amber-500/10/30" : "border-white/5 bg-white/5"}`}>
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <button disabled={isReadOnly}
                       onClick={() => setData(d => ({ ...d, ch6: { ...d.ch6, safetyItems: { ...d.ch6.safetyItems, [item]: !isChecked } } }))}
                       className="flex items-center gap-4 text-left group">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all shadow-md ${isChecked ? "bg-emerald-700 text-white" : "bg-white text-slate-300 border border-slate-200"}`}>
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-sm transition-all shadow-md ${isChecked ? "bg-emerald-700 text-white" : "bg-white/5 text-slate-300 border border-white/10"}`}>
                         {isChecked ? <Check size={20} /> : "X"}
                       </div>
                       <div>
@@ -990,7 +990,7 @@ export default function SurveyPage() {
               <p className="text-xl font-black">{Math.round(Object.values(data.ch6.safetyItems).filter(Boolean).length / SAFETY_ITEMS.length * 100)}%</p>
             </div>
             <div className="w-full bg-emerald-900 rounded-full h-3"><div className="h-full bg-gradient-to-r from-emerald-600 to-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${Object.values(data.ch6.safetyItems).filter(Boolean).length / SAFETY_ITEMS.length * 100}%` }} /></div>
-            <p className="text-[10px] text-slate-500 mt-4 text-center">전체 {SAFETY_ITEMS.length}개 항목 중 {Object.values(data.ch6.safetyItems).filter(Boolean).length}개 완료</p>
+            <p className="text-[10px] text-white/50 mt-4 text-center">전체 {SAFETY_ITEMS.length}개 항목 중 {Object.values(data.ch6.safetyItems).filter(Boolean).length}개 완료</p>
           </div>
         </div>
       </SCard>
@@ -1020,7 +1020,7 @@ export default function SurveyPage() {
               <STATextarea value={data.ch6.promoMaterials} onChange={(v: string) => setData(d => ({ ...d, ch6: { ...d.ch6, promoMaterials: v } }))} placeholder="예: 거북목 배너 2개, 보약 홍보 책자 1종 비치 중" rows={11} readOnly={isReadOnly} listeningId={listeningId} onMic={startSTT} />
             </div>
           </div>
-          <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+          <div className="p-8 bg-white/5 rounded-3xl border border-white/5">
             <Lbl hint="[Q54] 실제 병원에 비치된 홍보물 사진을 업로드해 주세요 (최대 5개)">원내 홍보물 증빙 사진 제출</Lbl>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
               {[0, 1, 2, 3, 4].map(idx => (
@@ -1080,7 +1080,7 @@ export default function SurveyPage() {
             onClick={() => router.push("/survey/admin")}
             className="flex items-center gap-3 px-6 py-4 bg-emerald-950 text-white rounded-[2.5rem] shadow-2xl hover:bg-emerald-700 hover:-translate-y-1 active:scale-95 transition-all group border border-white/10"
           >
-            <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:bg-white group-hover:text-amber-600 transition-colors">
+            <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:bg-white/5 group-hover:text-amber-400 transition-colors">
               <Shield size={20} />
             </div>
             <div className="text-left pr-2">
@@ -1093,21 +1093,21 @@ export default function SurveyPage() {
 
       {stampStep !== null && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
-          <div className="animate-bounce-once bg-white rounded-[40px] p-10 shadow-2xl border-4 border-emerald-600 text-center">
+          <div className="animate-bounce-once bg-white/5 rounded-[40px] p-10 shadow-2xl border-4 border-emerald-600 text-center">
             <div className="text-6xl mb-3">✅</div>
             <p className="font-black text-blue-700 text-xl">Chapter {stampStep} 완료!</p>
           </div>
         </div>
       )}
 
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/5/80 backdrop-blur-xl border-b border-white/5 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-slate-100 transition text-slate-400"><ChevronLeft size={18} /></button>
+              <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-white/10 transition text-slate-400"><ChevronLeft size={18} /></button>
               <div>
                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">바른컨설팅 정밀 진단 워크북</p>
-                <h1 className="text-slate-900 font-black text-sm">Chapter {step} / 6 — {ch.title}</h1>
+                <h1 className="text-white font-black text-sm">Chapter {step} / 6 — {ch.title}</h1>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -1115,15 +1115,15 @@ export default function SurveyPage() {
                 <span>{level.icon}</span>{level.name}
               </div>
               <div className="text-right">
-                <span className="text-xs font-black text-slate-700">{fillPct.total}%</span>
+                <span className="text-xs font-black text-white/80">{fillPct.total}%</span>
               </div>
-              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-blue-50 border-blue-200 text-amber-600 animate-pulse" : "bg-amber-50 border-amber-200 text-amber-600"}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-amber-500/10 border-blue-200 text-amber-400 animate-pulse" : "bg-amber-500/10 border-amber-200 text-amber-400"}`}>
                 <Save size={12} />{saveStatus === "saved" ? "저장됨" : saveStatus === "saving" ? "저장 중..." : "미저장"}
               </div>
             </div>
           </div>
 
-          <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-3">
+          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden mb-3">
             <div className={`h-full bg-gradient-to-r ${ch.color} rounded-full transition-all duration-700`} style={{ width: `${Math.max(4, fillPct.total)}%` }} />
           </div>
 
@@ -1133,7 +1133,7 @@ export default function SurveyPage() {
               const done = fillPct.chapters[c.id - 1] === 1;
               return (
                 <button key={c.id} onClick={() => setStep(c.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black whitespace-nowrap transition-all ${step === c.id ? `bg-gradient-to-r ${c.color} text-white shadow-md` : done ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : "bg-slate-50 text-slate-300"}`}>
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black whitespace-nowrap transition-all ${step === c.id ? `bg-gradient-to-r ${c.color} text-white shadow-md` : done ? "bg-emerald-500/10 text-emerald-400 border border-emerald-200" : "bg-white/5 text-slate-300"}`}>
                   {done ? <Check size={10} /> : <CI size={10} />}{c.title.split(" ")[0]}
                 </button>
               );
@@ -1143,7 +1143,7 @@ export default function SurveyPage() {
       </header>
 
       {submitted && (
-        <div className={`${isMaster ? "bg-amber-50 border-b border-amber-200 text-amber-700" : "bg-blue-50 border-b border-blue-200 text-blue-700"} px-6 py-3 text-center`}>
+        <div className={`${isMaster ? "bg-amber-500/10 border-b border-amber-200 text-amber-700" : "bg-amber-500/10 border-b border-blue-200 text-blue-700"} px-6 py-3 text-center`}>
           <div className="flex items-center justify-center gap-2 text-sm font-bold">
             <Lock size={14} />
             {isMaster ? "마스터 권한으로 수정 가능합니다." : "제출이 완료되었습니다. 수정이 잠겨있습니다."}
@@ -1158,16 +1158,16 @@ export default function SurveyPage() {
           </div>
           <div>
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Chapter {step} • {ch.subtitle} • 예상 5~10분</p>
-            <h2 className="text-3xl font-black text-slate-900">{ch.title}</h2>
+            <h2 className="text-3xl font-black text-white">{ch.title}</h2>
           </div>
         </div>
 
         {chaptersRender[step - 1]()}
 
-        <div className={`flex items-center mt-10 pt-8 border-t border-slate-100 ${step === 1 ? "justify-end" : "justify-between"}`}>
+        <div className={`flex items-center mt-10 pt-8 border-t border-white/5 ${step === 1 ? "justify-end" : "justify-between"}`}>
           {step > 1 && (
             <button onClick={() => { setStep(s => s - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl border border-white/10 text-white/70 font-bold text-sm hover:bg-white/5 transition-all">
               <ChevronLeft size={16} />이전 챕터
             </button>
           )}
@@ -1187,17 +1187,17 @@ export default function SurveyPage() {
 
       {showSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md">
-          <div className="bg-white rounded-[40px] p-12 max-w-md w-full mx-4 text-center shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-300">
+          <div className="bg-white/5 rounded-[40px] p-12 max-w-md w-full mx-4 text-center shadow-2xl border border-white/5 animate-in fade-in zoom-in duration-300">
             <div className="relative mb-8">
               <div className="w-28 h-28 bg-gradient-to-br from-emerald-600 to-indigo-600 rounded-[28px] flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
                 <span className="text-5xl">🏆</span>
               </div>
             </div>
-            <h2 className="text-4xl font-black text-slate-900 mb-2">수고하셨습니다!</h2>
-            <p className="text-lg text-amber-600 font-bold mb-4">워크북 제출 완료! 🎉</p>
-            <p className="text-slate-500 text-sm leading-relaxed mb-8">
+            <h2 className="text-4xl font-black text-white mb-2">수고하셨습니다!</h2>
+            <p className="text-lg text-amber-400 font-bold mb-4">워크북 제출 완료! 🎉</p>
+            <p className="text-white/50 text-sm leading-relaxed mb-8">
               원장님의 모든 답변이 성공적으로 저장되었습니다.<br />
-              <span className="font-bold text-slate-700">바른컨설팅 AI</span>가 맞춤형 분석 리포트를 곧 준비합니다.
+              <span className="font-bold text-white/80">바른컨설팅 AI</span>가 맞춤형 분석 리포트를 곧 준비합니다.
             </p>
             <button
               onClick={() => router.push("/")}

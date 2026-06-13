@@ -92,19 +92,19 @@ export default function DetailsPage() {
   };
 
   const metrics = useMemo(() => [
-    { category: "generatedRevenue", key: "totalCovered", label: "보험 매출 (청구+본인)", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-50" },
-    { category: "generatedRevenue", key: "insurance", label: "보험 청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { category: "generatedRevenue", key: "copay", label: "본인 부담금", unit: "원", icon: Wallet, color: "text-amber-600", bg: "bg-amber-50" },
+    { category: "generatedRevenue", key: "totalCovered", label: "보험 매출 (청구+본인)", unit: "원", icon: ShieldCheck, color: "text-indigo-700", bg: "bg-indigo-500/10" },
+    { category: "generatedRevenue", key: "insurance", label: "보험 청구액", unit: "원", icon: ShieldCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    { category: "generatedRevenue", key: "copay", label: "본인 부담금", unit: "원", icon: Wallet, color: "text-amber-400", bg: "bg-amber-500/10" },
     { category: "generatedRevenue", key: "nonCovered", label: "비급여 매출", unit: "원", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
-    { category: "generatedRevenue", key: "auto", label: "자동차 보험", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-blue-50" },
-    { category: "patientMetrics", key: "total", label: "내원 환자수 (유입)", unit: "명", icon: Users, color: "text-amber-600", bg: "bg-blue-50" },
-    { category: "patientMetrics", key: "new", label: "신규 환자수", unit: "명", icon: UserPlus, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { category: "generatedRevenue", key: "auto", label: "자동차 보험", unit: "원", icon: Car, color: "text-blue-700", bg: "bg-amber-500/10" },
+    { category: "patientMetrics", key: "total", label: "내원 환자수 (유입)", unit: "명", icon: Users, color: "text-amber-400", bg: "bg-amber-500/10" },
+    { category: "patientMetrics", key: "new", label: "신규 환자수", unit: "명", icon: UserPlus, color: "text-indigo-400", bg: "bg-indigo-500/10" },
     { category: "generatedRevenue", key: "total", label: "발생 매출 (총진료비)", unit: "원", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
-    { category: "custom", key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-600", bg: "bg-rose-50" },
-    { category: "leakage", key: "discountTotal", label: "매출 누수 (할인)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-50" },
-    { category: "leakage", key: "receivables", label: "매출 누수 (미수)", unit: "원", icon: AlertCircle, color: "text-rose-600", bg: "bg-rose-50" },
-    { category: "paymentMethods", key: "cash", label: "현금 수납", unit: "원", icon: Receipt, color: "text-zinc-600", bg: "bg-zinc-100" },
-    { category: "paymentMethods", key: "card", label: "카드 수납", unit: "원", icon: CreditCard, color: "text-amber-500", bg: "bg-blue-50" },
+    { category: "custom", key: "arpu", label: "1인당 평균 객단가", unit: "원", icon: Wallet, color: "text-rose-400", bg: "bg-rose-500/10" },
+    { category: "leakage", key: "discountTotal", label: "매출 누수 (할인)", unit: "원", icon: AlertTriangle, color: "text-rose-700", bg: "bg-rose-500/10" },
+    { category: "leakage", key: "receivables", label: "매출 누수 (미수)", unit: "원", icon: AlertCircle, color: "text-rose-400", bg: "bg-rose-500/10" },
+    { category: "paymentMethods", key: "cash", label: "현금 수납", unit: "원", icon: Receipt, color: "text-white/70", bg: "bg-white/10" },
+    { category: "paymentMethods", key: "card", label: "카드 수납", unit: "원", icon: CreditCard, color: "text-amber-500", bg: "bg-amber-500/10" },
   ], []);
 
   // Analysis Insights Logic (Best/Worst)
@@ -263,39 +263,39 @@ export default function DetailsPage() {
   return (
     <DashboardLayout>
       <main className="min-h-screen pb-20">
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-zinc-100">
+        <header className="sticky top-0 z-40 bg-white/5/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-600"
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70"
             >
               <ArrowLeft size={20} />
             </button>
             <div className="hidden sm:block">
-              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">상세 분석 리포트</h2>
+              <h2 className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-0.5">상세 분석 리포트</h2>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-900">{formatMonth(compareMonth)}</span>
-                <span className="text-zinc-300 px-1 font-medium">vs</span>
-                <span className="text-sm font-bold text-primary">{formatMonth(selectedMonth)}</span>
+                <span className="text-sm font-bold text-white">{formatMonth(compareMonth)}</span>
+                <span className="text-white/30 px-1 font-medium">vs</span>
+                <span className="text-sm font-bold text-emerald-400">{formatMonth(selectedMonth)}</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 transition-colors border border-zinc-200">
-                <Calendar size={14} className="text-zinc-400" />
-                <span className="text-[10px] text-zinc-400 mr-0.5 font-bold">A</span>
+              <button className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl text-xs font-bold text-white/80 transition-colors border border-white/10">
+                <Calendar size={14} className="text-white/40" />
+                <span className="text-[10px] text-white/40 mr-0.5 font-bold">A</span>
                 {compareMonth || "선택"}
-                <ChevronDown size={14} className="text-zinc-300" />
+                <ChevronDown size={14} className="text-white/30" />
               </button>
-              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
+              <div className="absolute top-full right-0 mt-2 bg-white/5/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
                 {availableMonths.map(m => (
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setCompareMonth(m)} 
-                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-zinc-100/50 text-zinc-900" : "hover:bg-zinc-50/50 text-zinc-600"}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-white/10/50 text-white" : "hover:bg-white/5/50 text-white/70"}`}
                     >
                       {formatMonth(m)}
                     </button>
@@ -306,7 +306,7 @@ export default function DetailsPage() {
                           deleteMonthlyData(m);
                         }
                       }}
-                      className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -315,21 +315,21 @@ export default function DetailsPage() {
               </div>
             </div>
 
-            <ArrowRight size={14} className="text-zinc-300" />
+            <ArrowRight size={14} className="text-white/30" />
 
             <div className="relative group">
-              <button className="flex items-center gap-1.5 bg-primary/5 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-primary transition-colors border border-primary/20">
-                <Calendar size={14} className="text-primary/60" />
-                <span className="text-[10px] text-primary/40 mr-0.5 font-bold">B</span>
+              <button className="flex items-center gap-1.5 bg-emerald-500/20 hover:bg-primary/10 px-3 py-2 rounded-xl text-xs font-bold text-emerald-400 transition-colors border border-primary/20">
+                <Calendar size={14} className="text-emerald-400/60" />
+                <span className="text-[10px] text-emerald-400/40 mr-0.5 font-bold">B</span>
                 {selectedMonth}
-                <ChevronDown size={14} className="text-primary/30" />
+                <ChevronDown size={14} className="text-emerald-400/30" />
               </button>
-              <div className="absolute top-full right-0 mt-2 bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
+              <div className="absolute top-full right-0 mt-2 bg-white/5/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[60] min-w-[160px]">
                 {availableMonths.map(m => (
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setSelectedMonth(m)} 
-                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-zinc-50/50 text-zinc-600"}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-white/5/50 text-white/70"}`}
                     >
                       {formatMonth(m)}
                     </button>
@@ -340,7 +340,7 @@ export default function DetailsPage() {
                           deleteMonthlyData(m);
                         }
                       }}
-                      className="p-2 text-zinc-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
+                      className="p-2 text-white/30 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all opacity-0 group-hover/item:opacity-100"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -370,8 +370,8 @@ export default function DetailsPage() {
                     {formatMonth(selectedMonth)} <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400">맞춤 전략 경영 리포트</span>
                   </h3>
                 </div>
-                <div className="p-6 bg-white/10 backdrop-blur-xl rounded-[32px] border border-white/20 shadow-2xl">
-                  <BarChart3 size={44} className="text-primary" />
+                <div className="p-6 bg-white/5/10 backdrop-blur-xl rounded-[32px] border border-white/20 shadow-2xl">
+                  <BarChart3 size={44} className="text-emerald-400" />
                 </div>
               </div>
 
@@ -379,13 +379,13 @@ export default function DetailsPage() {
                 <div className="lg:col-span-3 space-y-6">
                   {loadingAnalysis ? (
                     <div className="space-y-4 pt-2">
-                      <div className="h-5 bg-white/10 rounded-full w-full animate-pulse"></div>
-                      <div className="h-5 bg-white/10 rounded-full w-5/6 animate-pulse"></div>
-                      <div className="h-5 bg-white/10 rounded-full w-4/6 animate-pulse"></div>
+                      <div className="h-5 bg-white/5/10 rounded-full w-full animate-pulse"></div>
+                      <div className="h-5 bg-white/5/10 rounded-full w-5/6 animate-pulse"></div>
+                      <div className="h-5 bg-white/5/10 rounded-full w-4/6 animate-pulse"></div>
                     </div>
                   ) : aiAnalysis?.strategicReport ? (
                     <div className="grid grid-cols-1 gap-6">
-                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
+                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
                         <h4 className="flex items-center gap-2 text-rose-400 font-bold text-sm">
                           <AlertTriangle size={16} /> 위험요소 분석
                         </h4>
@@ -398,8 +398,8 @@ export default function DetailsPage() {
                           ))}
                         </ul>
                       </div>
-                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
-                        <h4 className="flex items-center gap-2 text-primary font-bold text-sm">
+                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
+                        <h4 className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                           <TrendingUp size={16} /> 실질 개선 항목
                         </h4>
                         <ul className="space-y-2">
@@ -411,7 +411,7 @@ export default function DetailsPage() {
                           ))}
                         </ul>
                       </div>
-                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
+                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
                         <h4 className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                           <Check size={16} /> 실무 경영 해결책
                         </h4>
@@ -431,14 +431,14 @@ export default function DetailsPage() {
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
-                  <h4 className="text-sm font-bold text-primary/80 flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-emerald-400/80 flex items-center gap-2">
                     <Play size={16} fill="currentColor" /> 핵심 액션 가이드 (추천 영상)
                   </h4>
                   <div className="grid grid-cols-1 gap-4">
                     {(() => {
                       // 가장 하락한 단 하나의 지표에 대해서만 유튜브 추천 노출
                       const worstKey = insights?.worstTargetThree?.key;
-                      if (!worstKey) return <p className="text-zinc-500 text-xs italic">현재 특별히 관리가 필요한 하락 지표가 없습니다.</p>;
+                      if (!worstKey) return <p className="text-white/50 text-xs italic">현재 특별히 관리가 필요한 하락 지표가 없습니다.</p>;
 
                       const metric = metrics.find(m => m.key === worstKey);
                       if (!metric) return null;
@@ -452,9 +452,9 @@ export default function DetailsPage() {
                       const searchKeyword = keywords[0]; // 단 하나의 핵심 키워드만 사용
 
                       return (
-                        <div className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all group/yt">
+                        <div className="bg-white/5/5 border border-white/10 p-5 rounded-3xl hover:bg-white/5/10 transition-all group/yt">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[11px] font-bold text-zinc-400">{metric.label} 솔루션</span>
+                            <span className="text-[11px] font-bold text-white/40">{metric.label} 솔루션</span>
                           </div>
                           <YoutubeVideoLink 
                             keyword={searchKeyword} 
@@ -482,19 +482,19 @@ export default function DetailsPage() {
               <Card className="glass-card p-8 flex flex-col gap-6 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-rose-500/80"></div>
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
+                  <div className="p-3 bg-rose-500/10 text-rose-400 rounded-2xl">
                     <Trophy size={24} />
                   </div>
-                  <h3 className="font-bold text-zinc-900 text-lg">최고 상승 지표</h3>
+                  <h3 className="font-bold text-white text-lg">최고 상승 지표</h3>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{insights.best.label}</span>
-                    <span className="text-xl font-bold text-rose-500">
+                    <span className="text-4xl font-extrabold text-white tracking-tighter">{insights.best.label}</span>
+                    <span className="text-xl font-bold text-rose-400">
                       ▲<AnimatedPercent value={insights.best.delta?.percent || null} />%
                     </span>
                   </div>
-                  <p className="text-zinc-500 leading-relaxed font-medium">
+                  <p className="text-white/50 leading-relaxed font-medium">
                     지난달 대비 효율이 가장 좋았던 핵심 지표입니다.
                   </p>
                 </div>
@@ -503,26 +503,26 @@ export default function DetailsPage() {
               <Card className="glass-card p-8 flex flex-col gap-6 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-emerald-600/80"></div>
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-50 text-amber-600 rounded-2xl">
+                  <div className="p-3 bg-amber-500/10 text-amber-400 rounded-2xl">
                     <AlertTriangle size={24} />
                   </div>
-                  <h3 className="font-bold text-zinc-900 text-lg">집중 개선 지표</h3>
+                  <h3 className="font-bold text-white text-lg">집중 개선 지표</h3>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold text-slate-900 tracking-tighter">{insights.worst.label}</span>
+                    <span className="text-4xl font-extrabold text-white tracking-tighter">{insights.worst.label}</span>
                     <span className="text-xl font-bold text-amber-500">
                       ▼<AnimatedPercent value={Math.abs(parseFloat(insights.worst.delta?.percent || "0")).toString()} />%
                     </span>
                   </div>
-                  <p className="text-zinc-500 leading-relaxed font-medium">
+                  <p className="text-white/50 leading-relaxed font-medium">
                     현재 가장 큰 하락세를 보이며 관리가 시급합니다.
                   </p>
                 </div>
               </Card>
             </React.Fragment>
           ) : (
-            <div className="col-span-full py-12 text-center text-zinc-400 font-bold">비교 데이터를 분석하고 있습니다...</div>
+            <div className="col-span-full py-12 text-center text-white/40 font-bold">비교 데이터를 분석하고 있습니다...</div>
           )}
         </section>
 
@@ -549,31 +549,31 @@ export default function DetailsPage() {
             return (
               <Card
                 key={index}
-                className="glass-card flex flex-col h-auto overflow-hidden group relative hover:bg-white/60"
+                className="glass-card flex flex-col h-auto overflow-hidden group relative hover:bg-white/5/60"
               >
                 <div className="flex justify-between items-start pt-7 px-7">
                   <div className="flex items-center gap-3">
                     <div className={`p-3 rounded-2xl ${m.bg} ${m.color} transition-transform group-hover:scale-110 shadow-sm`}>
                       <m.icon size={20} />
                     </div>
-                    <p className="text-zinc-500 text-sm font-bold tracking-tight">[{formatMonth(selectedMonth)}] {m.label}</p>
+                    <p className="text-white/50 text-sm font-bold tracking-tight">[{formatMonth(selectedMonth)}] {m.label}</p>
                   </div>
                 </div>
 
                 <div className="space-y-6 px-7 pb-7 mt-5">
                   <div className="space-y-1">
                     <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                      <span className="text-3xl font-extrabold text-white tracking-tight">
                         <AnimatedNumber value={valB} />
                       </span>
-                      <span className="text-xs font-bold text-zinc-400">{m.unit}</span>
+                      <span className="text-xs font-bold text-white/40">{m.unit}</span>
                     </div>
                   </div>
 
-                  <div className="pt-5 border-t border-zinc-100/50 space-y-3">
+                  <div className="pt-5 border-t border-white/5/50 space-y-3">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-zinc-400">
+                        <span className="text-[11px] font-bold text-white/40">
                           {formatMonth(compareMonth)} <AnimatedNumber value={valA} />{m.unit}
                         </span>
                       </div>
@@ -583,7 +583,7 @@ export default function DetailsPage() {
                             key={`${selectedMonth}-${compareMonth}-${m.key}`}
                             initial={{ opacity: 0, x: 5 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className={`flex items-center gap-0.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${delta.isUp ? "bg-rose-50/80 text-rose-600" : "bg-blue-50/80 text-amber-600"}`}
+                            className={`flex items-center gap-0.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${delta.isUp ? "bg-rose-500/10/80 text-rose-400" : "bg-amber-500/10/80 text-amber-400"}`}
                           >
                             {delta.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                             <AnimatedPercent value={delta.percent} />%
@@ -606,8 +606,8 @@ export default function DetailsPage() {
             <Card className="glass-card h-96 p-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">전체 매출 성장 추이</h3>
-                  <p className="text-sm text-zinc-500 font-medium mt-1">최근 6개월간의 매출 변화를 분석한 트렌드 그래프입니다.</p>
+                  <h3 className="text-2xl font-extrabold text-white tracking-tight">전체 매출 성장 추이</h3>
+                  <p className="text-sm text-white/50 font-medium mt-1">최근 6개월간의 매출 변화를 분석한 트렌드 그래프입니다.</p>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height="80%">
@@ -630,14 +630,14 @@ export default function DetailsPage() {
         {/* Watch History Section */}
         <section className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <Card className="glass-card p-10 mt-12 mb-20 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl -mr-32 -mt-32 rounded-full"></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 blur-3xl -mr-32 -mt-32 rounded-full"></div>
             <div className="flex items-center gap-4 mb-10 relative z-10">
-              <div className="p-4 bg-primary/10 text-primary rounded-2xl shadow-inner">
+              <div className="p-4 bg-primary/10 text-emerald-400 rounded-2xl shadow-inner">
                 <History size={28} />
               </div>
               <div>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight underline decoration-primary/20 decoration-8 underline-offset-[-2px]">시청 교육 영상 기록</h3>
-                <p className="text-sm text-zinc-500 font-medium mt-1">원장님께서 시청하신 병원 경영 솔루션 영상들입니다.</p>
+                <h3 className="text-2xl font-black text-white tracking-tight underline decoration-primary/20 decoration-8 underline-offset-[-2px]">시청 교육 영상 기록</h3>
+                <p className="text-sm text-white/50 font-medium mt-1">원장님께서 시청하신 병원 경영 솔루션 영상들입니다.</p>
               </div>
             </div>
 
@@ -647,26 +647,26 @@ export default function DetailsPage() {
                   <div key={idx} className="relative group">
                     <button
                       onClick={() => window.open(convertToWatchUrl(video), "_blank")}
-                      className="w-full text-left space-y-4 p-6 rounded-[32px] border border-zinc-100 hover:border-primary/40 hover:bg-primary/[0.02] transition-all hover:shadow-xl hover:-translate-y-1 duration-300 bg-white"
+                      className="w-full text-left space-y-4 p-6 rounded-[32px] border border-white/5 hover:border-primary/40 hover:bg-primary/[0.02] transition-all hover:shadow-xl hover:-translate-y-1 duration-300 bg-white/5"
                     >
                       <div className="flex items-start justify-between">
-                        <div className="p-3 bg-zinc-100 text-zinc-500 rounded-2xl group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                        <div className="p-3 bg-white/10 text-white/50 rounded-2xl group-hover:bg-primary/10 group-hover:text-emerald-400 transition-colors">
                           <Play size={18} fill="currentColor" />
                         </div>
-                        <span className="text-[10px] font-black text-primary bg-primary/5 border border-primary/10 px-2.5 py-0.5 rounded-full">
+                        <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 border border-primary/10 px-2.5 py-0.5 rounded-full">
                           {video.indicator}
                         </span>
                       </div>
                       <div>
-                        <h4 className="font-bold text-slate-900 group-hover:text-primary transition-colors line-clamp-2 leading-snug text-sm">
+                        <h4 className="font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-2 leading-snug text-sm">
                           {video.title}
                         </h4>
                         {video.date && (
                           <div className="flex items-center justify-between mt-4">
-                            <p className="text-[10px] text-zinc-400 font-bold flex items-center gap-1">
+                            <p className="text-[10px] text-white/40 font-bold flex items-center gap-1">
                               <CheckCircle2 size={10} className="text-emerald-500" /> 시청 완료
                             </p>
-                            <span className="text-[9px] text-zinc-300 font-medium">{new Date(video.date).toLocaleDateString()}</span>
+                            <span className="text-[9px] text-white/30 font-medium">{new Date(video.date).toLocaleDateString()}</span>
                           </div>
                         )}
                       </div>
@@ -678,7 +678,7 @@ export default function DetailsPage() {
                           handleRemoveHistory(video.id || "", video.title);
                         }
                       }}
-                      className="absolute -top-2 -right-2 p-2 bg-white text-zinc-300 hover:text-rose-500 rounded-full shadow-lg border border-zinc-100 opacity-0 group-hover:opacity-100 transition-all z-20"
+                      className="absolute -top-2 -right-2 p-2 bg-white/5 text-white/30 hover:text-rose-400 rounded-full shadow-lg border border-white/5 opacity-0 group-hover:opacity-100 transition-all z-20"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -686,12 +686,12 @@ export default function DetailsPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-24 text-center bg-zinc-50/50 rounded-[48px] border-2 border-dashed border-zinc-200 relative z-10">
+              <div className="py-24 text-center bg-white/5/50 rounded-[48px] border-2 border-dashed border-white/10 relative z-10">
                 <div className="max-w-xs mx-auto space-y-4">
-                  <div className="mx-auto w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-300">
+                  <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white/30">
                     <History size={32} />
                   </div>
-                  <p className="text-zinc-400 font-bold">아직 시청하신 영상 기록이 없습니다.</p>
+                  <p className="text-white/40 font-bold">아직 시청하신 영상 기록이 없습니다.</p>
                 </div>
               </div>
             )}

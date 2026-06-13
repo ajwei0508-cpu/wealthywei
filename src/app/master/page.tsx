@@ -379,30 +379,30 @@ export default function MasterDashboardPortal() {
   }
 
   const renderHeader = () => (
-    <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl border-b border-white/20 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white/5/60 backdrop-blur-xl border-b border-white/20 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.push("/")} className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-600"><ArrowLeft size={20} /></button>
+            <button onClick={() => router.push("/")} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70"><ArrowLeft size={20} /></button>
             <div>
-              <h2 className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-0.5">ADMIN ONLY</h2>
+              <h2 className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-0.5">ADMIN ONLY</h2>
               <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-amber-500" /><span className="text-sm font-bold text-slate-900">마스터 통합 매출 통계</span>
+                <ShieldCheck size={18} className="text-amber-500" /><span className="text-sm font-bold text-white">마스터 통합 매출 통계</span>
               </div>
             </div>
           </div>
-          <nav className="flex items-center bg-zinc-100/50 p-1 rounded-2xl ml-4">
-            <button onClick={() => { setActiveTab("unified"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "unified" ? "bg-white text-primary shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>통합 데이터 관리</button>
-            <button onClick={() => { setActiveTab("users"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "users" ? "bg-white text-primary shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}>가입자 현황</button>
-            <button onClick={() => { setActiveTab("staff"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "staff" ? "bg-white text-indigo-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}><Users size={14} />직원 현황</button>
-            <div className="w-[1px] h-3 bg-zinc-200 mx-1" />
-            <button onClick={() => router.push("/survey/admin")} className="px-4 py-1.5 rounded-xl text-xs font-bold text-amber-600 hover:bg-amber-50 transition-all flex items-center gap-1.5"><FileText size={14} />제출 파일 관리</button>
+          <nav className="flex items-center bg-white/10/50 p-1 rounded-2xl ml-4">
+            <button onClick={() => { setActiveTab("unified"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "unified" ? "bg-white/5 text-emerald-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}>통합 데이터 관리</button>
+            <button onClick={() => { setActiveTab("users"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "users" ? "bg-white/5 text-emerald-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}>가입자 현황</button>
+            <button onClick={() => { setActiveTab("staff"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "staff" ? "bg-white/5 text-indigo-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}><Users size={14} />직원 현황</button>
+            <div className="w-[1px] h-3 bg-white/20 mx-1" />
+            <button onClick={() => router.push("/survey/admin")} className="px-4 py-1.5 rounded-xl text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all flex items-center gap-1.5"><FileText size={14} />제출 파일 관리</button>
           </nav>
         </div>
         {(activeTab === "unified" || activeTab === "staff") && (
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-            <input type="text" placeholder="병원명, 이름 검색..." className="pl-10 pr-4 py-2 bg-white/50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+            <input type="text" placeholder="병원명, 이름 검색..." className="pl-10 pr-4 py-2 bg-white/5/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         )}
       </div>
@@ -414,33 +414,33 @@ export default function MasterDashboardPortal() {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-primary/5 text-primary rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">데이터 보유 병원</p><p className="text-2xl font-extrabold text-slate-900">{unifiedData.length}곳</p></div></Card>
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl"><Database size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">매출 기록 총계</p><p className="text-2xl font-extrabold text-slate-900">{allData.length}건</p></div></Card>
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-50/10 text-amber-600 rounded-2xl"><ClipboardList size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">워크북 작성 중</p><p className="text-2xl font-extrabold text-slate-900">{workbooks.length}건</p></div></Card>
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Check size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">워크북 제출 완료</p><p className="text-2xl font-extrabold text-slate-900">{workbooks.filter(w=>w.submitted).length}건</p></div></Card>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-500/20 text-emerald-400 rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">데이터 보유 병원</p><p className="text-2xl font-extrabold text-white">{unifiedData.length}곳</p></div></Card>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-2xl"><Database size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">매출 기록 총계</p><p className="text-2xl font-extrabold text-white">{allData.length}건</p></div></Card>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-emerald-500/10/10 text-amber-400 rounded-2xl"><ClipboardList size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">워크북 작성 중</p><p className="text-2xl font-extrabold text-white">{workbooks.length}건</p></div></Card>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-amber-500/10 text-amber-400 rounded-2xl"><Check size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">워크북 제출 완료</p><p className="text-2xl font-extrabold text-white">{workbooks.filter(w=>w.submitted).length}건</p></div></Card>
         </div>
-        <Card className="bg-white overflow-hidden p-0 border-none shadow-2xl rounded-[32px]">
-          <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><ShieldCheck size={20} className="text-primary" />마스터 통합 관리 대시보드 (매출 + 워크북)</h3>
-            <span className="text-[10px] font-bold text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">LIVE DATA CONSOLIDATED</span>
+        <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-2xl rounded-[32px]">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5/50">
+            <h3 className="text-lg font-extrabold text-white flex items-center gap-2"><ShieldCheck size={20} className="text-emerald-400" />마스터 통합 관리 대시보드 (매출 + 워크북)</h3>
+            <span className="text-[10px] font-bold text-white/40 bg-white/10 px-3 py-1 rounded-full">LIVE DATA CONSOLIDATED</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-[#FAFAFB]">
                 <tr>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">병원 정보</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">최근 매출현황</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase">5대 지표 증감 요약 (전월비)</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase text-center">워크북 상태</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-zinc-400 uppercase text-center">액션</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">병원 정보</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">최근 매출현황</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">5대 지표 증감 요약 (전월비)</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase text-center">워크북 상태</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase text-center">액션</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-white/5">
                 {filteredData.map((item) => {
                   const isExpanded = expandedEmails.has(item.email);
                   return (
                     <React.Fragment key={item.email}>
-                      <tr className="hover:bg-zinc-50/50 transition-colors group">
+                      <tr className="hover:bg-white/5/50 transition-colors group">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">
                             <button
@@ -454,38 +454,38 @@ export default function MasterDashboardPortal() {
                                 }
                                 setExpandedEmails(newSet);
                               }}
-                              className="p-1.5 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-zinc-600 transition flex items-center justify-center"
+                              className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white/70 transition flex items-center justify-center"
                               title="월별 매출 이력 열기"
                             >
                               {isExpanded ? (
-                                <ChevronDown size={14} className="text-primary transform transition-transform" />
+                                <ChevronDown size={14} className="text-emerald-400 transform transition-transform" />
                               ) : (
                                 <ChevronRight size={14} className="transition-transform" />
                               )}
                             </button>
-                            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 overflow-hidden border border-zinc-100">{allUsers.find(u => u.email?.toLowerCase() === item.email)?.image ? <img src={allUsers.find(u => u.email?.toLowerCase() === item.email)?.image} alt="profile" className="w-full h-full object-cover" /> : <Users size={18} />}</div>
+                            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white/40 overflow-hidden border border-white/5">{allUsers.find(u => u.email?.toLowerCase() === item.email)?.image ? <img src={allUsers.find(u => u.email?.toLowerCase() === item.email)?.image} alt="profile" className="w-full h-full object-cover" /> : <Users size={18} />}</div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-extrabold text-slate-900">{item.clinicName}</p>
+                                <p className="text-sm font-extrabold text-white">{item.clinicName}</p>
                                 {item.email?.toLowerCase() === masterEmail.toLowerCase() && (
                                   <Crown size={14} className="text-amber-500 fill-amber-500" />
                                 )}
                                 {item.revenue.changeType === "up" && (
-                                  <span className="bg-rose-50 text-rose-600 border border-rose-100 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                  <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
                                     <TrendingUp size={10} />
                                     +{item.revenue.changeRate.toFixed(1)}%
                                   </span>
                                 )}
                                 {item.revenue.changeType === "down" && (
-                                  <span className="bg-emerald-50/10 text-amber-600 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
+                                  <span className="bg-emerald-500/10/10 text-amber-400 border border-emerald-500/20 px-1.5 py-0.5 rounded text-[10px] font-black inline-flex items-center gap-0.5 shadow-sm animate-in fade-in duration-300">
                                     <TrendingDown size={10} />
                                     {item.revenue.changeRate.toFixed(1)}%
                                   </span>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-black border border-primary/10">{item.kakaoName}</span>
-                                <span className="text-[10px] text-zinc-400 font-medium">{item.email}</span>
+                                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-black border border-primary/10">{item.kakaoName}</span>
+                                <span className="text-[10px] text-white/40 font-medium">{item.email}</span>
                               </div>
                             </div>
                           </div>
@@ -493,11 +493,11 @@ export default function MasterDashboardPortal() {
                         <td className="px-8 py-5">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-slate-700">{item.revenue.latestMonth}</span>
-                              <span className="text-[10px] text-emerald-600 font-black px-1.5 py-0.5 bg-emerald-50 rounded-md w-fit">누적 {item.revenue.count}개월</span>
+                              <span className="text-xs font-bold text-white/80">{item.revenue.latestMonth}</span>
+                              <span className="text-[10px] text-emerald-400 font-black px-1.5 py-0.5 bg-emerald-500/10 rounded-md w-fit">누적 {item.revenue.count}개월</span>
                             </div>
-                            <span className="text-sm font-black text-slate-900">{formatNumber(item.revenue.totalRevenue)}원</span>
-                            <span className="text-[10px] font-bold text-primary">비급여: {formatNumber(item.revenue.nonBenefit)}원</span>
+                            <span className="text-sm font-black text-white">{formatNumber(item.revenue.totalRevenue)}원</span>
+                            <span className="text-[10px] font-bold text-emerald-400">비급여: {formatNumber(item.revenue.nonBenefit)}원</span>
                           </div>
                         </td>
                         <td className="px-8 py-5">
@@ -514,7 +514,7 @@ export default function MasterDashboardPortal() {
                                 const ind = item.revenue.indicators?.[key];
                                 if (!ind || ind.type === "none") {
                                   return (
-                                    <span key={key} className="bg-zinc-50/50 text-zinc-400/80 border border-zinc-200/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
+                                    <span key={key} className="bg-white/5/50 text-white/40/80 border border-white/10/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
                                       {label} -
                                     </span>
                                   );
@@ -525,8 +525,8 @@ export default function MasterDashboardPortal() {
                                     key={key} 
                                     className={`px-2 py-1 rounded-lg text-[10px] font-black inline-flex items-center gap-1 border shadow-sm transition-all hover:scale-105 ${
                                       isUp 
-                                        ? "bg-rose-50 text-rose-600 border-rose-100" 
-                                        : "bg-emerald-50/10 text-amber-600 border-emerald-500/20"
+                                        ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                                        : "bg-emerald-500/10/10 text-amber-400 border-emerald-500/20"
                                     }`}
                                   >
                                     {label} {isUp ? "+" : ""}{ind.rate.toFixed(1)}% {isUp ? "▲" : "▼"}
@@ -536,21 +536,21 @@ export default function MasterDashboardPortal() {
                             })()}
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-zinc-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-emerald-50/10 text-amber-600 text-[9px] font-black rounded border border-emerald-500/20">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded border border-amber-100">작성중</span> : <span className="px-1.5 py-0.5 bg-zinc-50 text-zinc-400 text-[9px] font-black rounded border border-zinc-100">미작성</span>}</div></div></td>
-                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50/10 text-amber-600 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
+                        <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-white/50">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-emerald-500/10/10 text-amber-400 text-[9px] font-black rounded border border-emerald-500/20">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-black rounded border border-amber-500/20">작성중</span> : <span className="px-1.5 py-0.5 bg-white/5 text-white/40 text-[9px] font-black rounded border border-white/5">미작성</span>}</div></div></td>
+                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => router.push(`/master/${encodeURIComponent(item.email)}`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10/10 text-amber-400 rounded-xl text-xs font-black hover:bg-blue-100 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
                       </tr>
                       {isExpanded && (
-                        <tr className="bg-slate-50/30">
-                          <td colSpan={5} className="px-8 py-4 border-t border-b border-zinc-100">
-                            <div className="bg-white rounded-[24px] border border-zinc-100/80 shadow-md overflow-hidden p-6 animate-in slide-in-from-top-2 duration-300">
-                              <h4 className="text-xs font-black text-slate-800 mb-4 flex items-center gap-2">
-                                <Database size={14} className="text-primary animate-pulse" />
+                        <tr className="bg-white/5/30">
+                          <td colSpan={5} className="px-8 py-4 border-t border-b border-white/5">
+                            <div className="bg-white/5 rounded-[24px] border border-white/5/80 shadow-md overflow-hidden p-6 animate-in slide-in-from-top-2 duration-300">
+                              <h4 className="text-xs font-black text-white/90 mb-4 flex items-center gap-2">
+                                <Database size={14} className="text-emerald-400 animate-pulse" />
                                 {item.clinicName} 월별 매출 이력 목록 ({item.revenue.count}개 개월)
                               </h4>
                               <div className="overflow-x-auto">
                                 <table className="w-full text-left text-xs border-collapse">
                                   <thead>
-                                    <tr className="border-b border-zinc-100 text-[10px] font-bold text-zinc-400 uppercase">
+                                    <tr className="border-b border-white/5 text-[10px] font-bold text-white/40 uppercase">
                                       <th className="py-2.5 px-3">기준월</th>
                                       <th className="py-2.5 px-3">총 매출</th>
                                       <th className="py-2.5 px-3">비급여</th>
@@ -560,22 +560,22 @@ export default function MasterDashboardPortal() {
                                       <th className="py-2.5 px-3 text-center">동작</th>
                                     </tr>
                                   </thead>
-                                  <tbody className="divide-y divide-zinc-50 font-medium">
+                                  <tbody className="divide-y divide-white/5 font-medium">
                                     {item.revenue.records.map((rec: any) => {
                                       const flat = getFlatMetrics(rec.metrics);
                                       return (
-                                        <tr key={rec.id} className="hover:bg-zinc-50/50 transition-colors">
-                                          <td className="py-2.5 px-3 font-extrabold text-slate-700">{rec.month}</td>
-                                          <td className="py-2.5 px-3 font-extrabold text-slate-900">{formatNumber(flat.totalRevenue)}원</td>
-                                          <td className="py-2.5 px-3 text-primary font-bold">{formatNumber(flat.nonBenefit)}원</td>
-                                          <td className="py-2.5 px-3 text-slate-600">{formatNumber((flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0))}원</td>
-                                          <td className="py-2.5 px-3 text-slate-600">{flat.newPatientCount}명</td>
-                                          <td className="py-2.5 px-3 text-slate-600">{formatNumber(Math.round(flat.totalRevenue / Math.max(flat.patientCount || 1, 1)))}원</td>
+                                        <tr key={rec.id} className="hover:bg-white/5/50 transition-colors">
+                                          <td className="py-2.5 px-3 font-extrabold text-white/80">{rec.month}</td>
+                                          <td className="py-2.5 px-3 font-extrabold text-white">{formatNumber(flat.totalRevenue)}원</td>
+                                          <td className="py-2.5 px-3 text-emerald-400 font-bold">{formatNumber(flat.nonBenefit)}원</td>
+                                          <td className="py-2.5 px-3 text-white/70">{formatNumber((flat.patientPay || 0) + (flat.insuranceClaim || 0) + (flat.autoInsuranceClaim || 0))}원</td>
+                                          <td className="py-2.5 px-3 text-white/70">{flat.newPatientCount}명</td>
+                                          <td className="py-2.5 px-3 text-white/70">{formatNumber(Math.round(flat.totalRevenue / Math.max(flat.patientCount || 1, 1)))}원</td>
                                           <td className="py-2.5 px-3 text-center">
                                             <div className="flex items-center justify-center gap-1.5">
                                               <button 
                                                 onClick={() => router.push(`/master/${encodeURIComponent(item.email)}?month=${rec.month}`)}
-                                                className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shadow-sm"
+                                                className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shadow-sm"
                                               >
                                                 분석
                                               </button>
@@ -601,7 +601,7 @@ export default function MasterDashboardPortal() {
                                                     toast.error("오류 발생");
                                                   }
                                                 }}
-                                                className="px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg text-[10px] font-bold hover:bg-rose-100 transition shadow-sm"
+                                                className="px-2.5 py-1 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold hover:bg-rose-100 transition shadow-sm"
                                               >
                                                 삭제
                                               </button>
@@ -664,56 +664,56 @@ export default function MasterDashboardPortal() {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">전체 가입자 수</p><p className="text-2xl font-extrabold text-slate-900">{combinedUsers.length}명</p></div></Card>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-indigo-500/10 text-indigo-400 rounded-2xl"><Users size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">전체 가입자 수</p><p className="text-2xl font-extrabold text-white">{combinedUsers.length}명</p></div></Card>
 
         </div>
-        <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
-          <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50"><h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
+        <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5/50"><h3 className="text-lg font-extrabold text-white flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-[#FAFAFB]">
                 <tr>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">사용자 (프로필)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">가입 정보</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">연락처 / 이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 상태 (권한)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">승인 분류</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">활동 현황</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">사용자 (프로필)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">가입 정보</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">연락처 / 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">승인 상태 (권한)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">승인 분류</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-center">활동 현황</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-white/5">
                 {combinedUsers.map((user) => {
                   const isDirector = user.type === 'director';
                   const hasRev = isDirector ? allData.some(d => d.user_email?.toLowerCase() === user.email?.toLowerCase()) : false;
                   const hasWb = isDirector ? workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase()) : false;
                   
                   return (
-                    <tr key={user.id} className="hover:bg-zinc-50/50 transition-colors group">
+                    <tr key={user.id} className="hover:bg-white/5/50 transition-colors group">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-zinc-100 overflow-hidden border border-zinc-100 flex items-center justify-center">
-                            {user.image ? <img src={user.image} alt="p" className="w-full h-full object-cover" /> : <Users size={14} className="text-zinc-400" />}
+                          <div className="w-8 h-8 rounded-full bg-white/10 overflow-hidden border border-white/5 flex items-center justify-center">
+                            {user.image ? <img src={user.image} alt="p" className="w-full h-full object-cover" /> : <Users size={14} className="text-white/40" />}
                           </div>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-extrabold text-slate-900">{user.name}</span>
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${isDirector ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                              <span className="text-sm font-extrabold text-white">{user.name}</span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${isDirector ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                 {isDirector ? '원장' : '직원'}
                               </span>
                             </div>
-                            {user.kakaoName && <span className="text-[10px] text-zinc-500 font-bold bg-zinc-100 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.kakaoName}</span>}
+                            {user.kakaoName && <span className="text-[10px] text-white/50 font-bold bg-white/10 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.kakaoName}</span>}
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-xs font-bold text-amber-500 bg-emerald-50/10 px-2 py-0.5 rounded-md w-fit">{user.clinicName}</span>
-                          {user.age && <span className="text-[10px] text-zinc-500 font-medium ml-1">{user.age}세</span>}
+                          <span className="text-xs font-bold text-amber-500 bg-emerald-500/10/10 px-2 py-0.5 rounded-md w-fit">{user.clinicName}</span>
+                          {user.age && <span className="text-[10px] text-white/50 font-medium ml-1">{user.age}세</span>}
                         </div>
                       </td>
                       <td className="px-8 py-5 flex flex-col gap-1">
-                        <span className="text-sm text-slate-700 font-bold">{user.phone}</span>
-                        <span className="text-xs text-zinc-500 font-medium">{user.email}</span>
+                        <span className="text-sm text-white/80 font-bold">{user.phone}</span>
+                        <span className="text-xs text-white/50 font-medium">{user.email}</span>
                       </td>
                       <td className="px-8 py-5">
                         {isDirector ? (
@@ -721,9 +721,9 @@ export default function MasterDashboardPortal() {
                             value={user.perms?.approval_status || 'pending'}
                             onChange={(e) => handleApprove(user.email!, e.target.value, user.perms?.approved_categories || [])}
                             className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none transition-colors ${
-                              user.perms?.approval_status === 'approved' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                              user.perms?.approval_status === 'rejected' ? "bg-rose-50 text-rose-600 border-rose-100" :
-                              "bg-amber-50 text-amber-600 border-amber-100"
+                              user.perms?.approval_status === 'approved' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                              user.perms?.approval_status === 'rejected' ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
+                              "bg-amber-500/10 text-amber-400 border-amber-500/20"
                             }`}
                           >
                             <option value="pending">대기</option>
@@ -731,7 +731,7 @@ export default function MasterDashboardPortal() {
                             <option value="rejected">거절</option>
                           </select>
                         ) : (
-                          <span className="text-[11px] font-bold px-2 py-1 bg-slate-100 text-slate-500 rounded-lg border border-slate-200">
+                          <span className="text-[11px] font-bold px-2 py-1 bg-white/10 text-white/50 rounded-lg border border-white/10">
                             직원 (자동승인)
                           </span>
                         )}
@@ -743,7 +743,7 @@ export default function MasterDashboardPortal() {
                               const isChecked = user.perms?.approved_categories?.includes(cat.id);
                               return (
                                 <label key={cat.id} className="flex items-center gap-2 cursor-pointer group/item">
-                                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isChecked ? "bg-primary border-primary shadow-sm" : "bg-white border-zinc-200 group-hover/item:border-primary/50"}`}>
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isChecked ? "bg-primary border-primary shadow-sm" : "bg-white/5 border-white/10 group-hover/item:border-primary/50"}`}>
                                     <input 
                                       type="checkbox" 
                                       checked={isChecked}
@@ -761,24 +761,24 @@ export default function MasterDashboardPortal() {
                                     />
                                     {isChecked && <Check size={10} className="text-white" strokeWidth={4} />}
                                   </div>
-                                  <span className={`text-[11px] font-bold ${isChecked ? "text-slate-900" : "text-zinc-400 group-hover/item:text-slate-600"}`}>{cat.name}</span>
+                                  <span className={`text-[11px] font-bold ${isChecked ? "text-white" : "text-white/40 group-hover/item:text-white/70"}`}>{cat.name}</span>
                                 </label>
                               );
                             })}
                           </div>
                         ) : (
-                          <span className="text-[10px] text-zinc-400 font-medium">-</span>
+                          <span className="text-[10px] text-white/40 font-medium">-</span>
                         )}
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex items-center justify-center gap-2">
-                          {hasRev && <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100">매출</span>}
-                          {hasWb && <span className="px-2 py-0.5 bg-emerald-50/10 text-amber-500 text-[9px] font-bold rounded-md border border-emerald-500/20">워크북</span>}
-                          {!isDirector && <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded-md border border-indigo-100">교육영상</span>}
+                          {hasRev && <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold rounded-md border border-emerald-500/20">매출</span>}
+                          {hasWb && <span className="px-2 py-0.5 bg-emerald-500/10/10 text-amber-500 text-[9px] font-bold rounded-md border border-emerald-500/20">워크북</span>}
+                          {!isDirector && <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-[9px] font-bold rounded-md border border-indigo-500/20">교육영상</span>}
                           {isDirector && (
                             <button
                               onClick={() => handleMasterDeleteUser(user.email!, user.name)}
-                              className="ml-2 p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 rounded-lg transition-colors border border-rose-100/50"
+                              className="ml-2 p-1.5 bg-rose-500/10 hover:bg-rose-100 text-rose-400 rounded-lg transition-colors border border-rose-500/20/50"
                               title="계정 완전 초기화 (삭제)"
                             >
                               <Trash2 size={12} />
@@ -846,13 +846,13 @@ export default function MasterDashboardPortal() {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg">
-            <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl"><Users size={24} /></div>
-            <div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">전체 가입 직원</p><p className="text-2xl font-extrabold text-slate-900">{allStaff.length}명</p></div>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg">
+            <div className="p-4 bg-indigo-500/10 text-indigo-400 rounded-2xl"><Users size={24} /></div>
+            <div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">전체 가입 직원</p><p className="text-2xl font-extrabold text-white">{allStaff.length}명</p></div>
           </Card>
-          <Card className="bg-white p-6 flex items-center gap-4 transition-all hover:shadow-lg">
-            <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Activity size={24} /></div>
-            <div><p className="text-xs font-bold text-zinc-400 uppercase tracking-tighter">활성화된 초대 코드</p><p className="text-2xl font-extrabold text-slate-900">{allInvites.length}개</p></div>
+          <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg">
+            <div className="p-4 bg-amber-500/10 text-amber-400 rounded-2xl"><Activity size={24} /></div>
+            <div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">활성화된 초대 코드</p><p className="text-2xl font-extrabold text-white">{allInvites.length}개</p></div>
           </Card>
           <div className="md:col-span-2 flex items-center justify-end">
             <button 
@@ -865,23 +865,23 @@ export default function MasterDashboardPortal() {
           </div>
         </div>
 
-        <Card className="bg-white overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
-          <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2"><Users size={20} className="text-indigo-500" />글로벌 직원 계정 총괄</h3>
+        <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5/50">
+            <h3 className="text-lg font-extrabold text-white flex items-center gap-2"><Users size={20} className="text-indigo-500" />글로벌 직원 계정 총괄</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-[#FAFAFB]">
                 <tr>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">소속 한의원</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">직원 이름</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">아이디(휴대폰)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase">원장님 이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-center">교육 이수율 현황</th>
-                  <th className="px-8 py-4 text-xs font-bold text-zinc-400 uppercase text-right">관리</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">소속 한의원</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">직원 이름</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">아이디(휴대폰)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">원장님 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-center">교육 이수율 현황</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-right">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-white/5">
                 {filteredStaff.map((staff) => {
                   const staffEmail = `staff_${staff.phone}@bareun.app`;
                   const staffProgress = allProgress.filter(p => p.staff_phone === staffEmail);
@@ -889,26 +889,26 @@ export default function MasterDashboardPortal() {
                   const progress = Math.min(100, Math.round((staffProgress.length / TOTAL_VIDEOS) * 100));
 
                   return (
-                    <tr key={staff.id} className="hover:bg-zinc-50/50 transition-colors">
-                      <td className="px-8 py-5 font-extrabold text-indigo-600">{staff.clinic_name}</td>
-                      <td className="px-8 py-5 font-bold text-slate-900">{staff.name}</td>
-                      <td className="px-8 py-5 font-medium text-slate-600">{staff.phone}</td>
-                      <td className="px-8 py-5 text-sm text-zinc-500">{staff.parent_email}</td>
+                    <tr key={staff.id} className="hover:bg-white/5/50 transition-colors">
+                      <td className="px-8 py-5 font-extrabold text-indigo-400">{staff.clinic_name}</td>
+                      <td className="px-8 py-5 font-bold text-white">{staff.name}</td>
+                      <td className="px-8 py-5 font-medium text-white/70">{staff.phone}</td>
+                      <td className="px-8 py-5 text-sm text-white/50">{staff.parent_email}</td>
                       <td className="px-8 py-5 text-center">
                         <div className="flex flex-col items-center gap-1.5 w-32 mx-auto">
-                          <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden relative">
+                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative">
                             <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progress}%` }} />
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black text-slate-500">{progress}%</span>
-                            <span className="text-[9px] font-bold text-zinc-400">({staffProgress.length}/{TOTAL_VIDEOS})</span>
+                            <span className="text-[10px] font-black text-white/50">{progress}%</span>
+                            <span className="text-[9px] font-bold text-white/40">({staffProgress.length}/{TOTAL_VIDEOS})</span>
                           </div>
                         </div>
                       </td>
                       <td className="px-8 py-5 text-right">
                         <button 
                           onClick={() => handleMasterDeleteStaff(staff.id, staff.name)}
-                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
                           title="강제 계정 삭제"
                         >
                           <Trash2 size={16} />
@@ -919,7 +919,7 @@ export default function MasterDashboardPortal() {
                 })}
                 {filteredStaff.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-8 py-12 text-center text-zinc-400">
+                    <td colSpan={6} className="px-8 py-12 text-center text-white/40">
                       가입된 직원이 없거나 검색 결과가 없습니다.
                     </td>
                   </tr>
@@ -947,15 +947,15 @@ export default function MasterDashboardPortal() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-sm overflow-y-auto">
           <div className="bg-[#F2F4F6] w-full max-w-5xl rounded-[40px] shadow-2xl relative my-8">
             <div className="p-8 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6 bg-white p-6 rounded-[32px]">
-                <div><h2 className="text-xl font-black">{selectedWorkbook.user_id} 워크북 상세</h2><p className="text-xs text-zinc-400 font-bold">완성도: {calcFill(selectedWorkbook.data)}%</p></div>
-                <button onClick={() => setSelectedWorkbook(null)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200"><X size={20} /></button>
+              <div className="flex items-center justify-between mb-6 bg-white/5 p-6 rounded-[32px]">
+                <div><h2 className="text-xl font-black">{selectedWorkbook.user_id} 워크북 상세</h2><p className="text-xs text-white/40 font-bold">완성도: {calcFill(selectedWorkbook.data)}%</p></div>
+                <button onClick={() => setSelectedWorkbook(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20"><X size={20} /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH1. 브랜딩</h4><p className="text-sm"><b>병원명:</b> {selectedWorkbook.data?.ch1?.clinic}</p><p className="text-sm"><b>성함:</b> {selectedWorkbook.data?.ch1?.name}</p><p className="text-sm"><b>비전:</b> {selectedWorkbook.data?.ch1?.vision}</p></div>
-                <div className="bg-white p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH4. 지표/목표</h4><p className="text-sm"><b>매출목표:</b> {selectedWorkbook.data?.ch4?.revenueGoal}</p><p className="text-sm"><b>순익목표:</b> {selectedWorkbook.data?.ch4?.profitGoal}</p></div>
+                <div className="bg-white/5 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH1. 브랜딩</h4><p className="text-sm"><b>병원명:</b> {selectedWorkbook.data?.ch1?.clinic}</p><p className="text-sm"><b>성함:</b> {selectedWorkbook.data?.ch1?.name}</p><p className="text-sm"><b>비전:</b> {selectedWorkbook.data?.ch1?.vision}</p></div>
+                <div className="bg-white/5 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH4. 지표/목표</h4><p className="text-sm"><b>매출목표:</b> {selectedWorkbook.data?.ch4?.revenueGoal}</p><p className="text-sm"><b>순익목표:</b> {selectedWorkbook.data?.ch4?.profitGoal}</p></div>
               </div>
-              <div className="mt-6 flex justify-center"><button onClick={() => handleUnlockWorkbook(selectedWorkbook.user_id)} className="px-6 py-2 bg-amber-50 text-amber-600 rounded-xl font-bold hover:bg-amber-100">잠금 해제 (수정 권한 부여)</button></div>
+              <div className="mt-6 flex justify-center"><button onClick={() => handleUnlockWorkbook(selectedWorkbook.user_id)} className="px-6 py-2 bg-amber-500/10 text-amber-400 rounded-xl font-bold hover:bg-amber-100">잠금 해제 (수정 권한 부여)</button></div>
             </div>
           </div>
         </div>

@@ -192,47 +192,47 @@ export default function Home() {
   // 1. 비로그인 상태
   if (status === "unauthenticated") {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-blue-50">
+      <main className="min-h-screen bg-white/5 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-md w-full space-y-8 text-center">
           <div className="space-y-4">
-            <div className="inline-block p-4 bg-white rounded-3xl shadow-xl shadow-emerald-500/10 mb-2">
-              <TrendingUp size={48} className="text-amber-600" strokeWidth={2.5} />
+            <div className="inline-block p-4 bg-white/5 rounded-3xl shadow-xl shadow-emerald-500/10 mb-2">
+              <TrendingUp size={48} className="text-amber-400" strokeWidth={2.5} />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tight">바른컨설팅</h1>
-            <p className="text-slate-500 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
+            <h1 className="text-4xl font-black text-white tracking-tight">바른컨설팅</h1>
+            <p className="text-white/50 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
           </div>
 
-          <div className="bg-white rounded-full p-1.5 flex shadow-sm border border-slate-100 mb-4">
+          <div className="bg-white/5 rounded-full p-1.5 flex shadow-sm border border-white/5 mb-4">
             <button
               onClick={() => setLoginMode("director")}
-              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${loginMode === "director" ? "bg-emerald-950 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${loginMode === "director" ? "bg-emerald-950 text-white shadow-md" : "text-white/50 hover:bg-white/5"
                 }`}
             >
               원장님 로그인
             </button>
             <button
               onClick={() => setLoginMode("staff")}
-              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${(loginMode === "staff" || loginMode === "staff-signup") ? "bg-emerald-700 text-white shadow-md" : "text-slate-500 hover:bg-slate-50"
+              className={`flex-1 py-2 rounded-full text-sm font-bold transition-all ${(loginMode === "staff" || loginMode === "staff-signup") ? "bg-emerald-700 text-white shadow-md" : "text-white/50 hover:bg-white/5"
                 }`}
             >
               직원 로그인
             </button>
           </div>
 
-          <div className="bg-white rounded-[32px] p-8 shadow-xl border border-slate-100">
+          <div className="bg-white/5 rounded-[32px] p-8 shadow-xl border border-white/5">
             {loginMode === "director" ? (
               <div className="space-y-6">
                 <div className="text-center space-y-2 mb-6">
-                  <h3 className="text-lg font-black text-slate-900">원장님 전용 시작하기</h3>
-                  <p className="text-sm text-slate-500">카카오 계정으로 간편하고 안전하게 로그인하세요.</p>
+                  <h3 className="text-lg font-black text-white">원장님 전용 시작하기</h3>
+                  <p className="text-sm text-white/50">카카오 계정으로 간편하고 안전하게 로그인하세요.</p>
                 </div>
                 <KakaoLogin />
               </div>
             ) : loginMode === "staff" ? (
               <div className="space-y-5 text-left">
                 <div className="text-center space-y-2 mb-6">
-                  <h3 className="text-lg font-black text-amber-600">직원 교육 시스템 로그인</h3>
-                  <p className="text-sm text-slate-500">가입하신 휴대폰 번호로 로그인해주세요.</p>
+                  <h3 className="text-lg font-black text-amber-400">직원 교육 시스템 로그인</h3>
+                  <p className="text-sm text-white/50">가입하신 휴대폰 번호로 로그인해주세요.</p>
                 </div>
                 <form
                   onSubmit={async (e) => {
@@ -263,22 +263,22 @@ export default function Home() {
                   className="space-y-5"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호</label>
+                    <label className="text-xs font-bold text-white/80 ml-1">휴대폰 번호</label>
                     <input
                       type="text"
                       value={staffUsername}
                       onChange={(e) => setStaffUsername(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                       placeholder="숫자만 입력하세요"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
+                    <label className="text-xs font-bold text-white/80 ml-1">비밀번호</label>
                     <input
                       type="password"
                       value={staffPassword}
                       onChange={(e) => setStaffPassword(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                       placeholder="비밀번호를 입력하세요"
                     />
                   </div>
@@ -290,12 +290,12 @@ export default function Home() {
                     {isStaffLogining ? "로그인 중..." : "로그인"}
                   </button>
                 </form>
-                <div className="pt-4 border-t border-slate-100 text-center">
-                  <p className="text-sm text-slate-500">
+                <div className="pt-4 border-t border-white/5 text-center">
+                  <p className="text-sm text-white/50">
                     아직 계정이 없으신가요?
                     <button
                       onClick={() => setLoginMode("staff-signup")}
-                      className="ml-2 font-bold text-amber-600 hover:text-blue-700 underline"
+                      className="ml-2 font-bold text-amber-400 hover:text-blue-700 underline"
                     >
                       직원 가입하기
                     </button>
@@ -305,8 +305,8 @@ export default function Home() {
             ) : loginMode === "staff-signup" ? (
               <div className="space-y-5 text-left">
                 <div className="text-center space-y-2 mb-6">
-                  <h3 className="text-lg font-black text-amber-600">직원 전용 회원가입</h3>
-                  <p className="text-sm text-slate-500">원장님께 받은 초대 코드를 입력해주세요.</p>
+                  <h3 className="text-lg font-black text-amber-400">직원 전용 회원가입</h3>
+                  <p className="text-sm text-white/50">원장님께 받은 초대 코드를 입력해주세요.</p>
                 </div>
                 <form
                   onSubmit={async (e) => {
@@ -340,69 +340,69 @@ export default function Home() {
                 >
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">한의원명</label>
+                      <label className="text-xs font-bold text-white/80 ml-1">한의원명</label>
                       <input
                         type="text"
                         value={signupForm.clinic_name}
                         onChange={(e) => setSignupForm({ ...signupForm, clinic_name: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                         placeholder="예: 바른한의원"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">이름</label>
+                      <label className="text-xs font-bold text-white/80 ml-1">이름</label>
                       <input
                         type="text"
                         value={signupForm.name}
                         onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                         placeholder="홍길동"
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 ml-1">휴대폰 번호 (아이디로 사용됨)</label>
+                    <label className="text-xs font-bold text-white/80 ml-1">휴대폰 번호 (아이디로 사용됨)</label>
                     <input
                       type="text"
                       value={signupForm.phone}
                       onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                       placeholder="- 제외 숫자만 입력"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 ml-1">비밀번호</label>
+                    <label className="text-xs font-bold text-white/80 ml-1">비밀번호</label>
                     <input
                       type="password"
                       value={signupForm.password}
                       onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium"
                       placeholder="비밀번호 설정"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 ml-1 flex items-center gap-1">
+                    <label className="text-xs font-bold text-white/80 ml-1 flex items-center gap-1">
                       원장님 초대 코드 <Ticket size={12} className="text-amber-500" />
                     </label>
                     <input
                       type="text"
                       value={signupForm.invite_code}
                       onChange={(e) => setSignupForm({ ...signupForm, invite_code: e.target.value.toUpperCase() })}
-                      className="w-full px-4 py-3 bg-amber-50/50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm font-bold tracking-wider uppercase text-slate-700"
+                      className="w-full px-4 py-3 bg-amber-500/10/50 border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-sm font-bold tracking-wider uppercase text-white/80"
                       placeholder="6자리 코드 입력"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={isSigningUp || !signupForm.clinic_name || !signupForm.name || !signupForm.phone || !signupForm.password || !signupForm.invite_code}
-                    className="w-full py-3.5 mt-2 bg-emerald-950 hover:bg-emerald-900 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95 disabled:shadow-none"
+                    className="w-full py-3.5 mt-2 bg-emerald-950 hover:bg-emerald-900 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-lg shadow-slate-900/20 transition-all active:scale-95 disabled:shadow-none"
                   >
                     {isSigningUp ? "가입 처리 중..." : "가입하기"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setLoginMode("staff")}
-                    className="w-full py-3 text-slate-500 hover:text-slate-700 text-sm font-bold"
+                    className="w-full py-3 text-white/50 hover:text-white/80 text-sm font-bold"
                   >
                     돌아가기
                   </button>
@@ -419,41 +419,41 @@ export default function Home() {
   if (showProfileSetup) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-slate-50 p-8 md:p-12 lg:p-20 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white rounded-[32px] p-8 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
+        <div className="min-h-screen bg-white/5 p-8 md:p-12 lg:p-20 flex items-center justify-center">
+          <div className="max-w-md w-full bg-white/5 rounded-[32px] p-8 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-blue-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={32} />
               </div>
-              <h2 className="text-2xl font-black text-slate-900">환영합니다!</h2>
-              <p className="text-slate-500 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
+              <h2 className="text-2xl font-black text-white">환영합니다!</h2>
+              <p className="text-white/50 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
             </div>
 
             <form onSubmit={handleProfileSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-sm font-bold text-slate-700">원장님 성함</label>
+                <label className="text-sm font-bold text-white/80">원장님 성함</label>
                 <input
                   type="text"
                   required
                   value={profileForm.realName}
                   onChange={e => setProfileForm({ ...profileForm, realName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 font-medium"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
                   placeholder="홍길동"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-bold text-slate-700">한의원명</label>
+                <label className="text-sm font-bold text-white/80">한의원명</label>
                 <input
                   type="text"
                   required
                   value={profileForm.clinicName}
                   onChange={e => setProfileForm({ ...profileForm, clinicName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 font-medium"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
                   placeholder="바른한의원"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-bold text-slate-700">연령 (나이)</label>
+                <label className="text-sm font-bold text-white/80">연령 (나이)</label>
                 <input
                   type="number"
                   required
@@ -461,18 +461,18 @@ export default function Home() {
                   max="100"
                   value={profileForm.age}
                   onChange={e => setProfileForm({ ...profileForm, age: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-slate-900 font-medium"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
                   placeholder="35"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-bold text-slate-700">휴대폰 번호</label>
+                <label className="text-sm font-bold text-white/80">휴대폰 번호</label>
                 <input
                   type="text"
                   required
                   value={profileForm.phone}
                   onChange={e => setProfileForm({ ...profileForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 font-medium"
+                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-white font-medium"
                   placeholder="- 제외 숫자만 입력"
                 />
               </div>
@@ -480,7 +480,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age || !profileForm.phone}
-                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
+                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
               >
                 {isSaving ? "저장 중..." : "저장하고 시작하기"}
               </button>
@@ -498,42 +498,42 @@ export default function Home() {
         id: "hanchart",
         name: "한차트",
         description: "한의원 맞춤 초진/재진 및 항목별 매출 정밀 분석",
-        color: "bg-blue-50 text-amber-600 border-blue-200 hover:border-emerald-600",
+        color: "bg-amber-500/10 text-amber-400 border-blue-200 hover:border-emerald-600",
         icon: <FileText size={40} className="mb-4" />
       },
       {
         id: "okchart",
         name: "오케이차트",
         description: "통합 매출 및 보험/비보험 상세 분석 체계",
-        color: "bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-500",
+        color: "bg-emerald-500/10 text-emerald-400 border-emerald-200 hover:border-emerald-500",
         icon: <Activity size={40} className="mb-4" />
       },
       {
         id: "hanisarang",
         name: "한의사랑",
         description: "환자 유입 및 수납액 비교 분석 특화",
-        color: "bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-500",
+        color: "bg-emerald-500/10 text-emerald-400 border-emerald-200 hover:border-emerald-500",
         icon: <Stethoscope size={40} className="mb-4" />
       },
       {
         id: "donguibogam",
         name: "동의보감",
         description: "종합 치료 항목별 통계 및 객단가 진단",
-        color: "bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-500",
+        color: "bg-amber-500/10 text-amber-400 border-amber-200 hover:border-amber-500",
         icon: <BarChart2 size={40} className="mb-4" />
       }
     ];
 
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-slate-50 p-8 md:p-12 lg:p-20">
+        <div className="min-h-screen bg-white/5 p-8 md:p-12 lg:p-20">
           <div className="max-w-7xl mx-auto space-y-16">
             <header className="space-y-4">
-              <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+              <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
                 반갑습니다, {userName}님<br />
-                <span className="text-amber-600">사용하시는 차트</span>를 선택해 주세요.
+                <span className="text-amber-400">사용하시는 차트</span>를 선택해 주세요.
               </h2>
-              <p className="text-slate-500 font-medium text-xl">선택하신 차트에 맞춰 대시보드가 자동으로 구성됩니다.</p>
+              <p className="text-white/50 font-medium text-xl">선택하신 차트에 맞춰 대시보드가 자동으로 구성됩니다.</p>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
@@ -560,11 +560,11 @@ export default function Home() {
                   }}
                   className={`flex flex-col items-center text-center p-8 rounded-3xl border-2 transition-all duration-300 hover:scale-105 active:scale-95 shadow-sm hover:shadow-xl ${emr.color}`}
                 >
-                  <div className="p-4 bg-white/60 rounded-2xl shadow-sm mb-4">
+                  <div className="p-4 bg-white/5/60 rounded-2xl shadow-sm mb-4">
                     {emr.icon}
                   </div>
-                  <h3 className="text-2xl font-bold mb-3 text-slate-800">{emr.name}</h3>
-                  <p className="text-sm font-medium text-slate-600/90 leading-relaxed">
+                  <h3 className="text-2xl font-bold mb-3 text-white/90">{emr.name}</h3>
+                  <p className="text-sm font-medium text-white/70/90 leading-relaxed">
                     {emr.description}
                   </p>
                 </button>
@@ -694,7 +694,7 @@ export default function Home() {
                       type="button"
                       onClick={() => handleChatSubmit(undefined, chip.label)}
                       disabled={isChatLoading}
-                      className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-600/50 text-[11px] font-bold text-slate-400 hover:text-amber-400 transition-all flex items-center gap-2 disabled:opacity-50"
+                      className="px-4 py-2 rounded-full bg-white/5/5 border border-white/10 hover:bg-white/5/10 hover:border-emerald-600/50 text-[11px] font-bold text-slate-400 hover:text-amber-400 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {chip.icon} {chip.label}
                     </button>
@@ -710,7 +710,7 @@ export default function Home() {
           </section>
 
           {/* Quick Support Footer */}
-          <footer className="pt-20 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 text-slate-600 text-[10px] font-bold uppercase tracking-widest">
+          <footer className="pt-20 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-8 text-white/70 text-[10px] font-bold uppercase tracking-widest">
             <div className="flex items-center gap-6">
               <span className="hover:text-slate-400 cursor-pointer transition-colors">이용약관</span>
               <span className="hover:text-slate-400 cursor-pointer transition-colors">개인정보처리방침</span>

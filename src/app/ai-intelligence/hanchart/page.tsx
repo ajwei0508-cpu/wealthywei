@@ -163,7 +163,7 @@ export default function HanchartAiIntelligencePage() {
           <div className="text-center max-w-md">
             <Sparkles size={48} className="mx-auto mb-6 text-amber-500 animate-pulse" />
             <h2 className="text-2xl font-black mb-4">분석할 한차트 데이터가 없습니다.</h2>
-            <p className="text-slate-500 mb-8 font-light">최근 12개월간의 경영 흐름을 분석하기 위해 한차트 엑셀 파일을 먼저 업로드해 주세요.</p>
+            <p className="text-white/50 mb-8 font-light">최근 12개월간의 경영 흐름을 분석하기 위해 한차트 엑셀 파일을 먼저 업로드해 주세요.</p>
             <button 
               onClick={() => router.push("/emr/hanchart")}
               className="px-8 py-4 bg-amber-500 text-[#0A0E1A] rounded-2xl font-black text-sm hover:bg-amber-600 transition-all"
@@ -186,7 +186,7 @@ export default function HanchartAiIntelligencePage() {
             <div className="flex items-center gap-4 mb-6">
               <button 
                 onClick={() => router.push("/emr/hanchart")}
-                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-all"
+                className="p-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 hover:text-white transition-all"
               >
                 <ChevronLeft size={20} />
               </button>
@@ -216,7 +216,7 @@ export default function HanchartAiIntelligencePage() {
                </div>
                <div className="relative z-10">
                  <h3 className="text-xl font-black text-white mb-2">경영 건강도 지표</h3>
-                 <p className="text-slate-500 text-xs mb-8 uppercase tracking-widest">Yearly Strategic Balance</p>
+                 <p className="text-white/50 text-xs mb-8 uppercase tracking-widest">Yearly Strategic Balance</p>
                  
                  <div className="h-[300px] w-full flex items-center justify-center">
                    {loading ? (
@@ -231,7 +231,7 @@ export default function HanchartAiIntelligencePage() {
                       </RadarChart>
                     </ResponsiveContainer>
                    ) : (
-                     <div className="text-slate-600 text-sm">분석 데이터를 기다리는 중...</div>
+                     <div className="text-white/70 text-sm">분석 데이터를 기다리는 중...</div>
                    )}
                  </div>
                </div>
@@ -265,7 +265,7 @@ export default function HanchartAiIntelligencePage() {
                             <p className="text-slate-400 text-xs leading-relaxed">{insight.content}</p>
                          </div>
                        )) || (
-                         <div className="col-span-2 py-12 flex items-center justify-center text-slate-600 italic text-sm">
+                         <div className="col-span-2 py-12 flex items-center justify-center text-white/70 italic text-sm">
                             최근 12개월의 핵심 경영 통찰을 도출하고 있습니다...
                          </div>
                        )}
@@ -289,7 +289,7 @@ export default function HanchartAiIntelligencePage() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-black text-white tracking-tight">1개년 심층 경영 전략 리포트</h2>
-                    <p className="text-slate-500 text-xs font-black uppercase tracking-widest mt-1">Hanchart Advanced Intelligence Narrative</p>
+                    <p className="text-white/50 text-xs font-black uppercase tracking-widest mt-1">Hanchart Advanced Intelligence Narrative</p>
                   </div>
                 </div>
               </div>
@@ -303,7 +303,7 @@ export default function HanchartAiIntelligencePage() {
                     </div>
                     <div className="text-center">
                       <p className="text-amber-400 text-lg font-bold animate-pulse">12개월 통합 데이터를 분석 중입니다...</p>
-                      <p className="text-slate-600 text-xs mt-2 uppercase tracking-widest font-black">Synthesizing macro economic trends</p>
+                      <p className="text-white/70 text-xs mt-2 uppercase tracking-widest font-black">Synthesizing macro economic trends</p>
                     </div>
                   </div>
                 ) : (
@@ -342,11 +342,11 @@ export default function HanchartAiIntelligencePage() {
                          </div>
                          <h4 className="text-white font-bold mb-2 text-sm">{plan.phase}</h4>
                          <p className="text-slate-400 text-[11px] leading-relaxed mb-4">{plan.task}</p>
-                         <div className="h-px w-full bg-white/5 mb-3" />
+                         <div className="h-px w-full bg-white/5/5 mb-3" />
                          <p className="text-emerald-400 text-[10px] font-bold">🎯 {plan.expectedEffect}</p>
                       </div>
                     )) || (
-                      <div className="col-span-3 py-12 text-center text-slate-600 italic text-sm font-light">
+                      <div className="col-span-3 py-12 text-center text-white/70 italic text-sm font-light">
                         한차트 시계열 분석 후 경영 로드맵이 자동 생성됩니다.
                       </div>
                     )}
@@ -364,7 +364,7 @@ export default function HanchartAiIntelligencePage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-black text-white">AI 맞춤 전략 솔루션</h3>
-                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Recommended Content</p>
+                    <p className="text-white/50 text-[10px] font-bold uppercase tracking-widest">Recommended Content</p>
                   </div>
                </div>
                
@@ -384,7 +384,7 @@ export default function HanchartAiIntelligencePage() {
                  ) : (
                    <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
                      <div className="w-10 h-10 border-2 border-white/5 border-t-amber-500 rounded-full animate-spin" />
-                     <p className="text-slate-600 text-xs italic">최적의 솔루션을 선별하고 있습니다...</p>
+                     <p className="text-white/70 text-xs italic">최적의 솔루션을 선별하고 있습니다...</p>
                    </div>
                  )}
                </div>
@@ -393,7 +393,7 @@ export default function HanchartAiIntelligencePage() {
 
           {/* Footer Info */}
           <div className="text-center p-12 mt-12 border-t border-white/5">
-             <p className="text-slate-600 text-xs font-medium tracking-widest uppercase mb-4">Clinic Macro Analysis Engine • Hanchart Specialized Intelligence</p>
+             <p className="text-white/70 text-xs font-medium tracking-widest uppercase mb-4">Clinic Macro Analysis Engine • Hanchart Specialized Intelligence</p>
           </div>
 
         </main>

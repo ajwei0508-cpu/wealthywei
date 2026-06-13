@@ -77,7 +77,7 @@ export default function NoticePage() {
                 <Loader2 size={32} className="text-amber-500 animate-spin" />
               </div>
             ) : notices.length === 0 ? (
-              <div className="h-[400px] flex flex-col items-center justify-center text-slate-500 gap-4">
+              <div className="h-[400px] flex flex-col items-center justify-center text-white/50 gap-4">
                 <Bell size={48} className="opacity-20" />
                 <p className="font-medium text-lg">등록된 공지사항이 없습니다.</p>
               </div>
@@ -86,7 +86,7 @@ export default function NoticePage() {
                 {notices.map((notice) => (
                   <div 
                     key={notice.id} 
-                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer"
+                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5/5 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-4 mb-2 md:mb-0">
                       <div className="w-12 flex-shrink-0 flex justify-center">
@@ -95,7 +95,7 @@ export default function NoticePage() {
                             NEW
                           </span>
                         ) : (
-                          <span className="text-slate-500 text-sm font-bold">{notice.id}</span>
+                          <span className="text-white/50 text-sm font-bold">{notice.id}</span>
                         )}
                       </div>
                       <h3 className="text-lg font-bold text-slate-200 group-hover:text-white transition-colors">

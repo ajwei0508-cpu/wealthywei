@@ -249,7 +249,7 @@ export default function HanchartPage() {
             <div className="flex items-center justify-between mb-8">
               <button 
                 onClick={() => router.push("/")} 
-                className="text-slate-500 hover:text-gold-400 flex items-center gap-2 text-sm transition-all group"
+                className="text-white/50 hover:text-gold-400 flex items-center gap-2 text-sm transition-all group"
               >
                 <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> EMR 선택
               </button>
@@ -264,7 +264,7 @@ export default function HanchartPage() {
                 </button>
                 <button
                   onClick={() => { if(confirm("현재 보고 계신 월의 데이터를 초기화할까요?")) deleteMonthlyData(selectedMonth); }}
-                  className="group p-2.5 rounded-2xl bg-white/5 border border-white/10 text-slate-500 transition-all hover:bg-red-500/10 hover:text-red-400"
+                  className="group p-2.5 rounded-2xl bg-white/5/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
                   title="데이터 초기화"
                 >
                   <Trash2 size={18} />
@@ -287,10 +287,10 @@ export default function HanchartPage() {
                 </h1>
               </div>
 
-              <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-2 bg-white/5/5 p-1.5 rounded-2xl border border-white/10">
                 <button 
                   onClick={setYoY}
-                  className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5 transition-all text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5/5 transition-all text-slate-400 hover:text-white"
                 >
                   작년 대비 (YoY)
                 </button>
@@ -306,8 +306,8 @@ export default function HanchartPage() {
                     onClick={() => setDisplayYear(year)}
                     className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
                       displayYear === year 
-                      ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
-                      : "bg-white/5 border-white/5 text-slate-500 hover:border-white/20"
+                      ? "bg-white/5/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
+                      : "bg-white/5/5 border-white/5 text-white/50 hover:border-white/20"
                     }`}
                   >
                     {year}년
@@ -319,7 +319,7 @@ export default function HanchartPage() {
                 {!isManageMode ? (
                   <button 
                     onClick={() => setIsManageMode(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/5/10 transition-all hover:text-white group"
                   >
                     <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
                   </button>
@@ -327,7 +327,7 @@ export default function HanchartPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={toggleSelectAll}
-                      className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
+                      className="px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/5/10 transition-all"
                     >
                       {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
                     </button>
@@ -340,7 +340,7 @@ export default function HanchartPage() {
                     </button>
                     <button 
                       onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
-                      className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                      className="px-4 py-2 rounded-xl bg-white/5/10 text-white text-[10px] font-black uppercase hover:bg-white/5/20 transition-all"
                     >
                       닫기
                     </button>
@@ -363,7 +363,7 @@ export default function HanchartPage() {
                       ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                       : compareMonth === m && !isManageMode
                       ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
-                      : "bg-white/5 border-white/10 text-slate-500 hover:border-white/20"
+                      : "bg-white/5/5 border-white/10 text-white/50 hover:border-white/20"
                     }`}
                   >
                     {isManageMode && (
@@ -371,7 +371,7 @@ export default function HanchartPage() {
                          {selectedMonthsForDelete.includes(m) && <Plus size={10} className="text-white rotate-45" />}
                       </div>
                     )}
-                    <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-slate-600"}`}>
+                    <span className={`text-[8px] font-black uppercase ${selectedMonth === m && !isManageMode ? "text-[#0A0E1A]/60" : "text-white/70"}`}>
                       {m.split("-")[0].slice(2)}년
                     </span>
                     <span className="text-sm font-black tracking-tighter">
@@ -399,13 +399,13 @@ export default function HanchartPage() {
                   <h2 className="text-white text-xl font-medium mb-1">
                     <span className="text-gold-400 font-black">{formatMonth(selectedMonth)}</span> 총 매출 현황
                   </h2>
-                  <p className="text-slate-500 text-sm">한차트 데이터를 기반으로 집계된 발생 매출입니다.</p>
+                  <p className="text-white/50 text-sm">한차트 데이터를 기반으로 집계된 발생 매출입니다.</p>
                 </div>
                 
                 <div className="text-center md:text-right">
                   <div className="inline-flex items-baseline gap-2 bg-black/40 backdrop-blur-xl px-8 py-6 rounded-3xl border border-white/10 shadow-2xl">
                     <RollingNumber value={summary.total} />
-                    <span className="text-2xl font-black text-slate-500">원</span>
+                    <span className="text-2xl font-black text-white/50">원</span>
                   </div>
                   {compareMonth && (
                     <div className={`mt-4 flex items-center justify-center md:justify-end gap-2 font-bold ${summary.total >= pSummary.total ? "text-emerald-400" : "text-rose-400"}`}>
@@ -416,7 +416,7 @@ export default function HanchartPage() {
                         {summary.total >= pSummary.total ? "▲" : "▼"} 
                         {formatNumber(Math.abs(summary.total - pSummary.total))}원
                       </span>
-                      <span className="text-slate-600 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
+                      <span className="text-white/70 text-xs font-medium">vs {formatMonth(compareMonth)}</span>
                     </div>
                   )}
                 </div>
@@ -424,11 +424,11 @@ export default function HanchartPage() {
             </div>
 
             {/* 12-Month Trend Chart */}
-            <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+            <div className="mb-12 bg-white/5/5 border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-lg font-bold text-white mb-1">매출 및 내원 환자 추세</h3>
-                  <p className="text-slate-500 text-xs">한차트 시스템 데이터 흐름 분석</p>
+                  <p className="text-white/50 text-xs">한차트 시스템 데이터 흐름 분석</p>
                 </div>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-1.5">
@@ -458,18 +458,18 @@ export default function HanchartPage() {
                         onClick={() => handleMonthClick(m)}
                         className="group relative flex-1 flex flex-col items-center gap-2 cursor-pointer"
                       >
-                        <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
+                        <div className="w-full bg-white/5/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
                           <div 
-                            className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/10 group-hover:bg-white/20"}`}
+                            className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/5/10 group-hover:bg-white/5/20"}`}
                             style={{ height: `${height}%` }}
                           />
                         </div>
-                        <span className={`text-[9px] font-black transition-colors whitespace-nowrap ${selectedMonth === m ? "text-[#FBBF24]" : "text-slate-600"}`}>
+                        <span className={`text-[9px] font-black transition-colors whitespace-nowrap ${selectedMonth === m ? "text-[#FBBF24]" : "text-white/70"}`}>
                           {m.split("-")[1]}월
                         </span>
                         
                         <div className="absolute bottom-full mb-4 left-1/2 -translate-x-1/2 bg-emerald-900 border border-white/10 p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none min-w-[120px] shadow-2xl">
-                          <p className="text-[10px] font-black text-slate-500 mb-1 uppercase">{formatMonth(m)}</p>
+                          <p className="text-[10px] font-black text-white/50 mb-1 uppercase">{formatMonth(m)}</p>
                           <p className="text-sm font-black text-white">{formatNumber(rev)}원</p>
                           <p className="text-[10px] font-bold text-amber-400 mt-1">{formatNumber(mData.count.total)}명 내원</p>
                         </div>
@@ -488,7 +488,7 @@ export default function HanchartPage() {
                     <TrendingUp size={22} />
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Monthly Growth</p>
+                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Monthly Growth</p>
                     <p className={`text-sm font-black ${summary.total >= pSummary.total ? "text-emerald-400" : "text-rose-400"}`}>
                       {pSummary.total > 0 ? ((summary.total - pSummary.total) / pSummary.total * 100).toFixed(1) : 0}%
                     </p>
@@ -497,7 +497,7 @@ export default function HanchartPage() {
                 <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">전월 대비 매출 비교</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] text-slate-600 font-bold uppercase">{formatMonth(compareMonth || prevMonthKey)}</span>
+                    <span className="text-[10px] text-white/70 font-bold uppercase">{formatMonth(compareMonth || prevMonthKey)}</span>
                     <span className="text-sm font-bold text-slate-400">{formatNumber(pSummary.total)}</span>
                   </div>
                   <div className="flex justify-between items-end">
@@ -519,7 +519,7 @@ export default function HanchartPage() {
                     <Users size={22} />
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Efficiency</p>
+                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Efficiency</p>
                     <p className={`text-sm font-black ${revenuePerPatient >= pRevenuePerPatient ? "text-emerald-400" : "text-rose-400"}`}>
                       {pRevenuePerPatient > 0 ? ((revenuePerPatient - pRevenuePerPatient) / pRevenuePerPatient * 100).toFixed(1) : 0}%
                     </p>
@@ -528,7 +528,7 @@ export default function HanchartPage() {
                 <h3 className="text-slate-400 text-xs font-bold mb-2 uppercase">평균 객단가 분석</h3>
                 <div className="flex items-baseline gap-2 mb-4">
                   <span className="text-3xl font-black text-white tracking-tighter">{formatNumber(Math.round(revenuePerPatient))}</span>
-                  <span className="text-sm font-bold text-slate-500">원 / 명</span>
+                  <span className="text-sm font-bold text-white/50">원 / 명</span>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-600/5 border border-emerald-600/10 text-[11px] text-blue-200/60 leading-relaxed">
                   지난달 대비 객단가가 <span className="text-amber-400 font-bold">{formatNumber(Math.abs(Math.round(revenuePerPatient - pRevenuePerPatient)))}원</span> {revenuePerPatient >= pRevenuePerPatient ? "증가" : "감소"}했습니다.
@@ -541,7 +541,7 @@ export default function HanchartPage() {
                     <Zap size={22} />
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Revenue Mix</p>
+                    <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Revenue Mix</p>
                     <p className="text-sm font-black text-amber-400">{nonCoveredRatio.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -549,7 +549,7 @@ export default function HanchartPage() {
                 <div className="h-2 w-full bg-emerald-900 rounded-full overflow-hidden mt-4">
                   <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
                 </div>
-                <p className="text-[10px] text-slate-500 italic mt-4 text-center">
+                <p className="text-[10px] text-white/50 italic mt-4 text-center">
                   * 전월 비급여 비중(<span className="text-slate-400">{pNonCoveredRatio.toFixed(1)}%</span>) 대비 변화 추이 확인
                 </p>
               </div>
@@ -567,11 +567,11 @@ export default function HanchartPage() {
                 <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">보험 수익 (급여 총합)</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(summary.nhis)}</span>
-                  <span className="text-xs font-bold text-slate-500">원</span>
+                  <span className="text-xs font-bold text-white/50">원</span>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex justify-between">
-                  <div className="text-[10px] text-slate-500"><span className="block font-bold">본인부담</span>{formatNumber(summary.breakdown.copay)}</div>
-                  <div className="text-[10px] text-slate-500 text-right"><span className="block font-bold">공단청구</span>{formatNumber(summary.breakdown.claim)}</div>
+                  <div className="text-[10px] text-white/50"><span className="block font-bold">본인부담</span>{formatNumber(summary.breakdown.copay)}</div>
+                  <div className="text-[10px] text-white/50 text-right"><span className="block font-bold">공단청구</span>{formatNumber(summary.breakdown.claim)}</div>
                 </div>
               </div>
 
@@ -585,13 +585,13 @@ export default function HanchartPage() {
                 <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">비급여 진료 수익</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(summary.nonCovered)}</span>
-                  <span className="text-xs font-bold text-slate-500">원</span>
+                  <span className="text-xs font-bold text-white/50">원</span>
                 </div>
                 <div className="mt-6 space-y-2">
                   <div className="h-1.5 w-full bg-emerald-900 rounded-full overflow-hidden">
                     <div className="h-full bg-amber-500" style={{ width: `${nonCoveredRatio}%` }} />
                   </div>
-                  <p className="text-[10px] text-slate-500 font-bold">전체 매출의 {nonCoveredRatio.toFixed(1)}%</p>
+                  <p className="text-[10px] text-white/50 font-bold">전체 매출의 {nonCoveredRatio.toFixed(1)}%</p>
                 </div>
               </div>
 
@@ -599,16 +599,16 @@ export default function HanchartPage() {
               <div className="bg-[#0A3D2A] rounded-[2rem] p-6 shadow-xl border border-white/5 group hover:scale-[1.02] transition-all relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-125 transition-transform"><ActivityIcon size={80} /></div>
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-rose-500/10 rounded-xl text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all"><ActivityIcon size={20} /></div>
+                  <div className="p-2 bg-rose-500/10 rounded-xl text-rose-400 group-hover:bg-rose-500 group-hover:text-white transition-all"><ActivityIcon size={20} /></div>
                   <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-2 py-0.5 rounded-full">Auto</span>
                 </div>
                 <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">자보 진료 수익</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(summary.auto)}</span>
-                  <span className="text-xs font-bold text-slate-500">원</span>
+                  <span className="text-xs font-bold text-white/50">원</span>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5">
-                   <p className="text-[10px] text-slate-500">교통사고 환자 청구액 포함</p>
+                   <p className="text-[10px] text-white/50">교통사고 환자 청구액 포함</p>
                 </div>
               </div>
 
@@ -622,10 +622,10 @@ export default function HanchartPage() {
                 <p className="text-slate-400 text-[11px] font-bold mb-1 uppercase tracking-tight">총 내원 환자수</p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl font-black text-white tracking-tighter">{formatNumber(summary.count.total)}</span>
-                  <span className="text-xs font-bold text-slate-500">명</span>
+                  <span className="text-xs font-bold text-white/50">명</span>
                 </div>
                 <div className="mt-4 pt-4 border-t border-white/5 flex justify-between">
-                  <span className="text-[10px] text-slate-500">신규 환자 비율</span>
+                  <span className="text-[10px] text-white/50">신규 환자 비율</span>
                   <span className="text-[10px] text-indigo-400 font-black">
                     {summary.count.total > 0 ? ((summary.count.new / summary.count.total) * 100).toFixed(1) : 0}%
                   </span>
@@ -635,11 +635,11 @@ export default function HanchartPage() {
 
             {/* Patient Metrics Summary Bar */}
             <div className="mb-12">
-              <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10 shadow-2xl">
+              <div className="bg-white/5/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10 shadow-2xl">
                 <div className="flex flex-col items-center">
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">총 내원 환자</p>
+                  <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">총 내원 환자</p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-black text-gold-500">{formatNumber(summary.count.total)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                    <p className="text-2xl font-black text-gold-500">{formatNumber(summary.count.total)}<span className="text-xs font-bold ml-1 text-white/50">명</span></p>
                     {compareMonth && (
                       <span className={`text-[10px] font-bold ${summary.count.total >= pSummary.count.total ? "text-emerald-400" : "text-rose-400"}`}>
                         {summary.count.total >= pSummary.count.total ? "▲" : "▼"} {Math.abs(summary.count.total - pSummary.count.total)}
@@ -647,11 +647,11 @@ export default function HanchartPage() {
                     )}
                   </div>
                 </div>
-                <div className="w-px h-10 bg-white/10 hidden md:block" />
+                <div className="w-px h-10 bg-white/5/10 hidden md:block" />
                 <div className="flex flex-col items-center">
-                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">신규 환자 수</p>
+                  <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">신규 환자 수</p>
                   <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-black text-amber-400">{formatNumber(summary.count.new)}<span className="text-xs font-bold ml-1 text-slate-500">명</span></p>
+                    <p className="text-2xl font-black text-amber-400">{formatNumber(summary.count.new)}<span className="text-xs font-bold ml-1 text-white/50">명</span></p>
                     {compareMonth && (
                       <span className={`text-[10px] font-bold ${summary.count.new >= pSummary.count.new ? "text-emerald-400" : "text-rose-400"}`}>
                         {summary.count.new >= pSummary.count.new ? "▲" : "▼"} {Math.abs(summary.count.new - pSummary.count.new)}
@@ -712,9 +712,9 @@ export default function HanchartPage() {
                   <div className="relative z-10 flex items-center gap-4">
                     <div className="flex flex-col items-end mr-4 hidden md:block">
                       <span className="text-[10px] font-black text-gold-500 uppercase tracking-widest">Upgrade Strategy</span>
-                      <span className="text-sm font-bold text-slate-500">Go to Intelligence Center</span>
+                      <span className="text-sm font-bold text-white/50">Go to Intelligence Center</span>
                     </div>
-                    <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-gold-500 group-hover:border-gold-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                    <div className="h-16 w-16 rounded-full bg-white/5/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-gold-500 group-hover:border-gold-500 group-hover:text-[#0A0E1A] transition-all duration-300">
                       <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </div>

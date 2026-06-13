@@ -93,25 +93,25 @@ export function YoutubeVideoLink({ keyword, mLabel = "AI 추천", isUp = false, 
             indicator: mLabel
           });
         }}
-        className={`p-3 rounded-xl border transition-all flex flex-col gap-2 relative group overflow-hidden ${isUp ? "bg-white border-emerald-100 hover:border-emerald-300" : "bg-white border-zinc-200 hover:border-primary/40 shadow-sm"}`}
+        className={`p-3 rounded-xl border transition-all flex flex-col gap-2 relative group overflow-hidden ${isUp ? "bg-white/5 border-emerald-500/20 hover:border-emerald-300" : "bg-white/5 border-white/10 hover:border-primary/40 shadow-sm"}`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${isQuotaError ? "bg-rose-50 text-rose-600" : "bg-zinc-50 text-zinc-500"}`}>
+            <div className={`p-1.5 rounded-lg ${isQuotaError ? "bg-rose-500/10 text-rose-400" : "bg-white/5 text-white/50"}`}>
                <Tv size={14} />
             </div>
-            <p className="text-[11px] font-bold text-slate-800">
+            <p className="text-[11px] font-bold text-white/90">
               {isQuotaError ? "유튜브 직접 확인" : (errorMsg || "영상 연결")}
             </p>
           </div>
-          <ArrowRight size={12} className="text-zinc-300 group-hover:text-primary transition-colors" />
+          <ArrowRight size={12} className="text-white/30 group-hover:text-emerald-400 transition-colors" />
         </div>
         
         <div className="flex flex-col gap-1">
-          <h4 className="text-[12px] font-extrabold text-slate-900 group-hover:text-primary transition-colors">
+          <h4 className="text-[12px] font-extrabold text-white group-hover:text-emerald-400 transition-colors">
             "{keyword}" 검색 결과 보기
           </h4>
-          <p className="text-[10px] text-zinc-400 font-medium leading-relaxed">
+          <p className="text-[10px] text-white/40 font-medium leading-relaxed">
             {isQuotaError ? "현재 API 사용량이 많아 유튜브에서 직접 원장님께 필요한 영상을 찾아드립니다." : "관련 영상을 유튜브에서 바로 확인할 수 있습니다."}
           </p>
         </div>
@@ -137,7 +137,7 @@ export function YoutubeVideoLink({ keyword, mLabel = "AI 추천", isUp = false, 
         });
         toast.success("경영 학습 기록에 저장되었습니다.");
       }}
-      className={`relative overflow-hidden group flex items-center gap-3 p-2 rounded-xl border transition-all hover:-translate-y-[1px] shadow-sm ${isUp ? "bg-white border-emerald-100 hover:border-emerald-300 hover:shadow-emerald-100" : "bg-white border-zinc-200 hover:border-primary/40 hover:shadow-slate-200"}`}
+      className={`relative overflow-hidden group flex items-center gap-3 p-2 rounded-xl border transition-all hover:-translate-y-[1px] shadow-sm ${isUp ? "bg-white/5 border-emerald-500/20 hover:border-emerald-300 hover:shadow-emerald-100" : "bg-white/5 border-white/10 hover:border-primary/40 hover:shadow-slate-200"}`}
     >
       <div className="relative w-24 h-16 bg-emerald-950 rounded-lg overflow-hidden flex-shrink-0">
         <img src={video.snippet.thumbnails?.default?.url || video.snippet.thumbnails?.medium?.url} alt="thumbnail" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
@@ -149,11 +149,11 @@ export function YoutubeVideoLink({ keyword, mLabel = "AI 추천", isUp = false, 
         </div>
       </div>
       <div className="flex-1 overflow-hidden pr-2 flex flex-col justify-center">
-        <p className={`text-[10px] font-bold mb-1 truncate flex items-center gap-1 ${isUp ? "text-emerald-600" : "text-primary"}`}>
+        <p className={`text-[10px] font-bold mb-1 truncate flex items-center gap-1 ${isUp ? "text-emerald-400" : "text-emerald-400"}`}>
           <Tv size={10} /> 추천 영상: [{keyword}]
           {isWatched(keyword) && <Check size={10} className="ml-1" />}
         </p>
-        <h4 className="text-[11px] sm:text-xs font-bold text-slate-800 line-clamp-2 group-hover:text-primary transition-colors leading-snug" dangerouslySetInnerHTML={{ __html: video.snippet.title }}></h4>
+        <h4 className="text-[11px] sm:text-xs font-bold text-white/90 line-clamp-2 group-hover:text-emerald-400 transition-colors leading-snug" dangerouslySetInnerHTML={{ __html: video.snippet.title }}></h4>
       </div>
     </a>
   );

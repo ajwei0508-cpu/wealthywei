@@ -393,7 +393,7 @@ export default function HappyCallDashboard() {
             {/* Action Row */}
             <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
               <div className="relative w-full md:w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50" size={16} />
                 <input
                   type="text"
                   placeholder="환자명 또는 차트번호 검색..."
@@ -444,7 +444,7 @@ export default function HappyCallDashboard() {
                         <span className="w-2 h-2 rounded-full bg-current"></span>
                         <h2 className="font-black tracking-tight">{stage === '4일차' ? '주의 (4~6일차)' : stage === '7일차' ? '집중 (7일차)' : '심각 (8일 이상)'}</h2>
                       </div>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/5">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5/5 text-slate-400 border border-white/5">
                         {columnPatients.length}명
                       </span>
                     </div>
@@ -452,7 +452,7 @@ export default function HappyCallDashboard() {
                     {/* Patients Cards List */}
                     <div className="p-4 space-y-4 overflow-y-auto max-h-[650px] custom-scrollbar flex-1">
                       {columnPatients.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-slate-600 text-center space-y-2">
+                        <div className="flex flex-col items-center justify-center py-16 text-white/70 text-center space-y-2">
                           <CheckCircle2 size={36} className="opacity-40" />
                           <p className="text-sm font-semibold">대상자가 없습니다</p>
                         </div>
@@ -473,7 +473,7 @@ export default function HappyCallDashboard() {
                               <div>
                                 <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
                                   {patient.name}
-                                  <span className="text-xs font-medium text-slate-500">#{patient.chart_no}</span>
+                                  <span className="text-xs font-medium text-white/50">#{patient.chart_no}</span>
                                 </h3>
                                 <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
                                   최근 방문: {patient.last_visit_date}
@@ -482,7 +482,7 @@ export default function HappyCallDashboard() {
                                   )}
                                 </p>
                               </div>
-                              <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
+                              <span className="text-xs font-black px-3 py-1 bg-white/5/5 border border-white/10 rounded-full text-slate-300">
                                 {patient.days_passed}일째
                               </span>
                             </div>
@@ -507,7 +507,7 @@ export default function HappyCallDashboard() {
                                       <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-full ${getStatusBadgeStyle(patient.latest_call.status)}`}>
                                         {patient.latest_call.status}
                                       </span>
-                                      <span className="text-[10px] text-slate-500">
+                                      <span className="text-[10px] text-white/50">
                                         {new Date(patient.latest_call.call_date).toLocaleDateString()}
                                       </span>
                                     </div>
@@ -517,9 +517,9 @@ export default function HappyCallDashboard() {
                                   </div>
                                 ) : (
                                   <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                                    <p className="text-xs text-slate-600 italic">최근 통화 이력이 없습니다.</p>
+                                    <p className="text-xs text-white/70 italic">최근 통화 이력이 없습니다.</p>
                                     {!patient.is_unassigned && userRole !== 'staff' && (
-                                      <span className="text-[10px] text-slate-500 font-bold bg-white/5 px-2 py-0.5 rounded">
+                                      <span className="text-[10px] text-white/50 font-bold bg-white/5/5 px-2 py-0.5 rounded">
                                         담당: {patient.assigned_to || '지정 안됨'}
                                       </span>
                                     )}
@@ -569,7 +569,7 @@ export default function HappyCallDashboard() {
                 <div>
                   <h2 className="text-xl font-black flex items-center gap-2 text-white">
                     {selectedPatient.name} 환자 정보
-                    <span className="text-xs text-slate-500 font-medium">차트번호: {selectedPatient.chart_no}</span>
+                    <span className="text-xs text-white/50 font-medium">차트번호: {selectedPatient.chart_no}</span>
                     <span className="ml-2 text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full font-bold animate-pulse">조회 기록됨</span>
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
@@ -579,7 +579,7 @@ export default function HappyCallDashboard() {
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5/5 hover:bg-white/5/10 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -610,7 +610,7 @@ export default function HappyCallDashboard() {
                             className={`py-2 px-1 text-xs font-bold rounded-xl border transition-all ${
                               callStatus === statusOption 
                                 ? 'bg-emerald-700 border-emerald-600 text-white shadow-lg shadow-emerald-500/20' 
-                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5'
+                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5/5'
                             }`}
                           >
                             {statusOption}
@@ -649,7 +649,7 @@ export default function HappyCallDashboard() {
 
                   <div className="space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
                     {!selectedPatient.history || selectedPatient.history.length === 0 ? (
-                      <p className="text-xs text-slate-500 text-center py-6">과거 통화 이력이 존재하지 않습니다.</p>
+                      <p className="text-xs text-white/50 text-center py-6">과거 통화 이력이 존재하지 않습니다.</p>
                     ) : (
                       selectedPatient.history.map((log: CallLog) => (
                         <div key={log.id} className="bg-[#0B3A28] border border-white/5 p-4 rounded-2xl space-y-1.5">
@@ -660,7 +660,7 @@ export default function HappyCallDashboard() {
                               </span>
                               <span className="text-slate-400 font-bold">{log.created_by}</span>
                             </div>
-                            <span className="text-slate-500">
+                            <span className="text-white/50">
                               {new Date(log.call_date).toLocaleString()}
                             </span>
                           </div>
@@ -704,7 +704,7 @@ export default function HappyCallDashboard() {
                             className={`py-1.5 px-3 rounded-full text-xs font-bold border transition-all ${
                               selectedTreatment === treatment
                                 ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
-                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5'
+                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5/5'
                             }`}
                           >
                             {treatment === '치료' ? '기본(치료)' : treatment}
@@ -745,7 +745,7 @@ export default function HappyCallDashboard() {
                     <button
                       type="button"
                       onClick={handleCopyScript}
-                      className="py-2.5 px-4 bg-[#0B3A28] border border-white/5 hover:bg-white/5 text-slate-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                      className="py-2.5 px-4 bg-[#0B3A28] border border-white/5 hover:bg-white/5/5 text-slate-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
                       <Copy size={14} />
                       대본 복사

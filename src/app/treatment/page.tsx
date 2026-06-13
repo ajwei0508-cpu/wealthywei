@@ -37,7 +37,7 @@ export default function TreatmentPage() {
             >
               <div>
                 <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-                  바른진료법 <span className="text-slate-500">마스터 클래스</span>
+                  바른진료법 <span className="text-white/50">마스터 클래스</span>
                 </h1>
                 <p className="text-slate-400 text-lg font-light max-w-2xl leading-relaxed">
                   바른컨설팅이 제안하는 최적의 진료 프로세스와 환자 커뮤니케이션 기법을 학습합니다. 
@@ -47,7 +47,7 @@ export default function TreatmentPage() {
 
               <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Current Status</span>
+                  <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">Current Status</span>
                   <span className="text-sm font-bold text-emerald-400 flex items-center gap-1">
                     <ShieldCheck size={14} /> 수강 가능
                   </span>
@@ -81,7 +81,7 @@ export default function TreatmentPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white mb-1">바른진료법 핵심 요약 및 임상 적용 가이드</h3>
-                  <div className="flex items-center gap-4 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                  <div className="flex items-center gap-4 text-white/50 text-xs font-bold uppercase tracking-wider">
                     <span className="flex items-center gap-1.5"><Clock size={14} /> 45:00</span>
                     <span className="flex items-center gap-1.5"><Play size={14} /> 1.2k Views</span>
                   </div>
@@ -113,16 +113,16 @@ export default function TreatmentPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + (idx * 0.1) }}
-                className="bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] hover:bg-white/[0.04] transition-all group"
+                className="bg-white/5/[0.02] border border-white/5 p-8 rounded-[2.5rem] hover:bg-white/5/[0.04] transition-all group"
               >
                 <div className="flex justify-between items-center mb-6">
                   <div className="p-3 bg-emerald-600/10 rounded-xl text-amber-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                     <item.icon size={20} />
                   </div>
-                  <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{item.label}</span>
+                  <span className="text-[10px] font-black text-white/70 uppercase tracking-widest">{item.label}</span>
                 </div>
                 <h4 className="text-lg font-bold text-white mb-2">{item.title}</h4>
-                <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
+                <p className="text-white/50 text-sm leading-relaxed">{item.desc}</p>
               </motion.div>
             ))}
           </div>

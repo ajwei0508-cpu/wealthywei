@@ -235,7 +235,7 @@ export default function AiIntelligencePage() {
                <Sparkles size={40} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-amber-400 animate-pulse" />
             </div>
             <h2 className="text-3xl font-black">분석할 데이터가 부족합니다.</h2>
-            <p className="text-slate-500 max-w-sm mx-auto">한차트나 오케이차트 메뉴에서 월별 매출 통계 엑셀 파일을 먼저 업로드해 주세요.</p>
+            <p className="text-white/50 max-w-sm mx-auto">한차트나 오케이차트 메뉴에서 월별 매출 통계 엑셀 파일을 먼저 업로드해 주세요.</p>
           </div>
         </div>
       </DashboardLayout>
@@ -292,16 +292,16 @@ export default function AiIntelligencePage() {
               transition={{ delay: 0.3 }}
               className="relative z-10 w-full lg:w-[400px]"
             >
-              <div className="bg-white/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl space-y-8">
+              <div className="bg-white/5/[0.03] backdrop-blur-3xl p-8 rounded-[3rem] border border-white/10 shadow-2xl space-y-8">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2 relative">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Start Month</label>
+                    <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Start Month</label>
                     <button 
                       onClick={() => { setIsStartOpen(!isStartOpen); setIsEndOpen(false); }}
-                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(startMonth)}
-                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isStartOpen ? "rotate-180 text-amber-400" : ""}`} />
+                      <ArrowDownCircle size={14} className={`text-white/50 transition-transform ${isStartOpen ? "rotate-180 text-amber-400" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -316,7 +316,7 @@ export default function AiIntelligencePage() {
                             <button
                               key={m}
                               onClick={() => { setStartMonth(m); setIsStartOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -327,13 +327,13 @@ export default function AiIntelligencePage() {
                   </div>
 
                   <div className="space-y-2 relative">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">End Month</label>
+                    <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">End Month</label>
                     <button 
                       onClick={() => { setIsEndOpen(!isEndOpen); setIsStartOpen(false); }}
-                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(endMonth)}
-                      <ArrowDownCircle size={14} className={`text-slate-500 transition-transform ${isEndOpen ? "rotate-180 text-amber-400" : ""}`} />
+                      <ArrowDownCircle size={14} className={`text-white/50 transition-transform ${isEndOpen ? "rotate-180 text-amber-400" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -348,7 +348,7 @@ export default function AiIntelligencePage() {
                             <button
                               key={m}
                               onClick={() => { setEndMonth(m); setIsEndOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -366,7 +366,7 @@ export default function AiIntelligencePage() {
                     setShouldAnalyze(true);
                   }}
                   disabled={loading || history.length === 0}
-                  className="w-full group py-6 bg-white text-[#05080F] font-black text-sm rounded-[2rem] transition-all hover:bg-blue-400 hover:scale-[1.02] active:scale-95 disabled:opacity-30 relative overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                  className="w-full group py-6 bg-white/5 text-[#05080F] font-black text-sm rounded-[2rem] transition-all hover:bg-blue-400 hover:scale-[1.02] active:scale-95 disabled:opacity-30 relative overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.1)]"
                 >
                   <div className="relative z-10 flex items-center justify-center gap-3">
                     {loading ? (
@@ -391,7 +391,7 @@ export default function AiIntelligencePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="bg-white/[0.02] border border-white/5 rounded-[4rem] p-20 flex flex-col items-center justify-center space-y-8 min-h-[600px]"
+                  className="bg-white/5/[0.02] border border-white/5 rounded-[4rem] p-20 flex flex-col items-center justify-center space-y-8 min-h-[600px]"
                 >
                   <div className="relative">
                     <div className="w-24 h-24 border-4 border-emerald-600/10 border-t-blue-500 rounded-full animate-spin" />
@@ -399,7 +399,7 @@ export default function AiIntelligencePage() {
                   </div>
                   <div className="text-center space-y-2">
                     <h3 className="text-2xl font-black text-white">AI 전략 데이터 큐레이션</h3>
-                    <p className="text-slate-500 font-medium italic">수만 건의 경영 지표를 바탕으로 최적의 전략을 도출하고 있습니다...</p>
+                    <p className="text-white/50 font-medium italic">수만 건의 경영 지표를 바탕으로 최적의 전략을 도출하고 있습니다...</p>
                   </div>
                   <AnalysisTimer isLoading={loading} estimatedSeconds={40} />
                 </motion.div>
@@ -429,10 +429,10 @@ export default function AiIntelligencePage() {
                         </div>
                         <div className="flex items-center gap-4">
                            <div className="text-right hidden md:block">
-                             <p className="text-[10px] font-black text-slate-500 uppercase">Analysis Precision</p>
+                             <p className="text-[10px] font-black text-white/50 uppercase">Analysis Precision</p>
                              <p className="text-sm font-bold text-emerald-400">HIGH FIDELITY</p>
                            </div>
-                           <div className="h-12 w-[1px] bg-white/10 hidden md:block" />
+                           <div className="h-12 w-[1px] bg-white/5/10 hidden md:block" />
                            <ShieldCheck size={32} className="text-amber-500/50" />
                         </div>
                       </div>
@@ -450,7 +450,7 @@ export default function AiIntelligencePage() {
                     {/* Action Plan */}
                     <div className="lg:col-span-2 bg-[#0A3D2A]/60 border border-white/5 rounded-[3rem] p-12">
                        <div className="flex items-center gap-4 mb-12">
-                          <div className="p-3 bg-white/5 rounded-2xl text-amber-400"><ClipboardList size={24} /></div>
+                          <div className="p-3 bg-white/5/5 rounded-2xl text-amber-400"><ClipboardList size={24} /></div>
                           <h3 className="text-2xl font-black text-white">AI 전략 실행 로드맵</h3>
                        </div>
                        
@@ -459,10 +459,10 @@ export default function AiIntelligencePage() {
                             <div key={idx} className="bg-black/40 border border-white/5 rounded-[2rem] p-8 hover:border-emerald-600/30 transition-all">
                                <div className="text-4xl font-black text-amber-500/20 mb-4">0{idx + 1}</div>
                                <h4 className="text-white font-bold mb-3">{plan.phase}</h4>
-                               <p className="text-slate-500 text-xs leading-relaxed mb-6">{plan.task}</p>
+                               <p className="text-white/50 text-xs leading-relaxed mb-6">{plan.task}</p>
                                <div className="pt-4 border-t border-white/5 text-emerald-400 text-[10px] font-black">🎯 {plan.expectedEffect}</div>
                             </div>
-                          )) || <div className="col-span-3 text-slate-600 italic">추가 데이터 로딩 중...</div>}
+                          )) || <div className="col-span-3 text-white/70 italic">추가 데이터 로딩 중...</div>}
                        </div>
                     </div>
 
@@ -479,9 +479,9 @@ export default function AiIntelligencePage() {
                        
                        <div className="mt-8">
                          {aiData?.recommendedVideoKeyword ? (
-                           <YoutubeVideoLink keyword={aiData.recommendedVideoKeyword} className="w-full bg-white text-[#05080F] font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all shadow-xl" />
+                           <YoutubeVideoLink keyword={aiData.recommendedVideoKeyword} className="w-full bg-white/5 text-[#05080F] font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition-all shadow-xl" />
                          ) : (
-                           <div className="text-slate-600 text-xs italic">리포트 분석 완료 후 키워드가 생성됩니다.</div>
+                           <div className="text-white/70 text-xs italic">리포트 분석 완료 후 키워드가 생성됩니다.</div>
                          )}
                        </div>
                     </div>
@@ -492,14 +492,14 @@ export default function AiIntelligencePage() {
                   key="empty"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="bg-white/[0.02] border border-white/5 rounded-[4rem] p-20 text-center space-y-6"
+                  className="bg-white/5/[0.02] border border-white/5 rounded-[4rem] p-20 text-center space-y-6"
                 >
-                  <div className="mx-auto w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-slate-500">
+                  <div className="mx-auto w-20 h-20 bg-white/5/5 rounded-3xl flex items-center justify-center text-white/50">
                     <Target size={40} />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold text-slate-400">데이터 정밀 분석 준비 완료</h3>
-                    <p className="text-slate-600 text-sm">상단에서 기간을 설정한 후 'AI 경영 분석 실행' 버튼을 눌러주세요.</p>
+                    <p className="text-white/70 text-sm">상단에서 기간을 설정한 후 'AI 경영 분석 실행' 버튼을 눌러주세요.</p>
                   </div>
                 </motion.div>
               )}

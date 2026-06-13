@@ -8,7 +8,7 @@ export default function KakaoLogin() {
 
   if (status === "authenticated" && session) {
     return (
-      <div className="flex items-center gap-4 p-4 bg-white rounded-3xl toss-shadow border border-zinc-100 animate-in fade-in duration-500">
+      <div className="flex items-center gap-4 p-4 bg-white/5 rounded-3xl toss-shadow border border-white/5 animate-in fade-in duration-500">
         <div className="relative">
           <img 
             src={session.user?.image || "/default-profile.png"} 
@@ -18,12 +18,12 @@ export default function KakaoLogin() {
           <div className="absolute -bottom-1 -right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 truncate">{session.user?.name} 원장님</p>
-          <p className="text-[11px] text-zinc-500 font-medium">바른컨설팅 멤버</p>
+          <p className="text-sm font-bold text-white truncate">{session.user?.name} 원장님</p>
+          <p className="text-[11px] text-white/50 font-medium">바른컨설팅 멤버</p>
         </div>
         <button 
           onClick={() => signOut()}
-          className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+          className="px-4 py-2 text-xs font-bold text-white/40 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
         >
           로그아웃
         </button>
@@ -34,7 +34,7 @@ export default function KakaoLogin() {
   return (
     <button
       onClick={() => signIn("kakao")}
-      className="flex items-center justify-center gap-3 w-full max-w-sm bg-[#FEE500] hover:bg-[#FDE500]/90 text-slate-900 px-6 py-4 rounded-2xl font-bold text-base transition-all toss-shadow group"
+      className="flex items-center justify-center gap-3 w-full max-w-sm bg-[#FEE500] hover:bg-[#FDE500]/90 text-white px-6 py-4 rounded-2xl font-bold text-base transition-all toss-shadow group"
     >
       <svg 
         className="w-5 h-5" 

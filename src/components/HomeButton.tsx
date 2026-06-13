@@ -14,11 +14,11 @@ export default function HomeButton() {
   return (
     <div className="fixed top-6 left-6 z-[9999]">
       <Link href="/">
-        <div className="group flex items-center gap-2 p-2 px-4 bg-white/80 backdrop-blur-md border border-slate-200/50 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">
+        <div className="group flex items-center gap-2 p-2 px-4 bg-white/5/80 backdrop-blur-md border border-white/10/50 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-300 active:scale-95">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform duration-300">
             <Home size={18} />
           </div>
-          <span className="text-sm font-bold text-slate-600 group-hover:text-amber-600 transition-colors">
+          <span className="text-sm font-bold text-white/70 group-hover:text-amber-400 transition-colors">
             홈으로
           </span>
         </div>
