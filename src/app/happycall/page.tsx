@@ -444,7 +444,7 @@ export default function HappyCallDashboard() {
                         <span className="w-2 h-2 rounded-full bg-current"></span>
                         <h2 className="font-black tracking-tight">{stage === '4일차' ? '주의 (4~6일차)' : stage === '7일차' ? '집중 (7일차)' : '심각 (8일 이상)'}</h2>
                       </div>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5/5 text-slate-400 border border-white/5">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/5">
                         {columnPatients.length}명
                       </span>
                     </div>
@@ -482,7 +482,7 @@ export default function HappyCallDashboard() {
                                   )}
                                 </p>
                               </div>
-                              <span className="text-xs font-black px-3 py-1 bg-white/5/5 border border-white/10 rounded-full text-slate-300">
+                              <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
                                 {patient.days_passed}일째
                               </span>
                             </div>
@@ -519,7 +519,7 @@ export default function HappyCallDashboard() {
                                   <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
                                     <p className="text-xs text-white/70 italic">최근 통화 이력이 없습니다.</p>
                                     {!patient.is_unassigned && userRole !== 'staff' && (
-                                      <span className="text-[10px] text-white/50 font-bold bg-white/5/5 px-2 py-0.5 rounded">
+                                      <span className="text-[10px] text-white/50 font-bold bg-white/5 px-2 py-0.5 rounded">
                                         담당: {patient.assigned_to || '지정 안됨'}
                                       </span>
                                     )}
@@ -579,7 +579,7 @@ export default function HappyCallDashboard() {
               </div>
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5/5 hover:bg-white/5/10 transition-colors"
+                className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -610,7 +610,7 @@ export default function HappyCallDashboard() {
                             className={`py-2 px-1 text-xs font-bold rounded-xl border transition-all ${
                               callStatus === statusOption 
                                 ? 'bg-emerald-700 border-emerald-600 text-white shadow-lg shadow-emerald-500/20' 
-                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5/5'
+                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5'
                             }`}
                           >
                             {statusOption}
@@ -704,7 +704,7 @@ export default function HappyCallDashboard() {
                             className={`py-1.5 px-3 rounded-full text-xs font-bold border transition-all ${
                               selectedTreatment === treatment
                                 ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400'
-                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5/5'
+                                : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5'
                             }`}
                           >
                             {treatment === '치료' ? '기본(치료)' : treatment}
@@ -745,7 +745,7 @@ export default function HappyCallDashboard() {
                     <button
                       type="button"
                       onClick={handleCopyScript}
-                      className="py-2.5 px-4 bg-[#0B3A28] border border-white/5 hover:bg-white/5/5 text-slate-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                      className="py-2.5 px-4 bg-[#0B3A28] border border-white/5 hover:bg-white/5 text-slate-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
                       <Copy size={14} />
                       대본 복사

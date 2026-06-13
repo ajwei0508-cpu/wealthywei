@@ -298,7 +298,7 @@ export default function AiIntelligencePage() {
                     <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Start Month</label>
                     <button 
                       onClick={() => { setIsStartOpen(!isStartOpen); setIsEndOpen(false); }}
-                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5/5 transition-all outline-none"
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(startMonth)}
                       <ArrowDownCircle size={14} className={`text-white/50 transition-transform ${isStartOpen ? "rotate-180 text-amber-400" : ""}`} />
@@ -316,7 +316,7 @@ export default function AiIntelligencePage() {
                             <button
                               key={m}
                               onClick={() => { setStartMonth(m); setIsStartOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${startMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -330,7 +330,7 @@ export default function AiIntelligencePage() {
                     <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">End Month</label>
                     <button 
                       onClick={() => { setIsEndOpen(!isEndOpen); setIsStartOpen(false); }}
-                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5/5 transition-all outline-none"
+                      className="w-full flex items-center justify-between bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold text-white hover:bg-white/5 transition-all outline-none"
                     >
                       {formatMonthDisplay(endMonth)}
                       <ArrowDownCircle size={14} className={`text-white/50 transition-transform ${isEndOpen ? "rotate-180 text-amber-400" : ""}`} />
@@ -348,7 +348,7 @@ export default function AiIntelligencePage() {
                             <button
                               key={m}
                               onClick={() => { setEndMonth(m); setIsEndOpen(false); }}
-                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5/5 hover:text-white"}`}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold transition-all mb-1 last:mb-0 ${endMonth === m ? "bg-emerald-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
                             >
                               {formatMonthDisplay(m)}
                             </button>
@@ -432,7 +432,7 @@ export default function AiIntelligencePage() {
                              <p className="text-[10px] font-black text-white/50 uppercase">Analysis Precision</p>
                              <p className="text-sm font-bold text-emerald-400">HIGH FIDELITY</p>
                            </div>
-                           <div className="h-12 w-[1px] bg-white/5/10 hidden md:block" />
+                           <div className="h-12 w-[1px] bg-white/10 hidden md:block" />
                            <ShieldCheck size={32} className="text-amber-500/50" />
                         </div>
                       </div>
@@ -450,7 +450,7 @@ export default function AiIntelligencePage() {
                     {/* Action Plan */}
                     <div className="lg:col-span-2 bg-[#0A3D2A]/60 border border-white/5 rounded-[3rem] p-12">
                        <div className="flex items-center gap-4 mb-12">
-                          <div className="p-3 bg-white/5/5 rounded-2xl text-amber-400"><ClipboardList size={24} /></div>
+                          <div className="p-3 bg-white/5 rounded-2xl text-amber-400"><ClipboardList size={24} /></div>
                           <h3 className="text-2xl font-black text-white">AI 전략 실행 로드맵</h3>
                        </div>
                        
@@ -494,7 +494,7 @@ export default function AiIntelligencePage() {
                   animate={{ opacity: 1 }}
                   className="bg-white/5/[0.02] border border-white/5 rounded-[4rem] p-20 text-center space-y-6"
                 >
-                  <div className="mx-auto w-20 h-20 bg-white/5/5 rounded-3xl flex items-center justify-center text-white/50">
+                  <div className="mx-auto w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center text-white/50">
                     <Target size={40} />
                   </div>
                   <div className="space-y-2">

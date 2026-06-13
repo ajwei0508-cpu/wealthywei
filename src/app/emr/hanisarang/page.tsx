@@ -199,13 +199,13 @@ export default function HanisarangPage() {
                 </button>
                 <button
                   onClick={() => setIsManageMode(!isManageMode)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black transition-all border ${isManageMode ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "bg-white/5/5 border-white/10 text-emerald-800 hover:bg-white/5/10"}`}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black transition-all border ${isManageMode ? "bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]" : "bg-white/5 border-white/10 text-emerald-800 hover:bg-white/10"}`}
                 >
                   <Activity size={18} /> {isManageMode ? "관리 종료" : "데이터 관리"}
                 </button>
                 <button
                   onClick={() => { if(confirm("초기화할까요?")) deleteMonthlyData(selectedMonth); }}
-                  className="p-2.5 rounded-2xl bg-white/5/5 border border-white/10 text-emerald-800 hover:text-rose-400"
+                  className="p-2.5 rounded-2xl bg-white/5 border border-white/10 text-emerald-800 hover:text-rose-400"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -253,14 +253,14 @@ export default function HanisarangPage() {
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       <button 
                         onClick={toggleSelectAll}
-                        className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-white/5/5 border border-white/10 text-xs font-black text-emerald-400 hover:bg-white/5/10 transition-all"
+                        className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-black text-emerald-400 hover:bg-white/10 transition-all"
                       >
                         {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
                       </button>
                       <button 
                         onClick={handleDeleteSelected}
                         disabled={selectedMonthsForDelete.length === 0}
-                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all ${selectedMonthsForDelete.length > 0 ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600" : "bg-white/5/5 text-white/50 cursor-not-allowed border border-white/5"}`}
+                        className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-xs font-black transition-all ${selectedMonthsForDelete.length > 0 ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20 hover:bg-rose-600" : "bg-white/5 text-white/50 cursor-not-allowed border border-white/5"}`}
                       >
                         선택 삭제
                       </button>
@@ -277,7 +277,7 @@ export default function HanisarangPage() {
                   <button
                     key={year}
                     onClick={() => setDisplayYear(year)}
-                    className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${displayYear === year ? "bg-white/5/10 border-emerald-500/50 text-emerald-400" : "bg-white/5/5 border-white/5 text-emerald-900"}`}
+                    className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${displayYear === year ? "bg-white/10 border-emerald-500/50 text-emerald-400" : "bg-white/5 border-white/5 text-emerald-900"}`}
                   >
                     {year}년
                   </button>
@@ -292,7 +292,7 @@ export default function HanisarangPage() {
                   <button
                     key={m}
                     onClick={() => isManageMode ? toggleMonthSelection(m) : handleMonthClick(m)}
-                    className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center relative group ${selectedMonth === m ? "bg-emerald-500 text-[#051109] shadow-lg" : "bg-white/5/5 border-white/10 text-emerald-900 hover:border-emerald-500/30"} ${selectedMonthsForDelete.includes(m) ? "ring-2 ring-emerald-400 border-emerald-400" : ""}`}
+                    className={`flex-1 min-w-[70px] py-3 rounded-xl border transition-all flex flex-col items-center relative group ${selectedMonth === m ? "bg-emerald-500 text-[#051109] shadow-lg" : "bg-white/5 border-white/10 text-emerald-900 hover:border-emerald-500/30"} ${selectedMonthsForDelete.includes(m) ? "ring-2 ring-emerald-400 border-emerald-400" : ""}`}
                   >
                     {isManageMode && (
                       <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all shadow-lg ${selectedMonthsForDelete.includes(m) ? "bg-emerald-500 border-emerald-400 text-[#051109]" : "bg-[#051109] border-white/20"}`}>
@@ -428,11 +428,11 @@ export default function HanisarangPage() {
                          <>
                            <div className="space-y-2">
                              <div className="flex justify-between text-xs font-bold uppercase text-emerald-800"><span>카드 결제</span><span>{cardPct.toFixed(1)}%</span></div>
-                             <div className="h-2 w-full bg-white/5/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${cardPct}%` }} /></div>
+                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${cardPct}%` }} /></div>
                            </div>
                            <div className="space-y-2">
                              <div className="flex justify-between text-xs font-bold uppercase text-emerald-800"><span>현금 결제</span><span>{cashPct.toFixed(1)}%</span></div>
-                             <div className="h-2 w-full bg-white/5/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${cashPct}%` }} /></div>
+                             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${cashPct}%` }} /></div>
                            </div>
                          </>
                        );
@@ -481,7 +481,7 @@ export default function HanisarangPage() {
                       <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Upgrade Strategy</span>
                       <span className="text-sm font-bold text-white/50">Go to Intelligence Center</span>
                     </div>
-                    <div className="h-16 w-16 rounded-full bg-white/5/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-emerald-500 group-hover:border-emerald-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                    <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-emerald-500 group-hover:border-emerald-500 group-hover:text-[#0A0E1A] transition-all duration-300">
                       <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </div>

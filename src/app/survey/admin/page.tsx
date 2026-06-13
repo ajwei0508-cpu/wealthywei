@@ -157,7 +157,7 @@ export default function AdminSurveyPage() {
                       </thead>
                       <tbody>
                         {item.value.map((row: any, ridx: number) => (
-                          <tr key={ridx} className="border-b border-white/5 last:border-none hover:bg-white/5/50 transition-colors">
+                          <tr key={ridx} className="border-b border-white/5 last:border-none hover:bg-white/50 transition-colors">
                             {Object.values(row).map((v: any, vidx: number) => <td key={vidx} className="px-4 py-3 font-medium text-white/80 whitespace-pre-wrap">{v}</td>)}
                           </tr>
                         ))}
@@ -213,7 +213,7 @@ export default function AdminSurveyPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-white/5 bg-white/5/50">
+                <tr className="border-b border-white/5 bg-white/50">
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">사용자 이메일</th>
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest">카카오 성함</th>
                   <th className="px-8 py-6 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">최종 업데이트</th>
@@ -326,7 +326,7 @@ export default function AdminSurveyPage() {
             </div>
 
             {/* Modal Content Scrollable Area */}
-            <div className="flex-1 overflow-y-auto p-10 bg-white/5/50 space-y-12 pb-40">
+            <div className="flex-1 overflow-y-auto p-10 bg-white/50 space-y-12 pb-40">
               
               {/* Question Data Section Group */}
               <div className="space-y-6">
@@ -434,7 +434,7 @@ export default function AdminSurveyPage() {
                             const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
                             return (
                               <a key={uidx} href={url} target="_blank" rel="noopener noreferrer" 
-                                className="flex items-center justify-between p-5 bg-white/5/50 rounded-[1.5rem] border border-white/5 group over:bg-amber-500/10/50 hover:border-blue-200 transition-all shadow-sm">
+                                className="flex items-center justify-between p-5 bg-white/50 rounded-[1.5rem] border border-white/5 group over:bg-amber-500/10/50 hover:border-emerald-500/20 transition-all shadow-sm">
                                 <span className="flex items-center gap-3 text-sm font-black text-white/50 group-hover:text-amber-400 transition-colors">
                                   {isImage ? <FileImage size={20} className="text-amber-400" /> : <File size={20} className="text-amber-400" />}
                                   파일 {uidx + 1} 열기

@@ -186,7 +186,7 @@ export default function HanchartAiIntelligencePage() {
             <div className="flex items-center gap-4 mb-6">
               <button 
                 onClick={() => router.push("/emr/hanchart")}
-                className="p-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 hover:text-white transition-all"
+                className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 hover:text-white transition-all"
               >
                 <ChevronLeft size={20} />
               </button>
@@ -342,7 +342,7 @@ export default function HanchartAiIntelligencePage() {
                          </div>
                          <h4 className="text-white font-bold mb-2 text-sm">{plan.phase}</h4>
                          <p className="text-slate-400 text-[11px] leading-relaxed mb-4">{plan.task}</p>
-                         <div className="h-px w-full bg-white/5/5 mb-3" />
+                         <div className="h-px w-full bg-white/5 mb-3" />
                          <p className="text-emerald-400 text-[10px] font-bold">🎯 {plan.expectedEffect}</p>
                       </div>
                     )) || (

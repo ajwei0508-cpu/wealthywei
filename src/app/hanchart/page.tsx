@@ -301,7 +301,7 @@ export default function HanChartDashboard() {
                     })}
                  </div>
 
-                 <div className="mt-10 p-5 bg-white/5/5 rounded-2xl border border-white/5">
+                 <div className="mt-10 p-5 bg-white/5 rounded-2xl border border-white/5">
                     <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
                       * 현재 매출 구조에서 가장 큰 변화는 <span className="text-amber-400 font-bold">비급여 항목의 MoM 성장</span>입니다. 보험 매출이 안정적인 가운데 비급여 비중이 {getComp("generatedRevenue", "nonCovered")?.percent || 0}% 증가한 점이 고무적입니다.
                     </p>
@@ -310,7 +310,7 @@ export default function HanChartDashboard() {
 
               <Card className="bg-emerald-700 text-white p-7 shadow-lg shadow-emerald-500/20">
                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-white/5/20 rounded-xl text-white"><CheckCircle2 size={18} /></div>
+                    <div className="p-2 bg-white/20 rounded-xl text-white"><CheckCircle2 size={18} /></div>
                     <h4 className="font-bold text-white/60">HanChart 전략 리포트</h4>
                  </div>
                  <p className="text-xs text-blue-100 leading-relaxed font-bold">
@@ -388,7 +388,7 @@ export default function HanChartDashboard() {
 
            <div className="space-y-6">
               <Card className="bg-rose-600 text-white p-8 border-none shadow-xl shadow-rose-600/20 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-white/5/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-4">
                     <ShieldAlert size={20} className="text-rose-200" />
@@ -408,7 +408,7 @@ export default function HanChartDashboard() {
                 </div>
               </Card>
 
-              <Card className="p-7 border-white/5 shadow-sm bg-white/5/50">
+              <Card className="p-7 border-white/5 shadow-sm bg-white/50">
                  <button 
                   onClick={() => router.push("/details")}
                   className="w-full bg-white/5 border border-white/10 py-3 rounded-xl text-xs font-black text-white hover:bg-emerald-950 hover:text-white transition-all shadow-sm"

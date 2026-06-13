@@ -261,7 +261,7 @@ const FileUpload = ({ label, value = [], onUpload, hint, disabled }: { label: st
         }`}>
           <input type="file" className="hidden" onChange={handleFile} multiple disabled={uploading} />
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-            uploading ? "bg-blue-100" : "bg-white/5 group-hover:bg-blue-100"
+            uploading ? "bg-emerald-500/10" : "bg-white/5 group-hover:bg-emerald-500/10"
           }`}>
             {uploading ? <Sparkles size={28} className="text-amber-500" /> : <Upload size={28} className="text-slate-400 group-hover:text-amber-500" />}
           </div>
@@ -1117,7 +1117,7 @@ export default function SurveyPage() {
               <div className="text-right">
                 <span className="text-xs font-black text-white/80">{fillPct.total}%</span>
               </div>
-              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-amber-500/10 border-blue-200 text-amber-400 animate-pulse" : "bg-amber-500/10 border-amber-200 text-amber-400"}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${saveStatus === "saved" ? "bg-green-50 border-green-200 text-green-600" : saveStatus === "saving" ? "bg-amber-500/10 border-emerald-500/20 text-amber-400 animate-pulse" : "bg-amber-500/10 border-amber-200 text-amber-400"}`}>
                 <Save size={12} />{saveStatus === "saved" ? "저장됨" : saveStatus === "saving" ? "저장 중..." : "미저장"}
               </div>
             </div>
@@ -1143,7 +1143,7 @@ export default function SurveyPage() {
       </header>
 
       {submitted && (
-        <div className={`${isMaster ? "bg-amber-500/10 border-b border-amber-200 text-amber-700" : "bg-amber-500/10 border-b border-blue-200 text-blue-700"} px-6 py-3 text-center`}>
+        <div className={`${isMaster ? "bg-amber-500/10 border-b border-amber-200 text-amber-700" : "bg-amber-500/10 border-b border-emerald-500/20 text-blue-700"} px-6 py-3 text-center`}>
           <div className="flex items-center justify-center gap-2 text-sm font-bold">
             <Lock size={14} />
             {isMaster ? "마스터 권한으로 수정 가능합니다." : "제출이 완료되었습니다. 수정이 잠겨있습니다."}

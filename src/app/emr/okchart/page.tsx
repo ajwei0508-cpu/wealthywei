@@ -347,7 +347,7 @@ export default function OkchartPage() {
               </button>
               <button
                 onClick={() => { if(confirm("현재 보고 계신 월의 데이터를 초기화할까요?")) deleteMonthlyData(selectedMonth); }}
-                className="group p-2.5 rounded-2xl bg-white/5/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
+                className="group p-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
                 title="데이터 초기화"
               >
                 <Trash2 size={18} />
@@ -376,10 +376,10 @@ export default function OkchartPage() {
             </div>
 
             {/* Quick Toggle Buttons */}
-            <div className="flex items-center gap-2 bg-white/5/5 p-1.5 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
               <button 
                 onClick={setYoY}
-                className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5/5 transition-all text-slate-400 hover:text-white"
+                className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5 transition-all text-slate-400 hover:text-white"
               >
                 작년 대비 (YoY)
               </button>
@@ -395,8 +395,8 @@ export default function OkchartPage() {
                   onClick={() => setDisplayYear(year)}
                   className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
                     displayYear === year 
-                    ? "bg-white/5/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
-                    : "bg-white/5/5 border-white/5 text-white/50 hover:border-white/20"
+                    ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
+                    : "bg-white/5 border-white/5 text-white/50 hover:border-white/20"
                   }`}
                 >
                   {year}년
@@ -408,7 +408,7 @@ export default function OkchartPage() {
               {!isManageMode ? (
                 <button 
                   onClick={() => setIsManageMode(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/5/10 transition-all hover:text-white group"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group"
                 >
                   <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
                 </button>
@@ -416,7 +416,7 @@ export default function OkchartPage() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={toggleSelectAll}
-                    className="px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/5/10 transition-all"
+                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
                   >
                     {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
                   </button>
@@ -435,7 +435,7 @@ export default function OkchartPage() {
                   </button>
                   <button 
                     onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
-                    className="px-4 py-2 rounded-xl bg-white/5/10 text-white text-[10px] font-black uppercase hover:bg-white/5/20 transition-all"
+                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
                   >
                     닫기
                   </button>
@@ -458,7 +458,7 @@ export default function OkchartPage() {
                     ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                     : compareMonth === m && !isManageMode
                     ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
-                    : "bg-white/5/5 border-white/10 text-white/50 hover:border-white/20"
+                    : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
                   }`}
                 >
                   {isManageMode && (
@@ -519,7 +519,7 @@ export default function OkchartPage() {
           </div>
 
           {/* Monthly Trend Mini Chart */}
-          <div className="mb-12 bg-white/5/5 border border-white/10 rounded-[2.5rem] p-8">
+          <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="text-lg font-bold text-white mb-1">매출 및 내원 환자 추세</h3>
@@ -558,9 +558,9 @@ export default function OkchartPage() {
                       onClick={() => handleMonthClick(m)}
                       className="group relative flex-1 flex flex-col items-center gap-2 cursor-pointer"
                     >
-                      <div className="w-full bg-white/5/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
+                      <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
                         <div 
-                          className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/5/10 group-hover:bg-white/5/20"}`}
+                          className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/10 group-hover:bg-white/20"}`}
                           style={{ height: `${height}%` }}
                         />
                         <div 
@@ -826,7 +826,7 @@ export default function OkchartPage() {
 
         {/* Patient Metrics Summary Bar */}
         <div className="mb-12">
-          <div className="bg-white/5/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10">
             <div className="flex flex-col items-end">
               <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">총 내원 환자</p>
               <div className="flex items-baseline gap-2">
@@ -838,7 +838,7 @@ export default function OkchartPage() {
                 )}
               </div>
             </div>
-            <div className="w-px h-10 bg-white/5/10 hidden md:block"></div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
             <div className="flex flex-col items-end">
               <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">신규 환자 수</p>
               <div className="flex items-baseline gap-2">
@@ -850,7 +850,7 @@ export default function OkchartPage() {
                 )}
               </div>
             </div>
-            <div className="w-px h-10 bg-white/5/10 hidden md:block"></div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
             <div className="flex flex-col items-end">
               <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">자보 환자 수</p>
               <div className="flex items-baseline gap-2">
@@ -862,7 +862,7 @@ export default function OkchartPage() {
                 )}
               </div>
             </div>
-            <div className="w-px h-10 bg-white/5/10 hidden md:block"></div>
+            <div className="w-px h-10 bg-white/10 hidden md:block"></div>
             <div className="flex flex-col items-end">
               <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-0.5">일평균 환자</p>
               <div className="flex items-baseline gap-2">
@@ -892,7 +892,7 @@ export default function OkchartPage() {
             
             <div className="space-y-6">
               {/* Actual Received */}
-              <div className="p-5 rounded-2xl bg-white/5/5 border border-white/10 group hover:bg-white/5/10 transition-all duration-300">
+              <div className="p-5 rounded-2xl bg-white/5 border border-white/10 group hover:bg-white/10 transition-all duration-300">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-slate-400 font-medium">실제 수납총액</span>
                   <span className="text-xl font-black text-white">{formatNumber(data.totalReceived)}원</span>
@@ -911,25 +911,25 @@ export default function OkchartPage() {
 
               {/* Adjustments Grid */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-white/5/5 border border-white/10 hover:border-amber-500/30 transition-colors">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-amber-500/30 transition-colors">
                   <p className="text-[10px] text-white/50 uppercase font-bold mb-1 flex items-center gap-1">
                     <AlertCircle size={10} className="text-amber-500" /> 미수금
                   </p>
                   <p className="text-lg font-black text-amber-500">{formatNumber(data.receivables)}원</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5/5 border border-white/10 hover:border-red-500/30 transition-colors">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-red-500/30 transition-colors">
                   <p className="text-[10px] text-white/50 uppercase font-bold mb-1 flex items-center gap-1">
                     <MinusCircle size={10} className="text-red-500" /> 할인총액
                   </p>
                   <p className="text-lg font-black text-red-500">{formatNumber(data.discountTotal)}원</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5/5 border border-white/10 hover:border-slate-500/30 transition-colors">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-slate-500/30 transition-colors">
                   <p className="text-[10px] text-white/50 uppercase font-bold mb-1 flex items-center gap-1">
                     <ArrowDownCircle size={10} className="text-slate-400" /> 절사총액
                   </p>
                   <p className="text-lg font-black text-slate-300">{formatNumber(data.roundOffTotal)}원</p>
                 </div>
-                <div className="p-4 rounded-xl bg-white/5/5 border border-white/10 hover:border-indigo-500/30 transition-colors">
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-500/30 transition-colors">
                   <p className="text-[10px] text-white/50 uppercase font-bold mb-1 flex items-center gap-1">
                     <ArrowDownCircle size={10} className="text-indigo-400" /> 환불총액
                   </p>
@@ -999,14 +999,14 @@ export default function OkchartPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5/5 border border-white/10">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-gold-500" />
                   <span className="text-xs text-slate-400">현금</span>
                 </div>
                 <span className="text-sm font-bold">{formatNumber(data.cashPayment)}원</span>
               </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5/5 border border-white/10">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-indigo-500" />
                   <span className="text-xs text-slate-400">카드</span>
@@ -1064,7 +1064,7 @@ export default function OkchartPage() {
                   <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Upgrade Strategy</span>
                   <span className="text-sm font-bold text-white/50">Go to Intelligence Center</span>
                 </div>
-                <div className="h-16 w-16 rounded-full bg-white/5/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-emerald-600 group-hover:border-emerald-600 transition-all duration-300">
+                <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-emerald-600 group-hover:border-emerald-600 transition-all duration-300">
                   <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                 </div>
               </div>

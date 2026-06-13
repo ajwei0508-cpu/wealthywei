@@ -214,7 +214,7 @@ export default function RequestsPage() {
                 <p className="font-medium text-lg">등록된 요청사항이 없습니다.</p>
                 <button 
                   onClick={() => setIsWriteModalOpen(true)}
-                  className="mt-4 px-4 py-2 bg-white/5/5 hover:bg-white/5/10 rounded-lg text-sm text-white/80 transition-colors"
+                  className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm text-white/80 transition-colors"
                 >
                   첫 번째 요청사항 남기기
                 </button>
@@ -225,7 +225,7 @@ export default function RequestsPage() {
                   <div 
                     key={req.id} 
                     onClick={() => setSelectedRequest(req)}
-                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5/5 transition-colors cursor-pointer"
+                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-4 mb-3 md:mb-0">
                       <div className="w-16 flex-shrink-0 flex justify-center">
@@ -301,7 +301,7 @@ export default function RequestsPage() {
                   />
                 </div>
                 <div className="flex justify-end pt-4 gap-3 border-t border-white/5 mt-4">
-                  <button type="button" onClick={() => setIsWriteModalOpen(false)} className="px-6 py-2.5 rounded-xl bg-white/5/5 hover:bg-white/5/10 text-white font-medium transition-colors">
+                  <button type="button" onClick={() => setIsWriteModalOpen(false)} className="px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-colors">
                     취소
                   </button>
                   <button type="submit" disabled={isSubmitting} className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-all disabled:opacity-50 flex items-center gap-2">
@@ -341,7 +341,7 @@ export default function RequestsPage() {
                       <Trash2 size={18} />
                     </button>
                   )}
-                  <button onClick={() => setSelectedRequest(null)} className="text-white/50 hover:text-white bg-white/5/5 p-2 rounded-full hover:bg-white/5/10 transition-colors">
+                  <button onClick={() => setSelectedRequest(null)} className="text-white/50 hover:text-white bg-white/5 p-2 rounded-full hover:bg-white/10 transition-colors">
                     <X size={20} />
                   </button>
                 </div>
@@ -354,7 +354,7 @@ export default function RequestsPage() {
                 <div className="p-6 md:w-3/5 border-b md:border-b-0 md:border-r border-white/10 flex flex-col">
                   <div className="flex items-center justify-between text-sm text-white/40 mb-6 pb-6 border-b border-white/5">
                     <div className="flex gap-4">
-                      <div className="flex items-center gap-1.5 font-medium px-3 py-1 bg-white/5/5 rounded-lg"><User size={14} className="text-amber-400" /> {selectedRequest.author}</div>
+                      <div className="flex items-center gap-1.5 font-medium px-3 py-1 bg-white/5 rounded-lg"><User size={14} className="text-amber-400" /> {selectedRequest.author}</div>
                       <div className="flex items-center gap-1.5 font-medium"><Calendar size={14} /> 작성일: {selectedRequest.date}</div>
                     </div>
                   </div>
@@ -370,7 +370,7 @@ export default function RequestsPage() {
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
                         selectedRequest.likedBy?.includes(userEmail)
                           ? "bg-rose-500/20 border-rose-500/30 text-rose-400"
-                          : "bg-white/5/5 border-white/10 text-white/60 hover:bg-white/5/10 hover:text-white"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       <Heart size={16} className={selectedRequest.likedBy?.includes(userEmail) ? "fill-rose-400" : ""} />
@@ -405,7 +405,7 @@ export default function RequestsPage() {
                       </div>
                     ) : (
                       selectedRequest.comments.map(comment => (
-                        <div key={comment.id} className="bg-white/5/5 rounded-xl p-3">
+                        <div key={comment.id} className="bg-white/5 rounded-xl p-3">
                           <div className="flex items-center justify-between mb-1.5">
                             <span className="text-xs font-bold text-amber-300">{comment.author}</span>
                             <span className="text-[10px] text-white/30">{comment.date}</span>

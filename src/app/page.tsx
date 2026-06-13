@@ -498,7 +498,7 @@ export default function Home() {
         id: "hanchart",
         name: "한차트",
         description: "한의원 맞춤 초진/재진 및 항목별 매출 정밀 분석",
-        color: "bg-amber-500/10 text-amber-400 border-blue-200 hover:border-emerald-600",
+        color: "bg-amber-500/10 text-amber-400 border-emerald-500/20 hover:border-emerald-600",
         icon: <FileText size={40} className="mb-4" />
       },
       {
@@ -694,7 +694,7 @@ export default function Home() {
                       type="button"
                       onClick={() => handleChatSubmit(undefined, chip.label)}
                       disabled={isChatLoading}
-                      className="px-4 py-2 rounded-full bg-white/5/5 border border-white/10 hover:bg-white/5/10 hover:border-emerald-600/50 text-[11px] font-bold text-slate-400 hover:text-amber-400 transition-all flex items-center gap-2 disabled:opacity-50"
+                      className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-emerald-600/50 text-[11px] font-bold text-slate-400 hover:text-amber-400 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {chip.icon} {chip.label}
                     </button>

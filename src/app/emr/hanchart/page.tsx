@@ -264,7 +264,7 @@ export default function HanchartPage() {
                 </button>
                 <button
                   onClick={() => { if(confirm("현재 보고 계신 월의 데이터를 초기화할까요?")) deleteMonthlyData(selectedMonth); }}
-                  className="group p-2.5 rounded-2xl bg-white/5/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
+                  className="group p-2.5 rounded-2xl bg-white/5 border border-white/10 text-white/50 transition-all hover:bg-red-500/10 hover:text-red-400"
                   title="데이터 초기화"
                 >
                   <Trash2 size={18} />
@@ -287,10 +287,10 @@ export default function HanchartPage() {
                 </h1>
               </div>
 
-              <div className="flex items-center gap-2 bg-white/5/5 p-1.5 rounded-2xl border border-white/10">
+              <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
                 <button 
                   onClick={setYoY}
-                  className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5/5 transition-all text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-tighter hover:bg-white/5 transition-all text-slate-400 hover:text-white"
                 >
                   작년 대비 (YoY)
                 </button>
@@ -306,8 +306,8 @@ export default function HanchartPage() {
                     onClick={() => setDisplayYear(year)}
                     className={`px-5 py-2 rounded-xl text-xs font-bold transition-all border shrink-0 ${
                       displayYear === year 
-                      ? "bg-white/5/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
-                      : "bg-white/5/5 border-white/5 text-white/50 hover:border-white/20"
+                      ? "bg-white/10 border-gold-500/50 text-gold-400 shadow-lg shadow-gold-500/5" 
+                      : "bg-white/5 border-white/5 text-white/50 hover:border-white/20"
                     }`}
                   >
                     {year}년
@@ -319,7 +319,7 @@ export default function HanchartPage() {
                 {!isManageMode ? (
                   <button 
                     onClick={() => setIsManageMode(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/5/10 transition-all hover:text-white group"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all hover:text-white group"
                   >
                     <Trash2 size={14} className="group-hover:text-red-400 transition-colors" /> 데이터 관리
                   </button>
@@ -327,7 +327,7 @@ export default function HanchartPage() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={toggleSelectAll}
-                      className="px-4 py-2 rounded-xl bg-white/5/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/5/10 transition-all"
+                      className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-[10px] font-black uppercase hover:bg-white/10 transition-all"
                     >
                       {selectedMonthsForDelete.length === availableMonths.length ? "전체 해제" : "전체 선택"}
                     </button>
@@ -340,7 +340,7 @@ export default function HanchartPage() {
                     </button>
                     <button 
                       onClick={() => { setIsManageMode(false); setSelectedMonthsForDelete([]); }}
-                      className="px-4 py-2 rounded-xl bg-white/5/10 text-white text-[10px] font-black uppercase hover:bg-white/5/20 transition-all"
+                      className="px-4 py-2 rounded-xl bg-white/10 text-white text-[10px] font-black uppercase hover:bg-white/20 transition-all"
                     >
                       닫기
                     </button>
@@ -363,7 +363,7 @@ export default function HanchartPage() {
                       ? "bg-[#FBBF24] border-[#F59E0B] text-[#0A0E1A] shadow-lg shadow-amber-500/20" 
                       : compareMonth === m && !isManageMode
                       ? "bg-emerald-600/10 border-emerald-600/30 text-amber-400"
-                      : "bg-white/5/5 border-white/10 text-white/50 hover:border-white/20"
+                      : "bg-white/5 border-white/10 text-white/50 hover:border-white/20"
                     }`}
                   >
                     {isManageMode && (
@@ -424,7 +424,7 @@ export default function HanchartPage() {
             </div>
 
             {/* 12-Month Trend Chart */}
-            <div className="mb-12 bg-white/5/5 border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
+            <div className="mb-12 bg-white/5 border border-white/10 rounded-[2.5rem] p-8 shadow-xl">
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-lg font-bold text-white mb-1">매출 및 내원 환자 추세</h3>
@@ -458,9 +458,9 @@ export default function HanchartPage() {
                         onClick={() => handleMonthClick(m)}
                         className="group relative flex-1 flex flex-col items-center gap-2 cursor-pointer"
                       >
-                        <div className="w-full bg-white/5/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
+                        <div className="w-full bg-white/5 rounded-t-lg relative overflow-hidden h-40 flex items-end">
                           <div 
-                            className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/5/10 group-hover:bg-white/5/20"}`}
+                            className={`w-full transition-all duration-700 ease-out ${selectedMonth === m ? "bg-[#FBBF24] shadow-[0_0_20px_rgba(251,191,36,0.6)]" : "bg-white/10 group-hover:bg-white/20"}`}
                             style={{ height: `${height}%` }}
                           />
                         </div>
@@ -635,7 +635,7 @@ export default function HanchartPage() {
 
             {/* Patient Metrics Summary Bar */}
             <div className="mb-12">
-              <div className="bg-white/5/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10 shadow-2xl">
+              <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 flex flex-wrap items-center justify-center gap-x-12 gap-y-4 border border-white/10 shadow-2xl">
                 <div className="flex flex-col items-center">
                   <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">총 내원 환자</p>
                   <div className="flex items-baseline gap-2">
@@ -647,7 +647,7 @@ export default function HanchartPage() {
                     )}
                   </div>
                 </div>
-                <div className="w-px h-10 bg-white/5/10 hidden md:block" />
+                <div className="w-px h-10 bg-white/10 hidden md:block" />
                 <div className="flex flex-col items-center">
                   <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">신규 환자 수</p>
                   <div className="flex items-baseline gap-2">
@@ -714,7 +714,7 @@ export default function HanchartPage() {
                       <span className="text-[10px] font-black text-gold-500 uppercase tracking-widest">Upgrade Strategy</span>
                       <span className="text-sm font-bold text-white/50">Go to Intelligence Center</span>
                     </div>
-                    <div className="h-16 w-16 rounded-full bg-white/5/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-gold-500 group-hover:border-gold-500 group-hover:text-[#0A0E1A] transition-all duration-300">
+                    <div className="h-16 w-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white group-hover:bg-gold-500 group-hover:border-gold-500 group-hover:text-[#0A0E1A] transition-all duration-300">
                       <ArrowUpRight size={28} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                     </div>
                   </div>

@@ -487,7 +487,7 @@ export default function SurveyPage() {
             {data.ch5.images.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2 justify-center">
                 {data.ch5.images.map((f, i) => (
-                  <span key={i} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium flex items-center gap-1">
+                  <span key={i} className="text-xs bg-emerald-500/10 text-blue-700 px-3 py-1 rounded-full font-medium flex items-center gap-1">
                     {f.name}
                     <button onClick={() => setData(d => ({ ...d, ch5: { ...d.ch5, images: d.ch5.images.filter((_, fi) => fi !== i) } }))}><X size={10} /></button>
                   </span>
@@ -553,7 +553,7 @@ export default function SurveyPage() {
           {data.ch6.uploadedFiles.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 justify-center">
               {data.ch6.uploadedFiles.map((f, i) => (
-                <span key={i} className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">{f.name}</span>
+                <span key={i} className="text-xs bg-emerald-500/10 text-blue-700 px-3 py-1 rounded-full font-medium">{f.name}</span>
               ))}
             </div>
           )}

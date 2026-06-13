@@ -617,21 +617,21 @@ export default function MasterUserDetailsPage() {
                 <>
                   {/* 연간 통계 서머리 카드 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <div className="p-5 bg-white/5/50 border border-white/5 rounded-3xl flex flex-col justify-between">
+                    <div className="p-5 bg-white/50 border border-white/5 rounded-3xl flex flex-col justify-between">
                       <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">누적 연간 매출액</span>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-2xl font-black text-slate-955">{formatNumber(yearlyTrendData.totalYearRevenue)}</span>
                         <span className="text-xs font-extrabold text-white/50">원</span>
                       </div>
                     </div>
-                    <div className="p-5 bg-white/5/50 border border-white/5 rounded-3xl flex flex-col justify-between">
+                    <div className="p-5 bg-white/50 border border-white/5 rounded-3xl flex flex-col justify-between">
                       <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">월평균 매출액 (운영월 기준)</span>
                       <div className="mt-2 flex items-baseline gap-1">
                         <span className="text-2xl font-black text-slate-955">{formatNumber(yearlyTrendData.avgYearRevenue)}</span>
                         <span className="text-xs font-extrabold text-white/50">원/월</span>
                       </div>
                     </div>
-                    <div className="p-5 bg-white/5/50 border border-white/5 rounded-3xl flex flex-col justify-between">
+                    <div className="p-5 bg-white/50 border border-white/5 rounded-3xl flex flex-col justify-between">
                       <span className="text-[10px] font-black text-white/40 uppercase tracking-wider">데이터 집계 / 진료 예정</span>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="text-xl font-black text-indigo-400">{yearlyTrendData.activeMonthCount}개월 집계</span>
@@ -714,7 +714,7 @@ export default function MasterUserDetailsPage() {
                   className={`p-5 rounded-[24px] border transition-all duration-300 ${
                     t.hasData 
                       ? "bg-white/5 border-white/5 shadow-sm hover:border-white/10 hover:shadow-md" 
-                      : "bg-white/5/40 border-dashed border-white/10"
+                      : "bg-white/40 border-dashed border-white/10"
                   }`}
                 >
                   <div className="flex justify-between items-start mb-3">
@@ -782,7 +782,7 @@ export default function MasterUserDetailsPage() {
             </div>
 
             {/* 체크박스 목록 */}
-            <div className="flex flex-wrap gap-3 mb-6 p-4 bg-white/5/50 rounded-2xl border border-white/5">
+            <div className="flex flex-wrap gap-3 mb-6 p-4 bg-white/50 rounded-2xl border border-white/5">
               {availableMonths.map(m => {
                 const isChecked = multiCompareMonths.includes(m);
                 return (
@@ -850,7 +850,7 @@ export default function MasterUserDetailsPage() {
                       const allEqual = valList.every(v => v === valList[0]);
 
                       return (
-                        <tr key={row.key} className="hover:bg-white/5/50 transition-colors">
+                        <tr key={row.key} className="hover:bg-white/50 transition-colors">
                           <td className="py-3.5 px-4 font-bold text-white/80">{row.label}</td>
                           {multiCompareMonths.map(m => {
                             const flat = getFlatMetrics(monthlyData[m]);
@@ -958,7 +958,7 @@ export default function MasterUserDetailsPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-24 text-center bg-white/5/50 rounded-[48px] border-2 border-dashed border-white/10 relative z-10">
+              <div className="py-24 text-center bg-white/50 rounded-[48px] border-2 border-dashed border-white/10 relative z-10">
                 <div className="max-w-xs mx-auto space-y-4">
                   <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white/30">
                     <History size={32} />

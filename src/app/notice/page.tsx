@@ -86,7 +86,7 @@ export default function NoticePage() {
                 {notices.map((notice) => (
                   <div 
                     key={notice.id} 
-                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5/5 transition-colors cursor-pointer"
+                    className="group flex flex-col md:flex-row md:items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-4 mb-2 md:mb-0">
                       <div className="w-12 flex-shrink-0 flex justify-center">

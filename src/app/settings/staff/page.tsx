@@ -123,7 +123,7 @@ export default function StaffManagementPage() {
               <button 
                 onClick={() => handleGenerateCode(24)}
                 disabled={isGenerating}
-                className="px-6 py-3 bg-amber-500/10 text-amber-400 hover:bg-blue-100 rounded-xl font-bold transition-colors flex items-center gap-2 border border-blue-200"
+                className="px-6 py-3 bg-amber-500/10 text-amber-400 hover:bg-emerald-500/10 rounded-xl font-bold transition-colors flex items-center gap-2 border border-emerald-500/20"
               >
                 <Plus size={18} /> 24시간 유효 코드 만들기
               </button>
@@ -177,7 +177,7 @@ export default function StaffManagementPage() {
           </div>
 
           <div className="bg-white/5 rounded-[24px] shadow-sm border border-white/10 overflow-hidden">
-            <div className="p-6 border-b border-white/5 bg-white/5/50">
+            <div className="p-6 border-b border-white/5 bg-white/50">
               <h3 className="font-bold text-white/90">가입된 직원 목록 ({staff.length}명)</h3>
             </div>
             
@@ -211,7 +211,7 @@ export default function StaffManagementPage() {
                       const progressPct = Math.min(100, Math.round((sProgress.length / TOTAL_VIDEOS) * 100));
 
                       return (
-                        <tr key={s.id} className="hover:bg-white/5/50 transition-colors">
+                        <tr key={s.id} className="hover:bg-white/50 transition-colors">
                           <td className="px-6 py-4 font-bold text-amber-400">{s.clinic_name}</td>
                           <td className="px-6 py-4">
                             <div className="font-bold text-white">{s.name}</div>

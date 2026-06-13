@@ -26,9 +26,9 @@ export default function DirectorPhysicalExamPage() {
             <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center shadow-sm border border-emerald-200">
               <Activity className="w-6 h-6 text-emerald-400" />
             </div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">이학적검사 가이드</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">이학적검사 가이드</h1>
           </div>
-          <p className="text-gray-500 pl-15">부위별 정확하고 신속한 이학적 검사 방법을 영상으로 확인하세요.</p>
+          <p className="text-white/50 pl-15">부위별 정확하고 신속한 이학적 검사 방법을 영상으로 확인하세요.</p>
         </div>
 
         {/* Video Grid */}
@@ -40,7 +40,7 @@ export default function DirectorPhysicalExamPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
               onClick={() => setSelectedVideo(video)}
-              className="group relative cursor-pointer rounded-2xl overflow-hidden bg-gray-900 aspect-[9/16] shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-200 hover:border-emerald-400"
+              className="group relative cursor-pointer rounded-2xl overflow-hidden bg-[#031C13] aspect-[9/16] shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-white/10 hover:border-emerald-400"
             >
               {/* Thumbnail Background */}
               <div 
@@ -85,7 +85,7 @@ export default function DirectorPhysicalExamPage() {
               <div className="absolute top-4 right-4 z-50">
                 <button 
                   onClick={() => setSelectedVideo(null)}
-                  className="w-10 h-10 bg-black/50 hover:bg-white/5/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors border border-white/10"
+                  className="w-10 h-10 bg-black/50 hover:bg-white/20 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors border border-white/10"
                 >
                   <X className="w-5 h-5" />
                 </button>

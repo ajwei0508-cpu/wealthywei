@@ -295,7 +295,7 @@ export default function DetailsPage() {
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setCompareMonth(m)} 
-                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-white/10/50 text-white" : "hover:bg-white/5/50 text-white/70"}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === compareMonth ? "bg-white/10/50 text-white" : "hover:bg-white/50 text-white/70"}`}
                     >
                       {formatMonth(m)}
                     </button>
@@ -329,7 +329,7 @@ export default function DetailsPage() {
                   <div key={m} className="flex items-center gap-1 group/item">
                     <button 
                       onClick={() => setSelectedMonth(m)} 
-                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-white/5/50 text-white/70"}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm font-medium transition-colors ${m === selectedMonth ? "bg-primary text-white" : "hover:bg-white/50 text-white/70"}`}
                     >
                       {formatMonth(m)}
                     </button>
@@ -370,7 +370,7 @@ export default function DetailsPage() {
                     {formatMonth(selectedMonth)} <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-400">맞춤 전략 경영 리포트</span>
                   </h3>
                 </div>
-                <div className="p-6 bg-white/5/10 backdrop-blur-xl rounded-[32px] border border-white/20 shadow-2xl">
+                <div className="p-6 bg-white/10 backdrop-blur-xl rounded-[32px] border border-white/20 shadow-2xl">
                   <BarChart3 size={44} className="text-emerald-400" />
                 </div>
               </div>
@@ -379,13 +379,13 @@ export default function DetailsPage() {
                 <div className="lg:col-span-3 space-y-6">
                   {loadingAnalysis ? (
                     <div className="space-y-4 pt-2">
-                      <div className="h-5 bg-white/5/10 rounded-full w-full animate-pulse"></div>
-                      <div className="h-5 bg-white/5/10 rounded-full w-5/6 animate-pulse"></div>
-                      <div className="h-5 bg-white/5/10 rounded-full w-4/6 animate-pulse"></div>
+                      <div className="h-5 bg-white/10 rounded-full w-full animate-pulse"></div>
+                      <div className="h-5 bg-white/10 rounded-full w-5/6 animate-pulse"></div>
+                      <div className="h-5 bg-white/10 rounded-full w-4/6 animate-pulse"></div>
                     </div>
                   ) : aiAnalysis?.strategicReport ? (
                     <div className="grid grid-cols-1 gap-6">
-                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
+                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
                         <h4 className="flex items-center gap-2 text-rose-400 font-bold text-sm">
                           <AlertTriangle size={16} /> 위험요소 분석
                         </h4>
@@ -398,7 +398,7 @@ export default function DetailsPage() {
                           ))}
                         </ul>
                       </div>
-                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
+                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
                         <h4 className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                           <TrendingUp size={16} /> 실질 개선 항목
                         </h4>
@@ -411,7 +411,7 @@ export default function DetailsPage() {
                           ))}
                         </ul>
                       </div>
-                      <div className="space-y-3 p-6 bg-white/5/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/5/10 transition-colors">
+                      <div className="space-y-3 p-6 bg-white/5 backdrop-blur-sm border border-white/5 rounded-[32px] hover:bg-white/10 transition-colors">
                         <h4 className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
                           <Check size={16} /> 실무 경영 해결책
                         </h4>
@@ -452,7 +452,7 @@ export default function DetailsPage() {
                       const searchKeyword = keywords[0]; // 단 하나의 핵심 키워드만 사용
 
                       return (
-                        <div className="bg-white/5/5 border border-white/10 p-5 rounded-3xl hover:bg-white/5/10 transition-all group/yt">
+                        <div className="bg-white/5 border border-white/10 p-5 rounded-3xl hover:bg-white/10 transition-all group/yt">
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-[11px] font-bold text-white/40">{metric.label} 솔루션</span>
                           </div>
@@ -686,7 +686,7 @@ export default function DetailsPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-24 text-center bg-white/5/50 rounded-[48px] border-2 border-dashed border-white/10 relative z-10">
+              <div className="py-24 text-center bg-white/50 rounded-[48px] border-2 border-dashed border-white/10 relative z-10">
                 <div className="max-w-xs mx-auto space-y-4">
                   <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-white/30">
                     <History size={32} />
