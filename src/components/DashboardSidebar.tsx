@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 interface NavItemProps {
@@ -185,12 +186,12 @@ export default function DashboardSidebar() {
   return (
     <aside className="w-72 h-screen bg-[#031C13] flex flex-col fixed left-0 top-0 z-50 text-white shadow-2xl overflow-hidden border-r border-white/5">
       {/* Logo Section */}
-      <div className="p-8 pb-10 flex items-center gap-3">
-        <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <TrendingUp size={24} className="text-white" strokeWidth={2.5} />
+      <div className="p-8 pb-10 flex flex-col gap-3 justify-center items-center">
+        <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-transparent border border-white/10 shadow-lg">
+          <Image src="/logo.png" alt="바른컨설팅 로고" width={64} height={64} className="object-contain" />
         </div>
-        <div className="flex flex-col">
-          <h1 className="text-lg font-black tracking-tighter leading-none">바른컨설팅</h1>
+        <div className="flex flex-col text-center mt-2">
+          <h1 className="text-xl font-black tracking-tighter leading-none">바른컨설팅</h1>
           <span className="text-[10px] text-amber-300 font-bold uppercase tracking-widest mt-1">Management Platform</span>
         </div>
       </div>

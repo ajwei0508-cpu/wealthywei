@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import KakaoLogin from "@/components/KakaoLogin";
 import DashboardLayout from "@/components/DashboardLayout";
+import Image from "next/image";
 import {
   TrendingUp,
   Stethoscope,
@@ -195,8 +196,8 @@ export default function Home() {
       <main className="min-h-screen bg-white/5 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="max-w-md w-full space-y-8 text-center">
           <div className="space-y-4">
-            <div className="inline-block p-4 bg-white/5 rounded-3xl shadow-xl shadow-emerald-500/10 mb-2">
-              <TrendingUp size={48} className="text-amber-400" strokeWidth={2.5} />
+            <div className="inline-block p-1 bg-black/20 border border-white/10 rounded-full shadow-xl shadow-emerald-500/10 mb-2 relative w-24 h-24 overflow-hidden mx-auto">
+              <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover" />
             </div>
             <h1 className="text-4xl font-black text-white tracking-tight">바른컨설팅</h1>
             <p className="text-white/50 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
