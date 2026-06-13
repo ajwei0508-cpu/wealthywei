@@ -144,12 +144,13 @@ interface ParserMappingInfo {
   field: string;
   label: string;
   keywords: string[];
+  exclude?: string[];
 }
 
 const MAPPING_CONFIG: ParserMappingInfo[] = [
   // 1. 유입 (Patient Metrics)
-  { category: "patientMetrics", field: "total", label: "총 환자수", keywords: ["내원환자수", "총내원", "래원", "수납인원"] },
-  { category: "patientMetrics", field: "new", label: "신규 환자수", keywords: ["신규환자수", "신환", "초진", "처음"] },
+  { category: "patientMetrics", field: "total", label: "총 환자수", keywords: ["내원환자수", "총내원", "래원", "수납인원", "실인원"], exclude: ["금", "액", "비", "료", "수납"] },
+  { category: "patientMetrics", field: "new", label: "신규 환자수", keywords: ["신규환자수", "신환", "초진", "처음"], exclude: ["금", "액", "비", "료", "수납"] },
   
   // 2. 매출 (Generated Revenue)
   { category: "generatedRevenue", field: "total", label: "총 진료비", keywords: ["총진료비", "진료비계", "총계", "진료비합계", "총매출액"] },
@@ -344,7 +345,10 @@ function parseHeuristic(jsonData: string[][], targetMonth: string): ParseExcelRe
   if (foundTotalRow !== -1) {
     const totalRow = jsonData[foundTotalRow];
     MAPPING_CONFIG.forEach(cfg => {
-      const idx = headers.findIndex(h => cfg.keywords.some(k => h.includes(normalize(k))));
+      const idx = headers.findIndex(h => {
+        if (cfg.exclude && cfg.exclude.some(ex => h.includes(normalize(ex)))) return false;
+        return cfg.keywords.some(k => h.includes(normalize(k)));
+      });
       if (idx !== -1) {
         // @ts-ignore
         extractedData[cfg.category][cfg.field] = parseCleanNumber(totalRow[idx]);
@@ -357,7 +361,10 @@ function parseHeuristic(jsonData: string[][], targetMonth: string): ParseExcelRe
       const row = jsonData[i];
       if (!row || row.every(c => !c)) continue;
       MAPPING_CONFIG.forEach(cfg => {
-        const idx = headers.findIndex(h => cfg.keywords.some(k => h.includes(normalize(k))));
+        const idx = headers.findIndex(h => {
+          if (cfg.exclude && cfg.exclude.some(ex => h.includes(normalize(ex)))) return false;
+          return cfg.keywords.some(k => h.includes(normalize(k)));
+        });
         if (idx !== -1) {
           // @ts-ignore
           extractedData[cfg.category][cfg.field] += parseCleanNumber(row[idx]);
@@ -593,9 +600,13 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
       }
     }
 
-    const findAndParse = (keywords: string[]) => {
+    const findAndParse = (keywords: string[], excludeKeywords: string[] = []) => {
       const normalizedKeywords = keywords.map(k => normalize(k));
-      const idx = headers.findIndex(h => normalizedKeywords.some(nk => h.includes(nk) || h.includes(nk.replace("청구", ""))));
+      const normalizedExclude = excludeKeywords.map(k => normalize(k));
+      const idx = headers.findIndex(h => {
+        if (normalizedExclude.some(ex => h.includes(ex))) return false;
+        return normalizedKeywords.some(nk => h === nk || h.includes(nk) || h.includes(nk.replace("청구", "")));
+      });
       if (idx === -1) return 0;
       
       const targetIdx = idx + dataOffset;
@@ -603,19 +614,20 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     };
 
     // 데이터 누적 합산 (Summation)
-    const valTotalPatients = findAndParse(["내원환자수", "총내원", "수납인원", "실인원", "환자수", "실인원수"]);
+    // 금액(금, 액, 비, 료, 수납)과 관련된 헤더가 환자수로 오인되지 않도록 강력한 excludeKeywords 적용
+    const valTotalPatients = findAndParse(["내원환자수", "총내원", "수납인원", "실인원", "환자수", "실인원수"], ["금", "액", "비", "료", "수납"]);
     target.patientMetrics.total += valTotalPatients;
     ok.totalPatients += valTotalPatients;
 
-    const valNewPatients = findAndParse(["신규환자수", "신환", "초진", "처음"]);
+    const valNewPatients = findAndParse(["신규환자수", "신환", "초진", "처음"], ["금", "액", "비", "료", "수납"]);
     target.patientMetrics.new += valNewPatients;
     ok.newPatients += valNewPatients;
 
-    const valAutoPatients = findAndParse(["자보환자수"]);
+    const valAutoPatients = findAndParse(["자보환자수", "자보환자", "자동차보험환자"], ["금", "액", "비", "료", "수납"]);
     target.patientMetrics.auto += valAutoPatients;
     ok.autoPatients += valAutoPatients;
 
-    const valDailyAvg = findAndParse(["진료일평균환자수"]);
+    const valDailyAvg = findAndParse(["진료일평균환자수", "일평균환자수", "일평균환자"], ["금", "액", "비", "료", "수납"]);
     target.patientMetrics.dailyAvg = Math.max(target.patientMetrics.dailyAvg, valDailyAvg); // 평균은 최대값 혹은 나중에 재계산
     ok.avgDailyPatients = Math.max(ok.avgDailyPatients, valDailyAvg);
 

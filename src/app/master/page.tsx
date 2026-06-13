@@ -76,16 +76,20 @@ const getFlatMetrics = (metrics: any) => {
   const genRev = metrics.generatedRevenue || {};
   const patMet = metrics.patientMetrics || {};
   const leak = metrics.leakage || {};
+
+  const ok = metrics.okchartData;
+  const hs = metrics.hanisarangData;
+  const dbg = metrics.donguibogamData;
   
   return {
-    totalRevenue: genRev.total || metrics.totalRevenue || 0,
-    nonBenefit: genRev.nonCovered || metrics.nonBenefit || 0,
-    patientPay: genRev.copay || metrics.patientPay || 0,
-    insuranceClaim: genRev.insurance || metrics.insuranceClaim || 0,
-    autoInsuranceClaim: genRev.auto || metrics.autoInsuranceClaim || 0,
-    newPatientCount: patMet.new || metrics.newPatientCount || 0,
-    patientCount: patMet.total || metrics.patientCount || 0,
-    receivables: leak.receivables || metrics.receivables || 0
+    totalRevenue: ok?.totalRevenue || hs?.totalRevenue || dbg?.totalRevenue || genRev.total || metrics.totalRevenue || 0,
+    nonBenefit: ok?.nonCovered || hs?.nonCovered || dbg?.nonCovered || genRev.nonCovered || metrics.nonBenefit || 0,
+    patientPay: ok?.copay || hs?.copay || dbg?.copay || genRev.copay || metrics.patientPay || 0,
+    insuranceClaim: ok?.insuranceClaim || hs?.insuranceClaim || dbg?.insuranceClaim || genRev.insurance || metrics.insuranceClaim || 0,
+    autoInsuranceClaim: ok?.autoClaim || hs?.autoClaim || genRev.auto || metrics.autoInsuranceClaim || 0,
+    newPatientCount: ok?.newPatients || hs?.newPatients || dbg?.newPatients || patMet.new || metrics.newPatientCount || 0,
+    patientCount: ok?.totalPatients || hs?.totalPatients || dbg?.totalPatients || patMet.total || metrics.patientCount || 0,
+    receivables: ok?.receivables || hs?.receivables || dbg?.receivables || leak.receivables || metrics.receivables || 0
   };
 };
 
