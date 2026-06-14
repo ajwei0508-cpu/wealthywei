@@ -173,7 +173,10 @@ export default function DashboardSidebar() {
         { label: "바른복용법", url: "https://naver.me/FJOi4ygo" }
       ] 
     },
-    { label: "마케팅", soon: true }
+    { 
+      label: "마케팅", 
+      items: isMaster ? [{ label: "자동화 글쓰기", url: "/admin/scheduler" }] : []
+    }
   ];
 
   const [openSubMenus, setOpenSubMenus] = useState<string[]>(["바른 비급여"]);
