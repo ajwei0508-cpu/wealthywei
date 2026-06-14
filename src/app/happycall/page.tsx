@@ -49,9 +49,10 @@ export default function HappyCallDashboard() {
   const [isSavingLog, setIsSavingLog] = useState(false);
 
   // Script & Customization State
-  const [selectedTreatment, setSelectedTreatment] = useState('치료');
+  const [selectedTreatment, setSelectedTreatment] = useState('부항');
   const [currentScript, setCurrentScript] = useState('');
   const [isRefining, setIsRefining] = useState(false);
+  const [aiCustomContext, setAiCustomContext] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 
@@ -242,7 +243,8 @@ export default function HappyCallDashboard() {
 
     const patientWithRealData = { ...patient, name: realName, phone: realPhone };
     setSelectedPatient(patientWithRealData);
-    setSelectedTreatment('치료');
+    setSelectedTreatment('부항');
+    setAiCustomContext('');
     
     const stage = patient.target_stage || '4일차';
     const initialTemplate = DEFAULT_TEMPLATES[stage];
@@ -250,7 +252,7 @@ export default function HappyCallDashboard() {
       patientName: realName,
       clinicName: clinicName,
       staffName: staffName,
-      treatmentItem: '치료'
+      treatmentItem: '부항'
     });
     
     setCurrentScript(scriptText);
@@ -284,11 +286,12 @@ export default function HappyCallDashboard() {
       const res = await fetch('/api/happycall/refine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script: currentScript })
+        body: JSON.stringify({ script: currentScript, context: aiCustomContext })
       });
       if (!res.ok) throw new Error('AI 다듬기에 실패했습니다.');
       const data = await res.json();
       setCurrentScript(data.refinedScript);
+      setAiCustomContext(''); // Clear context after success
       toast.success('AI가 멘트를 다듬었습니다!');
     } catch (err: any) {
       toast.error(err.message || 'AI 멘트 다듬기 오류');
@@ -696,7 +699,7 @@ export default function HappyCallDashboard() {
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400">치료 항목 선택</label>
                       <div className="flex flex-wrap gap-2">
-                        {['침', '부항', '추나', '한약', '치료'].map(treatment => (
+                        {['부항', '침치료', '추나', '한약'].map(treatment => (
                           <button
                             key={treatment}
                             type="button"
@@ -707,7 +710,7 @@ export default function HappyCallDashboard() {
                                 : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:bg-white/5'
                             }`}
                           >
-                            {treatment === '치료' ? '기본(치료)' : treatment}
+                            {treatment}
                           </button>
                         ))}
                       </div>
@@ -730,16 +733,49 @@ export default function HappyCallDashboard() {
                     )}
                   </div>
 
+                  {/* Custom contextual input for AI refinement */}
+                  <div className="space-y-2 pt-2 border-t border-white/5">
+                    <label className="text-xs font-bold text-slate-400 block">환자 상황에 맞춰 대본 수정하기 (AI 리라이팅)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={aiCustomContext}
+                        onChange={(e) => setAiCustomContext(e.target.value)}
+                        placeholder="예: 바빠서 토요일 진료만 원함, 침 맞고 멍이 들었다고 함..."
+                        className="flex-1 bg-[#0B3A28] border border-white/5 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 text-white placeholder-slate-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRefineScript}
+                        disabled={isRefining || !aiCustomContext.trim()}
+                        className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition-all disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap active:scale-[0.98]"
+                      >
+                        {isRefining ? (
+                          <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white/30 border-t-white"></div>
+                        ) : (
+                          <>
+                            <Sparkles size={12} className="text-amber-300" />
+                            AI 다듬기
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Action row for Script */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <button
                       type="button"
-                      onClick={handleRefineScript}
+                      onClick={() => {
+                        // Trigger standard polish with empty context
+                        setAiCustomContext('');
+                        handleRefineScript();
+                      }}
                       disabled={isRefining || !currentScript}
                       className="py-2.5 px-4 bg-gradient-to-br from-indigo-500/20 to-blue-500/10 hover:from-indigo-500/30 border border-indigo-500/20 hover:border-indigo-500/40 text-amber-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
                       <Sparkles size={14} className="text-indigo-400" />
-                      AI 멘트 다듬기
+                      기본 AI 다듬기
                     </button>
                     
                     <button
