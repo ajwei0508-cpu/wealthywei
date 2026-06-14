@@ -193,14 +193,20 @@ export default function Home() {
   // 1. 비로그인 상태
   if (status === "unauthenticated") {
     return (
-      <main className="min-h-screen bg-white/5 flex items-center justify-center p-6 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-md w-full space-y-8 text-center">
+      <main className="min-h-screen bg-[#031C13] flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Background Ambient Glows */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+          <div className="absolute -top-[20%] -left-[10%] w-[500px] h-[500px] rounded-full bg-emerald-900/30 blur-[120px]" />
+          <div className="absolute bottom-[0%] -right-[10%] w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[120px]" />
+        </div>
+
+        <div className="max-w-md w-full space-y-8 text-center relative z-10">
           <div className="space-y-4">
-            <div className="inline-block p-1 bg-black/20 border border-white/10 rounded-full shadow-xl shadow-emerald-500/10 mb-2 relative w-24 h-24 overflow-hidden mx-auto">
+            <div className="inline-block p-1 bg-[#0B3A28] border border-emerald-500/20 rounded-full shadow-[0_0_30px_rgba(16,185,129,0.2)] mb-2 relative w-24 h-24 overflow-hidden mx-auto">
               <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover" />
             </div>
             <h1 className="text-4xl font-black text-white tracking-tight">바른컨설팅</h1>
-            <p className="text-white/50 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
+            <p className="text-emerald-400/80 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>
           </div>
 
           <div className="bg-white/5 rounded-full p-1.5 flex shadow-sm border border-white/5 mb-4">
@@ -220,7 +226,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="bg-white/5 rounded-[32px] p-8 shadow-xl border border-white/5">
+          <div className="bg-[#083021]/80 backdrop-blur-xl rounded-[32px] p-8 shadow-2xl border border-white/10">
             {loginMode === "director" ? (
               <div className="space-y-6">
                 <div className="text-center space-y-2 mb-6">

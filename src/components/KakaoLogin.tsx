@@ -34,7 +34,7 @@ export default function KakaoLogin() {
   return (
     <button
       onClick={() => signIn("kakao")}
-      className="flex items-center justify-center gap-3 w-full max-w-sm bg-[#FEE500] hover:bg-[#FDE500]/90 text-white px-6 py-4 rounded-2xl font-bold text-base transition-all toss-shadow group"
+      className="flex items-center justify-center gap-3 w-full max-w-sm bg-[#FEE500] hover:bg-[#FDE500]/90 text-black/85 px-6 py-4 rounded-2xl font-bold text-base transition-all toss-shadow group"
     >
       <svg 
         className="w-5 h-5" 
