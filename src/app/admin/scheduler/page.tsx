@@ -15,24 +15,22 @@ interface ScheduleItem {
 }
 
 const generateInitialSchedules = (): ScheduleItem[] => {
-  const days = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+  const dayNames = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
   const today = new Date();
-  const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday
-  const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + diffToMonday);
 
-  return days.map((dayName, index) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + index);
+  return Array.from({ length: 7 }).map((_, index) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + index);
+    
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
+    const dayOfWeek = dayNames[d.getDay()];
     
     return {
       id: `day-${index}`,
       date: `${yyyy}-${mm}-${dd}`,
-      dayOfWeek: dayName,
+      dayOfWeek: index === 0 ? `오늘 (${dayOfWeek})` : dayOfWeek,
       timeSlot: '09:00', // 기본 시간
       keyword: '',
       status: '대기중'
