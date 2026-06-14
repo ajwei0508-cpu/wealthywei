@@ -40,6 +40,7 @@ const generateInitialSchedules = (): ScheduleItem[] => {
 
 export default function BlogScheduler() {
   const [schedules, setSchedules] = useState<ScheduleItem[]>(generateInitialSchedules());
+  const [isSystemActive, setIsSystemActive] = useState<boolean>(true);
 
   const handleKeywordChange = (id: string, newKeyword: string) => {
     setSchedules(prev => prev.map(item => item.id === id ? { ...item, keyword: newKeyword } : item));
@@ -54,11 +55,19 @@ export default function BlogScheduler() {
   };
 
   const triggerGeneration = async (id: string) => {
+    if (!isSystemActive) {
+      toast.error('시스템 작동 스위치가 꺼져있습니다. 오른쪽 상단의 스위치를 켜주세요.');
+      return;
+    }
+
+    const target = schedules.find(item => item.id === id);
+    if (!target || !target.keyword.trim()) {
+      toast.error('타겟 키워드를 먼저 입력해주세요.');
+      return;
+    }
+
     // 상태를 '생성중'으로 변경
     setSchedules(prev => prev.map(item => item.id === id ? { ...item, status: '생성중' } : item));
-    
-    const target = schedules.find(item => item.id === id);
-    if (!target) return;
 
     try {
       toast.success(`${target.keyword} 포스팅 생성을 시작합니다.\n(약 1~2분 소요)`);
@@ -85,12 +94,28 @@ export default function BlogScheduler() {
       <div className="min-h-screen bg-[#031C13] p-8 md:p-12 text-white font-sans selection:bg-emerald-600/30">
         <div className="max-w-7xl mx-auto space-y-8 mt-16">
           {/* Header */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <Calendar className="text-emerald-400" size={32} />
-              예약형 자동화 블로그 생성기
-            </h1>
-            <p className="text-emerald-400/80 font-medium">타겟 키워드를 설정하면 LLM 텍스트 작성과 고화질 이미지 6장이 순차적으로 자동 생성됩니다.</p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
+                <Calendar className="text-emerald-400" size={32} />
+                예약형 자동화 블로그 생성기
+              </h1>
+              <p className="text-emerald-400/80 font-medium">타겟 키워드를 설정하면 LLM 텍스트 작성과 고화질 이미지 6장이 순차적으로 자동 생성됩니다.</p>
+            </div>
+            
+            {/* System Toggle Switch */}
+            <div className="flex items-center gap-3 bg-black/20 p-3 rounded-xl border border-white/10 shrink-0">
+              <div className="flex flex-col text-right">
+                <span className="text-sm font-bold text-white">시스템 작동 스위치</span>
+                <span className="text-[10px] text-slate-400">{isSystemActive ? '자동화 엔진 가동 중' : '안전 모드 (일시정지)'}</span>
+              </div>
+              <button
+                onClick={() => setIsSystemActive(!isSystemActive)}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${isSystemActive ? 'bg-emerald-500' : 'bg-slate-600'}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${isSystemActive ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
 
           {/* Table Container */}
@@ -163,7 +188,7 @@ export default function BlogScheduler() {
                       <td className="p-5 text-right align-top pt-6">
                         <button
                           onClick={() => triggerGeneration(item.id)}
-                          disabled={item.status === '생성중' || item.status === '완료'}
+                          disabled={!item.keyword.trim() || item.status === '생성중' || item.status === '완료' || !isSystemActive}
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-white/30 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-900/20 transition-all active:scale-95 disabled:scale-100 disabled:shadow-none disabled:cursor-not-allowed"
                         >
                           {item.status === '대기중' ? (
