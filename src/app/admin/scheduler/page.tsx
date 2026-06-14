@@ -8,20 +8,51 @@ import toast from 'react-hot-toast';
 interface ScheduleItem {
   id: string;
   date: string;
-  timeSlot: '오전 09:00' | '오후 02:00' | '오후 08:00';
+  dayOfWeek: string;
+  timeSlot: string;
   keyword: string;
   status: '대기중' | '생성중' | '완료' | '실패';
 }
 
+const generateInitialSchedules = (): ScheduleItem[] => {
+  const days = ['월요일', '화요일', '수요일', '목요일', '금요일', '토요일', '일요일'];
+  const today = new Date();
+  const currentDay = today.getDay(); // 0 is Sunday, 1 is Monday
+  const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMonday);
+
+  return days.map((dayName, index) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + index);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    
+    return {
+      id: `day-${index}`,
+      date: `${yyyy}-${mm}-${dd}`,
+      dayOfWeek: dayName,
+      timeSlot: '09:00', // 기본 시간
+      keyword: '',
+      status: '대기중'
+    };
+  });
+};
+
 export default function BlogScheduler() {
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([
-    { id: '1', date: '2026-06-15', timeSlot: '오전 09:00', keyword: '경추 2-3번 통증', status: '대기중' },
-    { id: '2', date: '2026-06-15', timeSlot: '오후 02:00', keyword: '30대 탈모 초기증상', status: '대기중' },
-    { id: '3', date: '2026-06-15', timeSlot: '오후 08:00', keyword: '성조숙증 한약 치료', status: '대기중' },
-  ]);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>(generateInitialSchedules());
 
   const handleKeywordChange = (id: string, newKeyword: string) => {
     setSchedules(prev => prev.map(item => item.id === id ? { ...item, keyword: newKeyword } : item));
+  };
+
+  const handleDateChange = (id: string, newDate: string) => {
+    setSchedules(prev => prev.map(item => item.id === id ? { ...item, date: newDate } : item));
+  };
+
+  const handleTimeChange = (id: string, newTime: string) => {
+    setSchedules(prev => prev.map(item => item.id === id ? { ...item, timeSlot: newTime } : item));
   };
 
   const triggerGeneration = async (id: string) => {
@@ -80,14 +111,31 @@ export default function BlogScheduler() {
                 <tbody className="divide-y divide-white/5">
                   {schedules.map((item) => (
                     <tr key={item.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-5 font-bold text-white/90">
-                        {item.date}
+                      <td className="p-5 font-bold text-white/90 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-xs font-black text-emerald-400">{item.dayOfWeek}</span>
+                          <input
+                            type="date"
+                            value={item.date}
+                            onChange={(e) => handleDateChange(item.id, e.target.value)}
+                            disabled={item.status === '생성중' || item.status === '완료'}
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 text-white [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                          />
+                        </div>
                       </td>
-                      <td className="p-5 text-sm font-medium text-slate-400 flex items-center gap-2 mt-1">
-                        <Clock size={14} className="text-amber-400" />
-                        {item.timeSlot}
+                      <td className="p-5 text-sm font-medium text-slate-400 align-top">
+                        <div className="flex items-center gap-2 mt-5">
+                          <Clock size={16} className="text-amber-400 shrink-0" />
+                          <input
+                            type="time"
+                            value={item.timeSlot}
+                            onChange={(e) => handleTimeChange(item.id, e.target.value)}
+                            disabled={item.status === '생성중' || item.status === '완료'}
+                            className="bg-black/20 border border-white/10 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 text-white [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                          />
+                        </div>
                       </td>
-                      <td className="p-5">
+                      <td className="p-5 align-top">
                         <div className="relative">
                           <input
                             type="text"
@@ -100,7 +148,7 @@ export default function BlogScheduler() {
                           <Edit2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
                         </div>
                       </td>
-                      <td className="p-5">
+                      <td className="p-5 align-top pt-8">
                         <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border
                           ${item.status === '대기중' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : ''}
                           ${item.status === '생성중' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20 animate-pulse' : ''}
@@ -114,7 +162,7 @@ export default function BlogScheduler() {
                           {item.status}
                         </div>
                       </td>
-                      <td className="p-5 text-right">
+                      <td className="p-5 text-right align-top pt-6">
                         <button
                           onClick={() => triggerGeneration(item.id)}
                           disabled={item.status === '생성중' || item.status === '완료'}
