@@ -202,8 +202,8 @@ export default function Home() {
 
         <div className="max-w-md w-full space-y-8 text-center relative z-10">
           <div className="space-y-4">
-            <div className="inline-block p-1 bg-white border-2 border-emerald-500/30 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-2 relative w-28 h-28 overflow-hidden mx-auto">
-              <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover hover:scale-105 transition-transform duration-500" />
+            <div className="inline-block bg-white border border-emerald-500/30 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] mb-2 relative w-28 h-28 overflow-hidden mx-auto">
+              <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover scale-[1.15] hover:scale-[1.25] transition-transform duration-500" />
             </div>
             <h1 className="text-4xl font-black text-white tracking-tight">바른컨설팅</h1>
             <p className="text-emerald-400/80 font-medium text-lg">데이터로 증명하는 병원 성장의 파트너</p>

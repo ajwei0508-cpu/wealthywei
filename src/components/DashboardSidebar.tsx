@@ -188,9 +188,9 @@ export default function DashboardSidebar() {
     <aside className="w-72 h-screen bg-[#031C13] flex flex-col fixed left-0 top-0 z-50 text-white shadow-2xl overflow-hidden border-r border-white/5">
       {/* Logo Section */}
       <div className="p-8 pb-10 flex flex-col gap-3 justify-center items-center">
-        <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-white border-2 border-emerald-600/30 shadow-[0_0_15px_rgba(255,255,255,0.05)] p-0.5 group">
+        <div className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center bg-white border border-emerald-600/30 shadow-[0_0_15px_rgba(255,255,255,0.1)] group">
           <div className="relative w-full h-full rounded-full overflow-hidden">
-            <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+            <Image src="/logo.png" alt="바른컨설팅 로고" fill className="object-cover scale-[1.15] group-hover:scale-[1.25] transition-transform duration-500" />
           </div>
         </div>
         <div className="flex flex-col text-center mt-2">
