@@ -120,7 +120,13 @@ export async function GET(req: NextRequest) {
       const lastVisit = latestVisits[p.id];
       if (!lastVisit) continue;
 
-      const lastVisitDate = new Date(lastVisit);
+      const parts = lastVisit.split('-');
+      let lastVisitDate = new Date();
+      if (parts.length >= 3) {
+        lastVisitDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      } else {
+        lastVisitDate = new Date(lastVisit);
+      }
       lastVisitDate.setHours(0, 0, 0, 0);
       
       const diffTime = today.getTime() - lastVisitDate.getTime();
