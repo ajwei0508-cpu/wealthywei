@@ -164,7 +164,10 @@ export async function generateStrategicBriefing(history: { month: string, metric
   `;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json" }
+    });
     const response = await result.response;
     return response.text();
   } catch (error: any) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import ReactMarkdown from "react-markdown";
 import { 
   Sparkles, 
   TrendingUp, 
@@ -437,9 +438,9 @@ export default function AiIntelligencePage() {
                         </div>
                       </div>
 
-                      <div className="prose prose-invert prose-blue max-w-none prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed prose-h3:text-amber-400 prose-h3:text-2xl prose-h3:font-black prose-li:text-slate-400">
+                      <div className="prose prose-invert prose-emerald max-w-none prose-p:text-slate-300 prose-p:text-lg prose-p:leading-relaxed prose-headings:text-amber-400 prose-headings:font-black prose-li:text-slate-400 prose-strong:text-emerald-400">
                         <div className="whitespace-pre-wrap font-light tracking-wide">
-                          {aiData?.detailedAnalysis || briefing}
+                          <ReactMarkdown>{aiData?.detailedAnalysis || briefing}</ReactMarkdown>
                         </div>
                       </div>
                     </div>
