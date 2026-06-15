@@ -44,9 +44,7 @@ export async function POST(req: NextRequest) {
           user_email: userEmail,
           chart_no: String(p.chart_no),
           name: p.name,
-          phone: p.phone || "",
-          birth_date: p.birth_date || null,
-          gender: p.gender || null
+          phone: p.phone || ""
         }], { onConflict: 'user_email, chart_no' })
         .select()
         .single();
