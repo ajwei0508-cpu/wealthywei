@@ -19,11 +19,11 @@ export async function POST(req: NextRequest) {
 
 
     const role = (session.user as any).role || "director";
-    if (role === "staff") {
-      return NextResponse.json({ error: "원장님 계정만 엑셀 업로드가 가능합니다." }, { status: 403 });
-    }
-
-    const userEmail = session.user.email.toLowerCase();
+    
+    const userEmail = role === "staff" 
+      ? (session.user as any).parent_email?.toLowerCase() 
+      : session.user.email.toLowerCase();
+    
     const body = await req.json();
     const { patientsData } = body;
 
@@ -118,11 +118,10 @@ export async function DELETE(req: NextRequest) {
     }
 
     const role = (session.user as any).role || "director";
-    if (role === "staff") {
-      return NextResponse.json({ error: "원장님 계정만 데이터 삭제가 가능합니다." }, { status: 403 });
-    }
 
-    const userEmail = session.user.email.toLowerCase();
+    const userEmail = role === "staff" 
+      ? (session.user as any).parent_email?.toLowerCase() 
+      : session.user.email.toLowerCase();
 
     // Patients will cascade delete visit_history if foreign key is set up correctly.
     // Otherwise we delete visit_history first.

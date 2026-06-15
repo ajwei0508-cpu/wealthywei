@@ -113,9 +113,8 @@ export async function GET(req: NextRequest) {
       const assignedTo = assignmentMap[p.chart_no];
       
       // If staff, hide patients assigned to OTHER staff
-      if (role === "staff" && assignedTo && assignedTo !== staffPhone) {
-        continue;
-      }
+      // Removed: Staff can now see all assigned or unassigned patients
+
 
       const lastVisit = latestVisits[p.id];
       if (!lastVisit) continue;
@@ -151,9 +150,9 @@ export async function GET(req: NextRequest) {
       
       targets.push({
         ...p,
-        name: maskName(p.name),
-        phone: maskPhone(p.phone),
-        original_name_masked: true, // flag to indicate this is masked data
+        name: p.name,
+        phone: p.phone,
+        original_name_masked: false, // flag to indicate this is masked data
         assigned_to: assignedTo,
         is_mine: assignedTo === staffPhone,
         is_unassigned: isUnassigned,

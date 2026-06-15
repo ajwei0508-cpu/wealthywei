@@ -431,24 +431,22 @@ export default function HappyCallDashboard() {
                 />
               </div>
               
-              {userRole === 'director' && (
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/10 text-white px-4 py-3 rounded-2xl text-xs font-bold transition-all"
-                  >
-                    <Upload size={14} /> 엑셀 업로드
-                  </button>
-                  <button
-                    onClick={handleDeleteAll}
-                    className="p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-2xl transition-all"
-                    title="초기화"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/10 text-white px-4 py-3 rounded-2xl text-xs font-bold transition-all"
+                >
+                  <Upload size={14} /> 엑셀 업로드
+                </button>
+                <button
+                  onClick={handleDeleteAll}
+                  className="p-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-2xl transition-all"
+                  title="초기화"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -490,10 +488,6 @@ export default function HappyCallDashboard() {
                             key={patient.id} 
                             className="bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/5 hover:border-emerald-600/30 rounded-2xl p-5 transition-all duration-200 group cursor-pointer"
                             onClick={() => {
-                              if (userRole === 'staff' && patient.is_unassigned) {
-                                toast.error('먼저 담당자 배정을 받아야 정보를 열람할 수 있습니다.');
-                                return;
-                              }
                               handleOpenModal(patient);
                             }}
                           >
@@ -515,20 +509,7 @@ export default function HappyCallDashboard() {
                               </span>
                             </div>
 
-                            {/* Unassigned Claim Button for Staff */}
-                            {userRole === 'staff' && patient.is_unassigned ? (
-                              <div className="mt-4 pt-3 border-t border-white/5">
-                                <button
-                                  onClick={(e) => handleAssignPatient(e, patient)}
-                                  className="w-full py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-amber-400 border border-emerald-600/20 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
-                                >
-                                  <UserPlus size={14} />
-                                  내 담당으로 가져오기
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                {/* Latest Call Log Preview */}
+                            {/* Latest Call Log Preview */}
                                 {patient.latest_call ? (
                                   <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
                                     <div className="flex items-center justify-between">
@@ -566,8 +547,6 @@ export default function HappyCallDashboard() {
                                     <ChevronRight size={14} />
                                   </button>
                                 </div>
-                              </>
-                            )}
                           </div>
                         ))
                       )}

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import DashboardLayout from "@/components/DashboardLayout";
 import Card from "@/components/Card";
 import { 
   ArrowLeft, 
@@ -372,8 +373,8 @@ export default function MasterDashboardPortal() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-[#F2F4F6] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
       </div>
     );
   }
@@ -402,7 +403,7 @@ export default function MasterDashboardPortal() {
         {(activeTab === "unified" || activeTab === "staff") && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
-            <input type="text" placeholder="병원명, 이름 검색..." className="pl-10 pr-4 py-2 bg-white/50 border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <input type="text" placeholder="병원명, 이름 검색..." className="pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all w-64" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         )}
       </div>
@@ -420,19 +421,19 @@ export default function MasterDashboardPortal() {
           <Card className="bg-white/5 p-6 flex items-center gap-4 transition-all hover:shadow-lg"><div className="p-4 bg-amber-500/10 text-amber-400 rounded-2xl"><Check size={24} /></div><div><p className="text-xs font-bold text-white/40 uppercase tracking-tighter">워크북 제출 완료</p><p className="text-2xl font-extrabold text-white">{workbooks.filter(w=>w.submitted).length}건</p></div></Card>
         </div>
         <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-2xl rounded-[32px]">
-          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/50">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5">
             <h3 className="text-lg font-extrabold text-white flex items-center gap-2"><ShieldCheck size={20} className="text-emerald-400" />마스터 통합 관리 대시보드 (매출 + 워크북)</h3>
             <span className="text-[10px] font-bold text-white/40 bg-white/10 px-3 py-1 rounded-full">LIVE DATA CONSOLIDATED</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-[#FAFAFB]">
+              <thead className="bg-black/20 border-b border-white/10">
                 <tr>
-                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">병원 정보</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">최근 매출현황</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase">5대 지표 증감 요약 (전월비)</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase text-center">워크북 상태</th>
-                  <th className="px-8 py-4 text-[11px] font-black text-white/40 uppercase text-center">액션</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/50 tracking-wider uppercase">병원 정보</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/50 tracking-wider uppercase">최근 매출현황</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/50 tracking-wider uppercase">5대 지표 증감 요약 (전월비)</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/50 tracking-wider uppercase text-center">워크북 상태</th>
+                  <th className="px-8 py-4 text-[11px] font-black text-white/50 tracking-wider uppercase text-center">액션</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -440,7 +441,7 @@ export default function MasterDashboardPortal() {
                   const isExpanded = expandedEmails.has(item.email);
                   return (
                     <React.Fragment key={item.email}>
-                      <tr className="hover:bg-white/50 transition-colors group">
+                      <tr className="hover:bg-white/5 transition-colors group">
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">
                             <button
@@ -514,7 +515,7 @@ export default function MasterDashboardPortal() {
                                 const ind = item.revenue.indicators?.[key];
                                 if (!ind || ind.type === "none") {
                                   return (
-                                    <span key={key} className="bg-white/50 text-white/40/80 border border-white/10/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
+                                    <span key={key} className="bg-white/5 text-white/40/80 border border-white/10/50 px-2 py-1 rounded-lg text-[10px] font-bold inline-flex items-center gap-1">
                                       {label} -
                                     </span>
                                   );
@@ -564,7 +565,7 @@ export default function MasterDashboardPortal() {
                                     {item.revenue.records.map((rec: any) => {
                                       const flat = getFlatMetrics(rec.metrics);
                                       return (
-                                        <tr key={rec.id} className="hover:bg-white/50 transition-colors">
+                                        <tr key={rec.id} className="hover:bg-white/5 transition-colors">
                                           <td className="py-2.5 px-3 font-extrabold text-white/80">{rec.month}</td>
                                           <td className="py-2.5 px-3 font-extrabold text-white">{formatNumber(flat.totalRevenue)}원</td>
                                           <td className="py-2.5 px-3 text-emerald-400 font-bold">{formatNumber(flat.nonBenefit)}원</td>
@@ -668,17 +669,17 @@ export default function MasterDashboardPortal() {
 
         </div>
         <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
-          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/50"><h3 className="text-lg font-extrabold text-white flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5"><h3 className="text-lg font-extrabold text-white flex items-center gap-2"><Users size={20} className="text-indigo-500" />전체 가입 사용자 목록 및 승인 관리</h3></div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-[#FAFAFB]">
+              <thead className="bg-black/20 border-b border-white/10">
                 <tr>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">사용자 (프로필)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">가입 정보</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">연락처 / 이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">승인 상태 (권한)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">승인 분류</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-center">활동 현황</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">사용자 (프로필)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">가입 정보</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">연락처 / 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">승인 상태 (권한)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">승인 분류</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase text-center">활동 현황</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -688,7 +689,7 @@ export default function MasterDashboardPortal() {
                   const hasWb = isDirector ? workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase()) : false;
                   
                   return (
-                    <tr key={user.id} className="hover:bg-white/50 transition-colors group">
+                    <tr key={user.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-white/10 overflow-hidden border border-white/5 flex items-center justify-center">
@@ -866,19 +867,19 @@ export default function MasterDashboardPortal() {
         </div>
 
         <Card className="bg-white/5 overflow-hidden p-0 border-none shadow-xl rounded-[32px]">
-          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/50">
+          <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/5">
             <h3 className="text-lg font-extrabold text-white flex items-center gap-2"><Users size={20} className="text-indigo-500" />글로벌 직원 계정 총괄</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead className="bg-[#FAFAFB]">
+              <thead className="bg-black/20 border-b border-white/10">
                 <tr>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">소속 한의원</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">직원 이름</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">아이디(휴대폰)</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase">원장님 이메일</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-center">교육 이수율 현황</th>
-                  <th className="px-8 py-4 text-xs font-bold text-white/40 uppercase text-right">관리</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">소속 한의원</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">직원 이름</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">아이디(휴대폰)</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase">원장님 이메일</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase text-center">교육 이수율 현황</th>
+                  <th className="px-8 py-4 text-xs font-bold text-white/50 tracking-wider uppercase text-right">관리</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -889,7 +890,7 @@ export default function MasterDashboardPortal() {
                   const progress = Math.min(100, Math.round((staffProgress.length / TOTAL_VIDEOS) * 100));
 
                   return (
-                    <tr key={staff.id} className="hover:bg-white/50 transition-colors">
+                    <tr key={staff.id} className="hover:bg-white/5 transition-colors">
                       <td className="px-8 py-5 font-extrabold text-indigo-400">{staff.clinic_name}</td>
                       <td className="px-8 py-5 font-bold text-white">{staff.name}</td>
                       <td className="px-8 py-5 font-medium text-white/70">{staff.phone}</td>
@@ -940,26 +941,36 @@ export default function MasterDashboardPortal() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F2F4F6] pb-20">
-      {renderHeader()}
-      <div className="max-w-7xl mx-auto p-6 md:p-12">{renderContent()}</div>
+    <DashboardLayout>
+      <div className="min-h-screen bg-transparent pb-20 relative">
+        {/* Background Ambient Glows */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-[10%] left-[10%] w-[500px] h-[500px] rounded-full bg-emerald-900/10 blur-[120px]" />
+          <div className="absolute bottom-[20%] right-[10%] w-[600px] h-[600px] rounded-full bg-indigo-900/10 blur-[120px]" />
+        </div>
+        <div className="relative z-10">
+          {renderHeader()}
+          <div className="max-w-7xl mx-auto p-6 md:p-12">{renderContent()}</div>
+        </div>
       {selectedWorkbook && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-emerald-950/40 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-[#F2F4F6] w-full max-w-5xl rounded-[40px] shadow-2xl relative my-8">
-            <div className="p-8 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6 bg-white/5 p-6 rounded-[32px]">
-                <div><h2 className="text-xl font-black">{selectedWorkbook.user_id} 워크북 상세</h2><p className="text-xs text-white/40 font-bold">완성도: {calcFill(selectedWorkbook.data)}%</p></div>
-                <button onClick={() => setSelectedWorkbook(null)} className="p-2 bg-white/10 rounded-full hover:bg-white/20"><X size={20} /></button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md overflow-y-auto">
+          <div className="bg-[#0B0F19] border border-white/10 w-full max-w-5xl rounded-[40px] shadow-2xl shadow-emerald-900/20 relative my-8 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
+            <div className="p-8 max-h-[90vh] overflow-y-auto relative z-10">
+              <div className="flex items-center justify-between mb-6 bg-white/5 border border-white/10 p-6 rounded-[32px]">
+                <div><h2 className="text-xl font-black text-white">{selectedWorkbook.user_id} 워크북 상세</h2><p className="text-xs text-white/50 font-bold mt-1">완성도: <span className="text-emerald-400">{calcFill(selectedWorkbook.data)}%</span></p></div>
+                <button onClick={() => setSelectedWorkbook(null)} className="p-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:text-rose-400 transition-colors"><X size={20} /></button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white/5 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH1. 브랜딩</h4><p className="text-sm"><b>병원명:</b> {selectedWorkbook.data?.ch1?.clinic}</p><p className="text-sm"><b>성함:</b> {selectedWorkbook.data?.ch1?.name}</p><p className="text-sm"><b>비전:</b> {selectedWorkbook.data?.ch1?.vision}</p></div>
-                <div className="bg-white/5 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b pb-2">CH4. 지표/목표</h4><p className="text-sm"><b>매출목표:</b> {selectedWorkbook.data?.ch4?.revenueGoal}</p><p className="text-sm"><b>순익목표:</b> {selectedWorkbook.data?.ch4?.profitGoal}</p></div>
+                <div className="bg-white/5 border border-white/10 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b border-white/10 pb-3 text-emerald-400">CH1. 브랜딩</h4><p className="text-sm text-white/80"><b className="text-white/50 mr-2">병원명:</b> {selectedWorkbook.data?.ch1?.clinic}</p><p className="text-sm text-white/80"><b className="text-white/50 mr-2">성함:</b> {selectedWorkbook.data?.ch1?.name}</p><p className="text-sm text-white/80"><b className="text-white/50 mr-2">비전:</b> {selectedWorkbook.data?.ch1?.vision}</p></div>
+                <div className="bg-white/5 border border-white/10 p-6 rounded-[32px] space-y-4"><h4 className="font-bold border-b border-white/10 pb-3 text-emerald-400">CH4. 지표/목표</h4><p className="text-sm text-white/80"><b className="text-white/50 mr-2">매출목표:</b> {selectedWorkbook.data?.ch4?.revenueGoal}</p><p className="text-sm text-white/80"><b className="text-white/50 mr-2">순익목표:</b> {selectedWorkbook.data?.ch4?.profitGoal}</p></div>
               </div>
-              <div className="mt-6 flex justify-center"><button onClick={() => handleUnlockWorkbook(selectedWorkbook.user_id)} className="px-6 py-2 bg-amber-500/10 text-amber-400 rounded-xl font-bold hover:bg-amber-100">잠금 해제 (수정 권한 부여)</button></div>
+              <div className="mt-8 flex justify-center"><button onClick={() => handleUnlockWorkbook(selectedWorkbook.user_id)} className="px-8 py-3 bg-amber-500/20 border border-amber-500/30 text-amber-300 rounded-2xl font-bold hover:bg-amber-500/30 transition-all hover:scale-105 shadow-lg shadow-amber-500/10">잠금 해제 (수정 권한 부여)</button></div>
             </div>
           </div>
         </div>
       )}
-    </main>
+      </div>
+    </DashboardLayout>
   );
 }
