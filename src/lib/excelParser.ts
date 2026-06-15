@@ -514,13 +514,25 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     contextYear = targetMonth.split("-")[0];
   }
 
-  // 2. 헤더 행 찾기
+  // 2. 헤더 행 찾기 (월/구분 컬럼이 있는 행을 우선적으로 검색하여 컬럼 밀림 방지)
   let headerRowIndex = jsonData.findIndex(row => 
     row.some(cell => {
+      const c = normalize(cell);
+      return c === "월" || c === "월별" || c === "구분" || c === "진료월" || c === "연월";
+    }) && row.some(cell => {
       const c = normalize(cell);
       return c.includes("환자수") || c.includes("총진료비") || c.includes("수납총액") || c.includes("실인원") || c.includes("진료비계") || c.includes("총계");
     })
   );
+  
+  if (headerRowIndex === -1) {
+    headerRowIndex = jsonData.findIndex(row => 
+      row.some(cell => {
+        const c = normalize(cell);
+        return c.includes("환자수") || c.includes("총진료비") || c.includes("수납총액") || c.includes("실인원") || c.includes("진료비계") || c.includes("총계");
+      })
+    );
+  }
   
   if (headerRowIndex === -1) return [];
 
@@ -631,27 +643,27 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     target.patientMetrics.dailyAvg = Math.max(target.patientMetrics.dailyAvg, valDailyAvg); // 평균은 최대값 혹은 나중에 재계산
     ok.avgDailyPatients = Math.max(ok.avgDailyPatients, valDailyAvg);
 
-    const valTotalRevenue = findAndParse(["총진료비", "진료비계", "총매출액", "총계", "진료비합계"]);
+    const valTotalRevenue = findAndParse(["총진료비", "진료비계", "총매출액", "총계", "진료비합계"], ["환자", "인원", "수"]);
     target.generatedRevenue.total += valTotalRevenue;
     ok.totalRevenue += valTotalRevenue;
 
-    const valCopay = findAndParse(["본인부담", "본부금", "보험급여본인", "본인"]);
+    const valCopay = findAndParse(["본인부담", "본부금", "보험급여본인", "본인"], ["환자", "인원", "수"]);
     target.generatedRevenue.copay += valCopay;
     ok.copay += valCopay;
 
-    const valInsurance = findAndParse(["보험(청구)", "보험청구", "공단청구", "급여청구", "공단부담", "청구액", "보험급여청구"]);
+    const valInsurance = findAndParse(["보험(청구)", "보험청구", "공단청구", "급여청구", "공단부담", "청구액", "보험급여청구"], ["환자", "인원", "수"]);
     target.generatedRevenue.insurance += valInsurance;
     ok.insuranceClaim += valInsurance;
 
-    const valAutoClaim = findAndParse(["자보(청구)", "자보청구", "자동차보험"]);
+    const valAutoClaim = findAndParse(["자보(청구)", "자보청구", "자동차보험"], ["환자", "인원", "수"]);
     target.generatedRevenue.auto += valAutoClaim;
     ok.autoClaim += valAutoClaim;
 
-    const valWorkerClaim = findAndParse(["산재(청구)", "산재청구", "산재"]);
+    const valWorkerClaim = findAndParse(["산재(청구)", "산재청구", "산재"], ["환자", "인원", "수"]);
     target.generatedRevenue.worker += valWorkerClaim;
     ok.workerClaim += valWorkerClaim;
 
-    const valNonCovered = findAndParse(["비급여", "일반", "비보험"]);
+    const valNonCovered = findAndParse(["비급여", "일반", "비보험"], ["환자", "인원", "수"]);
     target.generatedRevenue.nonCovered += valNonCovered;
     ok.nonCovered += valNonCovered;
 
@@ -687,7 +699,7 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     target.paymentMethods.card += valCard;
     ok.cardPayment += valCard;
 
-    const valGift = findAndParse(["건생수납"]);
+    const valGift = findAndParse(["건생수납", "건생지원", "건생"]);
     target.paymentMethods.other += valGift;
     ok.giftPayment += valGift;
   }
