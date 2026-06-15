@@ -37,21 +37,41 @@ export async function POST(req: NextRequest) {
     for (const p of patientsData) {
       if (!p.chart_no || !p.name) continue;
 
-      // Upsert Patient
-      const { data: patientData, error: patientError } = await supabase
+      let patientData;
+      
+      // 1. Check if patient exists
+      const { data: existingPatient } = await supabase
         .from("patients")
-        .upsert([{
-          user_email: userEmail,
-          chart_no: String(p.chart_no),
-          name: p.name,
-          phone: p.phone || ""
-        }], { onConflict: 'user_email, chart_no' })
-        .select()
-        .single();
-
-      if (patientError) {
-        console.error("Patient upsert error:", patientError);
-        continue;
+        .select("id")
+        .eq("user_email", userEmail)
+        .eq("chart_no", String(p.chart_no))
+        .maybeSingle();
+        
+      if (existingPatient) {
+        // Update patient
+        const { data, error } = await supabase
+          .from("patients")
+          .update({ name: p.name, phone: p.phone || "" })
+          .eq("id", existingPatient.id)
+          .select()
+          .single();
+        if (error) {
+          console.error("Patient update error:", error);
+          continue;
+        }
+        patientData = data;
+      } else {
+        // Insert patient
+        const { data, error } = await supabase
+          .from("patients")
+          .insert([{ user_email: userEmail, chart_no: String(p.chart_no), name: p.name, phone: p.phone || "" }])
+          .select()
+          .single();
+        if (error) {
+          console.error("Patient insert error:", error);
+          continue;
+        }
+        patientData = data;
       }
 
       insertedPatientsCount++;
@@ -59,18 +79,25 @@ export async function POST(req: NextRequest) {
       // Insert Visit History if present
       if (p.last_visit_date) {
         let visitDate = p.last_visit_date;
-        // Basic normalization if it's MM/DD/YYYY or similar
-        // We'll trust the client side parser mostly.
         
-        await supabase
+        const { data: existingVisit } = await supabase
           .from("visit_history")
-          .upsert([{
-            patient_id: patientData.id,
-            user_email: userEmail,
-            visit_date: visitDate,
-            doctor_name: p.doctor_name || "원장",
-            treatment_type: p.treatment_type || "진료"
-          }], { onConflict: 'patient_id, visit_date' });
+          .select("id")
+          .eq("patient_id", patientData.id)
+          .eq("visit_date", visitDate)
+          .maybeSingle();
+          
+        if (!existingVisit) {
+          await supabase
+            .from("visit_history")
+            .insert([{
+              patient_id: patientData.id,
+              user_email: userEmail,
+              visit_date: visitDate,
+              doctor_name: p.doctor_name || "원장",
+              treatment_type: p.treatment_type || "진료"
+            }]);
+        }
       }
     }
 
