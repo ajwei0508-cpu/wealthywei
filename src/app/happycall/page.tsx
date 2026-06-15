@@ -80,23 +80,37 @@ export default function HappyCallDashboard() {
       if (headerRow === -1) throw new Error("환자명/이름 컬럼을 찾을 수 없습니다.");
 
       const headers = jsonData[headerRow].map(h => String(h || '').replace(/\s+/g, ''));
-      const idxName = headers.findIndex(h => h.includes('이름') || h.includes('환자명') || h.includes('수진자명') || h.includes('성명'));
-      const idxChart = headers.findIndex(h => h.includes('차트번호') || h.includes('등록번호'));
+      const idxName = headers.findIndex(h => h.includes('이름') || h.includes('환자명') || h.includes('수진자명') || h.includes('성명') || h.includes('고객명'));
+      const idxChart = headers.findIndex(h => h.includes('차트') || h.includes('등록번호') || h.includes('고객번호') || h.includes('환자번호'));
       const idxPhone = headers.findIndex(h => h.includes('연락처') || h.includes('휴대폰') || h.includes('전화번호') || h.includes('핸드폰'));
-      const idxVisit = headers.findIndex(h => h.includes('최근방문일') || h.includes('최종내원일') || h.includes('내원일'));
+      const idxVisit = headers.findIndex(h => h.includes('최근방문일') || h.includes('최종내원일') || h.includes('내원일') || h.includes('진료일') || h.includes('수진일') || h.includes('방문일') || h.includes('일자'));
 
-      if (idxName === -1 || idxChart === -1) throw new Error("이름과 차트번호 컬럼은 필수입니다.");
+      if (idxName === -1 || idxChart === -1) throw new Error("이름과 차트번호(또는 고객번호) 컬럼은 필수입니다.");
+
+      const parseDateStr = (val: any) => {
+        if (!val) return null;
+        if (typeof val === 'number') {
+           const d = new Date((val - 25569) * 86400 * 1000);
+           return d.toISOString().split('T')[0];
+        }
+        let s = String(val).trim();
+        const m = s.match(/(202\d|203[0-5])[\.\-\/\s]+(\d{1,2})[\.\-\/\s]+(\d{1,2})/);
+        if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        if (/^(202\d|203[0-5])(\d{2})(\d{2})$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        return null;
+      };
 
       const parsedPatients = [];
+      const todayStr = new Date().toISOString().split('T')[0];
+
       for (let i = headerRow + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || !row[idxName] || !row[idxChart]) continue;
         
-        let visitDate = row[idxVisit] ? String(row[idxVisit]) : null;
-        if (typeof row[idxVisit] === 'number') {
-           const d = new Date((row[idxVisit] - 25569) * 86400 * 1000);
-           visitDate = d.toISOString().split('T')[0];
-        }
+        let visitDate = idxVisit !== -1 ? parseDateStr(row[idxVisit]) : null;
+        if (!visitDate) visitDate = todayStr;
 
         parsedPatients.push({
           name: String(row[idxName]),
