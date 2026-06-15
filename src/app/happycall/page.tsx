@@ -81,7 +81,7 @@ export default function HappyCallDashboard() {
 
       const headers = jsonData[headerRow].map(h => String(h || '').replace(/\s+/g, ''));
       const idxName = headers.findIndex(h => h.includes('이름') || h.includes('환자명') || h.includes('수진자명') || h.includes('성명') || h.includes('고객명'));
-      const idxChart = headers.findIndex(h => h.includes('차트') || h.includes('등록번호') || h.includes('고객번호') || h.includes('환자번호'));
+      const idxChart = headers.findIndex(h => h.includes('차트') || h.includes('챠트') || h.includes('등록번호') || h.includes('고객번호') || h.includes('환자번호'));
       const idxPhone = headers.findIndex(h => h.includes('연락처') || h.includes('휴대폰') || h.includes('전화번호') || h.includes('핸드폰'));
       const idxVisit = headers.findIndex(h => h.includes('최근방문일') || h.includes('최종내원일') || h.includes('내원일') || h.includes('진료일') || h.includes('수진일') || h.includes('방문일') || h.includes('일자'));
 
@@ -102,15 +102,26 @@ export default function HappyCallDashboard() {
         return null;
       };
 
+      // Extract date from file name as fallback (e.g. "2024-05-12", "20240512", "240512")
+      let fallbackDateStr = new Date().toISOString().split('T')[0];
+      const fnMatch = file.name.match(/(202\d|203[0-5])[\.\-\_]?(\d{2})[\.\-\_]?(\d{2})/);
+      if (fnMatch) {
+        fallbackDateStr = `${fnMatch[1]}-${fnMatch[2]}-${fnMatch[3]}`;
+      } else {
+        const fnMatchShort = file.name.match(/(24|25|26|27|28|29|30)[\.\-\_]?(\d{2})[\.\-\_]?(\d{2})/);
+        if (fnMatchShort) {
+          fallbackDateStr = `20${fnMatchShort[1]}-${fnMatchShort[2]}-${fnMatchShort[3]}`;
+        }
+      }
+
       const parsedPatients = [];
-      const todayStr = new Date().toISOString().split('T')[0];
 
       for (let i = headerRow + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
         if (!row || !row[idxName] || !row[idxChart]) continue;
         
         let visitDate = idxVisit !== -1 ? parseDateStr(row[idxVisit]) : null;
-        if (!visitDate) visitDate = todayStr;
+        if (!visitDate) visitDate = fallbackDateStr;
 
         parsedPatients.push({
           name: String(row[idxName]),
