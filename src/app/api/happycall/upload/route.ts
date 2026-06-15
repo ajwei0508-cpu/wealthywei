@@ -88,15 +88,17 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
           
         if (!existingVisit) {
-          await supabase
+          const { error: visitError } = await supabase
             .from("visit_history")
             .insert([{
               patient_id: patientData.id,
               user_email: userEmail,
-              visit_date: visitDate,
-              doctor_name: p.doctor_name || "원장",
-              treatment_type: p.treatment_type || "진료"
+              visit_date: visitDate
             }]);
+            
+          if (visitError) {
+            console.error("Visit insert error:", visitError);
+          }
         }
       }
     }
