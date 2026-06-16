@@ -774,9 +774,23 @@ function parseHanisarang(jsonData: string[][], targetMonth: string): ParseExcelR
   let totalCount = 0;
   let newCount = 0;
 
+  // 실제 데이터 행 개수 계산 (합계 제외)
+  let validDataRowCount = 0;
+  for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+    const r = jsonData[i];
+    if (!r || r.length === 0 || !r[0]) continue;
+    const str = r.join("");
+    if (str.includes("합계") || str.includes("총계")) continue;
+    validDataRowCount++;
+  }
+
   for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
     const row = jsonData[i];
     if (!row || row.length === 0 || !row[0]) continue; // Assume chart number exists for valid row
+
+    const rowStr = row.join("");
+    const isTotalRow = rowStr.includes("합계") || rowStr.includes("총계");
+    if (isTotalRow && validDataRowCount > 0) continue;
 
     totalCount++;
     if ((idxNew !== -1 && parseCleanNumber(row[idxNew]) > 0) || 
@@ -941,9 +955,21 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
     let headerIdx = jsonData.findIndex(row => row.some(cell => normalize(cell).includes("총진료비")));
     if (headerIdx !== -1) {
       const headers = jsonData[headerIdx].map(h => normalize(h));
+      // 실제 데이터 행 카운트 로직
+      let validDataRowCount = 0;
+      for (let i = headerIdx + 1; i < jsonData.length; i++) {
+        const r = jsonData[i];
+        if (!r || r.every(c => !c)) continue;
+        if (r.some(c => String(c).includes("합계"))) continue;
+        validDataRowCount++;
+      }
+
       for (let i = headerIdx + 1; i < jsonData.length; i++) {
         const row = jsonData[i];
-        if (!row || row.every(c => !c) || row.some(c => String(c).includes("합계"))) continue;
+        if (!row || row.every(c => !c)) continue;
+        
+        const isTotalRow = row.some(c => String(c).includes("합계"));
+        if (isTotalRow && validDataRowCount > 0) continue;
 
         // 현재 행에서 월 정보 탐색, 없으면 이전 행의 월 상속
         const rowMonth = getMonthFromRow(row, lastSeenMonthFi);
