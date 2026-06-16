@@ -139,6 +139,26 @@ export const authOptions: NextAuthOptions = {
           return false;
         }
 
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+          );
+          
+          await supabase.from('user_activities').insert([{
+            user_email: user.email,
+            // @ts-ignore
+            user_role: user.role || 'director',
+            action_type: 'login',
+            path: '/',
+            metadata: { provider: account?.provider },
+            created_at: new Date().toISOString()
+          }]);
+        } catch (e) {
+          console.error("Failed to log login activity:", e);
+        }
+
         return true;
       } catch (error) {
         console.error("🔥 로그인 콜백 에러 발생:", error);

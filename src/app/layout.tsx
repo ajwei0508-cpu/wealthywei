@@ -4,6 +4,7 @@ import "@fontsource/pretendard/index.css";
 import { DataProvider } from "@/context/DataContext";
 import { VideoHistoryProvider } from "@/context/VideoHistoryContext";
 import AuthProvider from "@/components/AuthProvider";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 import { Toaster } from "react-hot-toast";
 
 
@@ -23,9 +24,10 @@ export default function RootLayout({
         <AuthProvider>
           <VideoHistoryProvider>
             <DataProvider>
-
-              {children}
-              <Toaster position="top-center" />
+              <AnalyticsProvider>
+                {children}
+                <Toaster position="top-center" />
+              </AnalyticsProvider>
             </DataProvider>
           </VideoHistoryProvider>
         </AuthProvider>

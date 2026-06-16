@@ -43,6 +43,7 @@ import AnalysisTimer from "@/components/AnalysisTimer";
 import { PROVIDED_OKCHART_DATA } from "@/lib/providedData";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
 import { NoDataAlert } from "@/components/NoDataAlert";
+import { useAnalytics } from "@/components/AnalyticsProvider";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -66,6 +67,7 @@ export default function OkchartPage() {
     resetData: clearData,
     deleteMonthlyData 
   } = useData();
+  const { trackEvent } = useAnalytics();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [insight, setInsight] = useState<string>("");
   const [loadingInsight, setLoadingInsight] = useState(false);
@@ -136,6 +138,9 @@ export default function OkchartPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    
+    trackEvent("excel_upload", { emr: "okchart", fileCount: files.length });
+    
     toast.loading("오케이차트 파일 분석 중...", { id: "excel-parse" });
     try {
       for (let i = 0; i < files.length; i++) {

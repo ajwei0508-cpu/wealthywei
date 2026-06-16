@@ -30,6 +30,7 @@ import { generateStrategicBriefing } from "@/lib/aiService";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { useSearchParams } from "next/navigation";
 import AnalysisTimer from "@/components/AnalysisTimer";
+import { useAnalytics } from "@/components/AnalyticsProvider";
 
 const formatNumber = (num: number) => {
   return new Intl.NumberFormat("ko-KR").format(num || 0);
@@ -38,6 +39,7 @@ const formatNumber = (num: number) => {
 export default function AiIntelligencePage() {
   const { monthlyData } = useData();
   const searchParams = useSearchParams();
+  const { trackEvent } = useAnalytics();
   const emrType = searchParams.get("emr"); // 'hanchart' or 'okchart'
   
   const availableMonths = useMemo(() => {
@@ -365,6 +367,7 @@ export default function AiIntelligencePage() {
                     const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
                     localStorage.removeItem(`strategic_briefing_${emrType || 'all'}_${historyKey}`);
                     setShouldAnalyze(true);
+                    trackEvent("ai_analysis", { emrType, startMonth, endMonth });
                   }}
                   disabled={loading || history.length === 0}
                   className="w-full group py-6 bg-white/5 text-[#05080F] font-black text-sm rounded-[2rem] transition-all hover:bg-blue-400 hover:scale-[1.02] active:scale-95 disabled:opacity-30 relative overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.1)]"
