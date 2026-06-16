@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { google } from "googleapis";
 import Papa from "papaparse";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Google Drive API 설정
-const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
 export async function GET(req: Request) {
   try {
@@ -42,39 +36,30 @@ export async function GET(req: Request) {
     const csvContent = Papa.unparse(logs);
     const fileName = `user_activities_backup_${new Date().toISOString().split("T")[0]}.csv`;
 
-    // 4. 구글 드라이브 업로드 (환경 변수가 설정된 경우에만)
-    if (GOOGLE_SERVICE_ACCOUNT_EMAIL && GOOGLE_PRIVATE_KEY && GOOGLE_DRIVE_FOLDER_ID) {
-      const auth = new google.auth.JWT(
-        GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        undefined,
-        GOOGLE_PRIVATE_KEY,
-        ["https://www.googleapis.com/auth/drive.file"]
-      );
-
-      const drive = google.drive({ version: "v3", auth });
-
-      const fileMetadata = {
-        name: fileName,
-        parents: [GOOGLE_DRIVE_FOLDER_ID],
-      };
-
-      const media = {
-        mimeType: "text/csv",
-        body: csvContent,
-      };
-
-      await drive.files.create({
-        requestBody: fileMetadata,
-        media: media,
-        fields: "id",
-      });
-
-      console.log(`Successfully uploaded ${fileName} to Google Drive`);
-    } else {
-      console.warn("Google Drive credentials missing. Skipping upload, but keeping CSV generation active.");
+    // 4. Supabase Storage 백업 폴더가 없으면 생성
+    const { data: buckets } = await supabase.storage.listBuckets();
+    if (!buckets?.find(b => b.name === 'backups')) {
+      await supabase.storage.createBucket('backups', { public: false });
     }
 
-    // 5. 백업 완료된 데이터 Supabase에서 삭제
+    // 5. Supabase Storage에 CSV 파일 업로드
+    const { error: uploadError } = await supabase
+      .storage
+      .from('backups')
+      .upload(fileName, csvContent, {
+        contentType: 'text/csv',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error("Supabase Storage Upload Error:", uploadError.message);
+      // 업로드 실패 시 원본 데이터 삭제하지 않고 에러 반환
+      throw new Error(`Failed to upload to Supabase Storage: ${uploadError.message}`);
+    }
+
+    console.log(`Successfully uploaded ${fileName} to Supabase Storage`);
+
+    // 6. 백업 완료된 데이터 원본 테이블에서 삭제
     const logIds = logs.map((l) => l.id);
     const { error: deleteError } = await supabase
       .from("user_activities")
@@ -87,7 +72,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      message: `Successfully backed up and deleted ${logs.length} logs.` 
+      message: `Successfully backed up and deleted ${logs.length} logs to Supabase Storage.` 
     });
 
   } catch (error: any) {
