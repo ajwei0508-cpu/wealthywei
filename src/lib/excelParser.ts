@@ -541,6 +541,16 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     h === "월" || h === "월별" || h.includes("년월") || h.includes("일자") || h.includes("기간") || h.includes("구분") || h.includes("날짜") || h.includes("진료월") || h.includes("연월")
   );
 
+  // 3.0 우선 실제 데이터 행이 몇 개인지 카운트 (빈 행 제외, 합계 행 제외)
+  let validDataRowCount = 0;
+  for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+    const r = jsonData[i];
+    if (!r || r.every(c => !c)) continue;
+    const str = r.join("");
+    if (str.includes("합계") || str.includes("총계")) continue;
+    validDataRowCount++;
+  }
+
   // 3. 모든 데이터 행 순회 및 '합산' 처리
   for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
     const dataRow = jsonData[i];
@@ -549,9 +559,8 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     const rowStr = dataRow.join("");
     const isTotalRow = rowStr.includes("합계") || rowStr.includes("총계");
 
-    // 리스트 형태일 때 합계 행은 그 자체로 의미가 있으나, 개별 행들을 합산할 것이므로 건너뜀
-    // 단, 데이터가 합계 행 딱 하나뿐인 양식이라면 이를 수용
-    if (isTotalRow && jsonData.length > headerRowIndex + 2) continue;
+    // 실제 데이터 행이 존재한다면 합계 행은 스킵, 실제 데이터가 0개라면 합계 행을 유일한 데이터로 간주
+    if (isTotalRow && validDataRowCount > 0) continue;
 
     let rowMonth = "";
     
@@ -603,11 +612,12 @@ function parseOkchart(jsonData: string[][], targetMonth: string): ParseExcelResu
     const target = resultsMap[rowMonth].extractedData;
     const ok = target.okchartData!;
 
-    // 헤더에는 구분/월 열이 없는데, 데이터 행에는 앞에 월 정보가 들어있는 경우 (인덱스 시프트 발생 방지)
+    // 헤더에는 구분/월 열이 없는데, 데이터 행에는 앞에 월 정보나 구분자(합계 등)가 들어있는 경우 (인덱스 시프트 방지)
     let dataOffset = 0;
     if (dateColIdx === -1 && dataRow.length > headers.length && dataRow[0] !== undefined) {
-      const extracted = tryExtractMonth(dataRow[0], contextYear);
-      if (extracted) {
+      const cell0Str = String(dataRow[0]).trim();
+      const extracted = tryExtractMonth(cell0Str, contextYear);
+      if (extracted || cell0Str.includes("합계") || cell0Str.includes("총계") || /^\d{1,2}월$/.test(cell0Str)) {
         dataOffset = 1;
       }
     }
