@@ -425,76 +425,74 @@ export default function Home() {
   // 1.5 프로필 설정 모달 (신규 가입자)
   if (showProfileSetup) {
     return (
-      <DashboardLayout>
-        <div className="min-h-screen bg-white/5 p-8 md:p-12 lg:p-20 flex items-center justify-center">
-          <div className="max-w-md w-full bg-white/5 rounded-[32px] p-8 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Sparkles size={32} />
-              </div>
-              <h2 className="text-2xl font-black text-white">환영합니다!</h2>
-              <p className="text-white/50 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
+      <div className="min-h-screen bg-white/5 p-8 md:p-12 lg:p-20 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white/5 rounded-[32px] p-8 shadow-2xl space-y-8 animate-in fade-in slide-in-from-bottom-8">
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Sparkles size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-white">환영합니다!</h2>
+            <p className="text-white/50 font-medium">서비스 이용을 위해 원장님의 정보를 입력해주세요.</p>
+          </div>
+
+          <form onSubmit={handleProfileSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-white/80">원장님 성함</label>
+              <input
+                type="text"
+                required
+                value={profileForm.realName}
+                onChange={e => setProfileForm({ ...profileForm, realName: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
+                placeholder="홍길동"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-white/80">한의원명</label>
+              <input
+                type="text"
+                required
+                value={profileForm.clinicName}
+                onChange={e => setProfileForm({ ...profileForm, clinicName: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
+                placeholder="바른한의원"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-white/80">연령 (나이)</label>
+              <input
+                type="number"
+                required
+                min="20"
+                max="100"
+                value={profileForm.age}
+                onChange={e => setProfileForm({ ...profileForm, age: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
+                placeholder="35"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-white/80">휴대폰 번호</label>
+              <input
+                type="text"
+                required
+                value={profileForm.phone}
+                onChange={e => setProfileForm({ ...profileForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
+                className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-white font-medium"
+                placeholder="- 제외 숫자만 입력"
+              />
             </div>
 
-            <form onSubmit={handleProfileSubmit} className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-white/80">원장님 성함</label>
-                <input
-                  type="text"
-                  required
-                  value={profileForm.realName}
-                  onChange={e => setProfileForm({ ...profileForm, realName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
-                  placeholder="홍길동"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-white/80">한의원명</label>
-                <input
-                  type="text"
-                  required
-                  value={profileForm.clinicName}
-                  onChange={e => setProfileForm({ ...profileForm, clinicName: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
-                  placeholder="바른한의원"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-white/80">연령 (나이)</label>
-                <input
-                  type="number"
-                  required
-                  min="20"
-                  max="100"
-                  value={profileForm.age}
-                  onChange={e => setProfileForm({ ...profileForm, age: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all text-white font-medium"
-                  placeholder="35"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-white/80">휴대폰 번호</label>
-                <input
-                  type="text"
-                  required
-                  value={profileForm.phone}
-                  onChange={e => setProfileForm({ ...profileForm, phone: e.target.value.replace(/[^0-9]/g, '') })}
-                  className="w-full px-4 py-3 rounded-xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-white font-medium"
-                  placeholder="- 제외 숫자만 입력"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age || !profileForm.phone}
-                className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
-              >
-                {isSaving ? "저장 중..." : "저장하고 시작하기"}
-              </button>
-            </form>
-          </div>
+            <button
+              type="submit"
+              disabled={isSaving || !profileForm.realName || !profileForm.clinicName || !profileForm.age || !profileForm.phone}
+              className="w-full py-4 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-white/50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-lg shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:transform-none disabled:shadow-none"
+            >
+              {isSaving ? "저장 중..." : "저장하고 시작하기"}
+            </button>
+          </form>
         </div>
-      </DashboardLayout>
+      </div>
     );
   }
 
