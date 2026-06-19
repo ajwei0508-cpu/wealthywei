@@ -22,6 +22,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const approvalStatus = (session?.user as any)?.approvalStatus || 'pending';
   const userRole = (session?.user as any)?.role || 'director';
 
+  const realName = (session?.user as any)?.realName;
+  const clinicName = (session?.user as any)?.clinicName;
+  const phone = (session?.user as any)?.phone;
+
   // Protect routes for staff
   React.useEffect(() => {
     if (userRole === 'staff') {
@@ -61,6 +65,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [status]);
 
   if (status === "loading") return <div className="min-h-screen bg-white/5 flex items-center justify-center">Loading...</div>;
+
+  // Enforce Profile Completion for Directors globally
+  if (status === "authenticated" && userRole === 'director' && (!realName || !clinicName || !phone)) {
+    if (pathname !== '/') {
+      router.replace('/');
+      return <div className="min-h-screen bg-white/5 flex items-center justify-center">프로필 설정 페이지로 이동 중...</div>;
+    }
+  }
+
   if (!isMaster && approvalStatus !== 'approved') {
     return (
       <div className="flex min-h-screen bg-[#031C13] items-center justify-center p-6">

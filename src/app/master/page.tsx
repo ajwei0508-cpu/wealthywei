@@ -721,11 +721,13 @@ export default function MasterDashboardPortal() {
                           <select 
                             value={user.perms?.approval_status || 'pending'}
                             onChange={(e) => handleApprove(user.email!, e.target.value, user.perms?.approved_categories || [])}
+                            disabled={user.clinicName === "한의원 미입력" || user.phone === "-"}
+                            title={(user.clinicName === "한의원 미입력" || user.phone === "-") ? "회원정보(한의원명, 연락처 등)가 입력되어야 승인이 가능합니다." : "승인 상태 변경"}
                             className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none transition-colors ${
                               user.perms?.approval_status === 'approved' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
                               user.perms?.approval_status === 'rejected' ? "bg-rose-500/10 text-rose-400 border-rose-500/20" :
                               "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                            }`}
+                            } ${(user.clinicName === "한의원 미입력" || user.phone === "-") ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             <option value="pending">대기</option>
                             <option value="approved">승인</option>
