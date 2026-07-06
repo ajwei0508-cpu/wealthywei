@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { supabase } from "@/lib/supabase";
+import { useSearchParams } from "next/navigation";
 
 export interface DataMetrics {
   patientMetrics: {
@@ -146,7 +147,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [compareMonth, setCompareMonth] = useState<string>("");
-
+  const [viewAsParam, setViewAsParam] = useState<string | null>(null);
+  const [monthParam, setMonthParam] = useState<string | null>(null);
   // Load Initial Data (Supabase & LocalStorage Fallback)
   useEffect(() => {
     const loadData = async () => {
@@ -157,9 +159,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const masterEmail = (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
           let isImpersonating = false;
           
-          if (targetEmail === masterEmail && typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search);
-            const viewAs = urlParams.get('viewAs');
+          if (targetEmail === masterEmail) {
+            const viewAs = viewAsParam || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('viewAs') : null);
             if (viewAs) {
               targetEmail = viewAs.toLowerCase();
               isImpersonating = true;
@@ -220,13 +221,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     };
 
     loadData();
-  }, [session]);
+  }, [session, viewAsParam]);
 
   const updateSelectedMonths = (dataMap: Record<string, DataMetrics>) => {
     const months = Object.keys(dataMap).sort();
     if (months.length > 0) {
-      const latest = months[months.length - 1];
-      const secondLatest = months.length > 1 ? months[months.length - 2] : latest;
+      let latest = months[months.length - 1];
+      
+      // Use month parameter if provided and valid
+      if (monthParam && months.includes(monthParam)) {
+        latest = monthParam;
+      }
+      
+      const latestIndex = months.indexOf(latest);
+      const secondLatest = latestIndex > 0 ? months[latestIndex - 1] : latest;
+      
       setSelectedMonth(latest);
       setCompareMonth(secondLatest);
     } else {
@@ -436,6 +445,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     ? compareData.generatedRevenue.total * 1.1 
     : (data.generatedRevenue?.total || 0) * 1.1;
 
+  function SearchParamsListener({ 
+    onViewAs, 
+    onMonth 
+  }: { 
+    onViewAs: (v: string | null) => void, 
+    onMonth: (m: string | null) => void 
+  }) {
+    const searchParams = useSearchParams();
+    useEffect(() => {
+      onViewAs(searchParams?.get("viewAs") || null);
+      onMonth(searchParams?.get("month") || null);
+    }, [searchParams, onViewAs, onMonth]);
+    return null;
+  }
+
   const contextValue = React.useMemo(() => ({
     data,
     compareData,
@@ -456,6 +480,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <DataContext.Provider value={contextValue}>
+      <Suspense fallback={null}>
+        <SearchParamsListener onViewAs={setViewAsParam} onMonth={setMonthParam} />
+      </Suspense>
       {children}
     </DataContext.Provider>
   );

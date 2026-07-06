@@ -132,22 +132,29 @@ export default function MasterDashboardPortal() {
   const unifiedData = React.useMemo(() => {
     const revenueMap = new Map<string, any>();
     allData.forEach(d => {
-      const email = d.user_email?.toLowerCase();
+      const email = (d.user_id || d.user_email)?.toLowerCase();
+      if (!email) return;
       if (!revenueMap.has(email)) revenueMap.set(email, { records: [], latest: null });
       revenueMap.get(email).records.push(d);
     });
 
     revenueMap.forEach((val) => {
-      val.records.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      val.records.sort((a: any, b: any) => {
+        const mA = String(a?.month || "");
+        const mB = String(b?.month || "");
+        return mB.localeCompare(mA);
+      });
       val.latest = val.records[0];
     });
 
     const workbookMap = new Map<string, WorkbookRow>();
-    workbooks.forEach(w => workbookMap.set(w.user_id.toLowerCase(), w));
+    workbooks.forEach(w => {
+      if (w.user_id) workbookMap.set(w.user_id.toLowerCase(), w);
+    });
 
     const allEmails = new Set([...Array.from(revenueMap.keys()), ...Array.from(workbookMap.keys())]);
 
-    return Array.from(allEmails).map(email => {
+    return Array.from(allEmails).filter(Boolean).map(email => {
       const rev = revenueMap.get(email);
       const wb = workbookMap.get(email);
       const kakaoName = userMap.get(email) || "카카오 이름 없음";
@@ -538,7 +545,7 @@ export default function MasterDashboardPortal() {
                           </div>
                         </td>
                         <td className="px-8 py-5 text-center"><div className="flex flex-col items-center gap-1.5"><div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-600" style={{ width: `${item.workbook.fill}%` }} /></div><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-white/50">{item.workbook.fill}%</span>{item.workbook.submitted ? <span className="px-1.5 py-0.5 bg-emerald-500/10/10 text-amber-400 text-[9px] font-black rounded border border-emerald-500/20">제출완료</span> : item.workbook.raw ? <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-black rounded border border-amber-500/20">작성중</span> : <span className="px-1.5 py-0.5 bg-white/5 text-white/40 text-[9px] font-black rounded border border-white/5">미작성</span>}</div></div></td>
-                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => { const user = allUsers.find(u => u.email?.toLowerCase() === item.email?.toLowerCase()); const emr = user?.permissions?.selected_emr || item.revenue.emrType || "donguibogam"; router.push(`/emr/${emr}?email=${encodeURIComponent(item.email)}`); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10/10 text-amber-400 rounded-xl text-xs font-black hover:bg-emerald-500/10 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
+                        <td className="px-8 py-5"><div className="flex items-center justify-center gap-2"><button onClick={() => { const user = allUsers.find(u => u.email?.toLowerCase() === item.email?.toLowerCase()); const emr = user?.permissions?.selected_emr || item.revenue.emrType || "donguibogam"; router.push(`/emr/${emr}?viewAs=${encodeURIComponent(item.email)}`); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-black hover:bg-emerald-100 transition shadow-sm"><BarChart3 size={12} /> 매출상세</button>{item.workbook.raw && <button onClick={() => setSelectedWorkbook(item.workbook.raw!)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10/10 text-amber-400 rounded-xl text-xs font-black hover:bg-emerald-500/10 transition shadow-sm"><Eye size={12} /> 워크북</button>}<button onClick={() => handleDeleteWorkbook(item.email, item.email)} className="p-2 bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-100 transition"><Trash2 size={14} /></button></div></td>
                       </tr>
                       {isExpanded && (
                         <tr className="bg-white/5/30">
@@ -575,7 +582,7 @@ export default function MasterDashboardPortal() {
                                           <td className="py-2.5 px-3 text-center">
                                             <div className="flex items-center justify-center gap-1.5">
                                               <button 
-                                                onClick={() => { const user = allUsers.find(u => u.email?.toLowerCase() === item.email?.toLowerCase()); const emr = user?.permissions?.selected_emr || item.revenue.emrType || "donguibogam"; router.push(`/emr/${emr}?email=${encodeURIComponent(item.email)}&month=${rec.month}`); }}
+                                                onClick={() => { const user = allUsers.find(u => u.email?.toLowerCase() === item.email?.toLowerCase()); const emr = user?.permissions?.selected_emr || item.revenue.emrType || "donguibogam"; router.push(`/emr/${emr}?viewAs=${encodeURIComponent(item.email)}&month=${rec.month}`); }}
                                                 className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shadow-sm"
                                               >
                                                 분석
@@ -685,7 +692,7 @@ export default function MasterDashboardPortal() {
               <tbody className="divide-y divide-white/5">
                 {combinedUsers.map((user) => {
                   const isDirector = user.type === 'director';
-                  const hasRev = isDirector ? allData.some(d => d.user_email?.toLowerCase() === user.email?.toLowerCase()) : false;
+                  const hasRev = isDirector ? allData.some(d => (d.user_id || d.user_email)?.toLowerCase() === user.email?.toLowerCase()) : false;
                   const hasWb = isDirector ? workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase()) : false;
                   
                   return (
