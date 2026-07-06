@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (userEmail) {
-      query = query.eq("user_id", userEmail.toLowerCase());
+      query = query.or(`user_id.eq.${userEmail.toLowerCase()},user_email.eq.${userEmail.toLowerCase()}`);
     }
 
     const { data, error } = await query;

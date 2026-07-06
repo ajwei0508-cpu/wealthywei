@@ -167,10 +167,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             }
           }
 
-          const { data: dbData, error } = await supabase
-            .from('clinic_metrics')
-            .select('month, metrics')
-            .eq('user_id', targetEmail);
+          let dbData = null;
+
+          if (isImpersonating) {
+            const res = await fetch(`/api/master-data?email=${encodeURIComponent(targetEmail)}`);
+            if (res.ok) {
+              const json = await res.json();
+              dbData = json.data;
+            }
+          } else {
+            const { data, error } = await supabase
+              .from('clinic_metrics')
+              .select('month, metrics')
+              .or(`user_id.eq.${targetEmail},user_email.eq.${targetEmail}`);
+            dbData = data;
+          }
 
           if (dbData) {
             const transformed: Record<string, DataMetrics> = {};
