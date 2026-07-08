@@ -102,7 +102,7 @@ export default function HappyCallDashboard() {
         return null;
       };
 
-      // Extract date from file name as fallback (e.g. "2024-05-12", "20240512", "240512")
+      // Extract date from file name as fallback (e.g. "2024-05-12", "20240512", "240512", "7월 3일")
       let fallbackDateStr = new Date().toISOString().split('T')[0];
       const fnMatch = file.name.match(/(202\d|203[0-5])[\.\-\_]?(\d{2})[\.\-\_]?(\d{2})/);
       if (fnMatch) {
@@ -111,6 +111,14 @@ export default function HappyCallDashboard() {
         const fnMatchShort = file.name.match(/(24|25|26|27|28|29|30)[\.\-\_]?(\d{2})[\.\-\_]?(\d{2})/);
         if (fnMatchShort) {
           fallbackDateStr = `20${fnMatchShort[1]}-${fnMatchShort[2]}-${fnMatchShort[3]}`;
+        } else {
+          const monthDayMatch = file.name.match(/(\d{1,2})월[\s]*(\d{1,2})일/);
+          if (monthDayMatch) {
+            const y = new Date().getFullYear();
+            const m = monthDayMatch[1].padStart(2, '0');
+            const d = monthDayMatch[2].padStart(2, '0');
+            fallbackDateStr = `${y}-${m}-${d}`;
+          }
         }
       }
 
