@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Activity, Lock } from "lucide-react";
 
 import { usePathname, useRouter } from "next/navigation";
+import Watermark from "./Watermark";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -64,6 +65,33 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [status]);
 
+  // Security: Prevent Right Click, Copy, and PrintScreen
+  React.useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent PrintScreen, F12, Ctrl+P, Ctrl+S, Ctrl+C
+      if (
+        e.key === 'PrintScreen' ||
+        e.key === 'F12' ||
+        (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S' || e.key === 'c' || e.key === 'C')) ||
+        (e.metaKey && (e.key === 'p' || e.key === 'P' || e.key === 's' || e.key === 'S' || e.key === 'c' || e.key === 'C'))
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   if (status === "loading") return <div className="min-h-screen bg-white/5 flex items-center justify-center">Loading...</div>;
 
   // Enforce Profile Completion for Directors globally
@@ -103,7 +131,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#031C13]">
+    <div className="flex min-h-screen bg-[#031C13] select-none">
+      <Watermark />
       <DashboardSidebar />
       <main className="flex-1 ml-72 overflow-x-hidden">
         <motion.div

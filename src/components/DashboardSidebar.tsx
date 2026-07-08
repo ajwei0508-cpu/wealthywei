@@ -21,7 +21,9 @@ import {
   MessageSquare,
   PhoneCall,
   Home,
-  PhoneForwarded
+  PhoneForwarded,
+  Users,
+  Presentation
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -161,8 +163,10 @@ export default function DashboardSidebar() {
     { 
       label: "직원", 
       items: [
-        { label: "접수실교육", url: "/employee/reception" },
-        { label: "치료실교육", url: "/employee/treatment" }
+        { label: "접수실 영상 교육", url: "/employee/reception" },
+        { label: "치료실 영상 교육", url: "/employee/treatment" },
+        { label: "실장 시뮬레이션", url: "https://gemini.google.com/gem/1F2jSey3V-y6B-RuweyZRLtJK5cBmdfuI?usp=sharing" },
+        { label: "교육 자료실 (PPT)", url: "/training-board" }
       ] 
     },
     { label: "실비", soon: true },
@@ -397,6 +401,7 @@ export default function DashboardSidebar() {
             onClick={() => router.push("/requests")}
             hasNew={hasNewRequest}
           />
+
           {userRole !== 'staff' && (
             <NavItem 
               icon={Settings} 
