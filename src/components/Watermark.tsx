@@ -9,12 +9,8 @@ export default function Watermark() {
   // session 정보가 없으면 렌더링하지 않음
   if (!session?.user) return null;
 
-  const name = session.user.name || (session.user as any).realName || "User";
-  const email = session.user.email || "";
-  const identifier = `${name} (${email})`;
-
-  // 워터마크 텍스트를 여러 번 반복해서 화면에 채움
-  const watermarkText = Array(50).fill(identifier).join("  •  ");
+  // 로고와 바른컨설팅 텍스트를 반복해서 표시할 배열
+  const items = Array.from({ length: 80 });
 
   return (
     <div 
@@ -22,9 +18,15 @@ export default function Watermark() {
       style={{ userSelect: 'none' }}
     >
       <div 
-        className="w-[200vw] h-[200vh] flex flex-wrap items-center justify-center -rotate-12 text-white font-black text-4xl break-all whitespace-pre-wrap leading-[3rem]"
+        className="w-[200vw] h-[200vh] flex flex-wrap items-center justify-center gap-x-20 gap-y-24 -rotate-12"
       >
-        {watermarkText}
+        {items.map((_, i) => (
+          <div key={i} className="flex items-center gap-4 text-white font-black text-6xl whitespace-nowrap">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" className="w-16 h-16 object-cover rounded-full grayscale" />
+            <span>바른컨설팅</span>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -221,6 +221,23 @@ export default function DashboardSidebar() {
         <div className="mb-4">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
+          <NavItem 
+            icon={MessageSquare} 
+            label="요청사항" 
+            isActive={pathname.startsWith("/requests")}
+            onClick={() => router.push("/requests")}
+            hasNew={hasNewRequest}
+          />
+
+          {/* 재내원 해피콜 (Moved to top) */}
+          <NavItem 
+            icon={PhoneForwarded} 
+            label="재내원 시스템" 
+            isLocked={userRole !== 'staff' && !isConsultingApproved && !isMaster}
+            isActive={pathname.startsWith("/happycall")}
+            onClick={() => router.push("/happycall")}
+          />
+
           {/* 1. 바른컨설팅 (Accordion) - Not for staff */}
           {userRole !== 'staff' && (
             <NavItem 
@@ -375,14 +392,7 @@ export default function DashboardSidebar() {
             />
           )}
 
-          {/* 재내원 해피콜 (Standalone Menu Item for all roles) */}
-          <NavItem 
-            icon={PhoneForwarded} 
-            label="재내원 시스템" 
-            isLocked={userRole !== 'staff' && !isConsultingApproved && !isMaster}
-            isActive={pathname.startsWith("/happycall")}
-            onClick={() => router.push("/happycall")}
-          />
+
         </div>
 
         <div className="mt-10 mb-4 pt-10 border-t border-white/5">
@@ -394,13 +404,7 @@ export default function DashboardSidebar() {
             onClick={() => router.push("/notice")}
             hasNew={hasNewNotice}
           />
-          <NavItem 
-            icon={MessageSquare} 
-            label="요청사항" 
-            isActive={pathname.startsWith("/requests")}
-            onClick={() => router.push("/requests")}
-            hasNew={hasNewRequest}
-          />
+
 
           {userRole !== 'staff' && (
             <NavItem 
