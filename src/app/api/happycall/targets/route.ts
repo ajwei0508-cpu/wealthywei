@@ -62,30 +62,31 @@ export async function GET(req: NextRequest) {
       assignmentMap[a.patient_chart_no] = a.staff_phone;
     });
 
-    // 1. Fetch patients
-    const { data: patients, error: errPatients } = await supabase
-      .from("patients")
-      .select("*")
-      .eq("user_email", userEmail);
+    async function fetchAll(table: string, email: string, orderBy?: {column: string, opts: any}) {
+      let allData: any[] = [];
+      let from = 0;
+      const step = 1000;
+      while (true) {
+        let q = supabase.from(table).select("*").eq("user_email", email).range(from, from + step - 1);
+        if (orderBy) q = q.order(orderBy.column, orderBy.opts);
+        const { data, error } = await q;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allData = [...allData, ...data];
+        if (data.length < step) break;
+        from += step;
+      }
+      return allData;
+    }
 
-    if (errPatients) throw errPatients;
+    // 1. Fetch patients
+    const patients = await fetchAll("patients", userEmail);
 
     // 2. Fetch visit history
-    const { data: visits, error: errVisits } = await supabase
-      .from("visit_history")
-      .select("*")
-      .eq("user_email", userEmail);
-
-    if (errVisits) throw errVisits;
+    const visits = await fetchAll("visit_history", userEmail);
 
     // 3. Fetch call logs
-    const { data: callLogs, error: errCallLogs } = await supabase
-      .from("call_logs")
-      .select("*")
-      .eq("user_email", userEmail)
-      .order("call_date", { ascending: false });
-
-    if (errCallLogs) throw errCallLogs;
+    const callLogs = await fetchAll("call_logs", userEmail, { column: "call_date", opts: { ascending: false } });
 
     // 4. Calculate latest visit for each patient
     const latestVisits: Record<string, string> = {};
