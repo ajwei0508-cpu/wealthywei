@@ -94,11 +94,30 @@ export default function HappyCallDashboard() {
            return d.toISOString().split('T')[0];
         }
         let s = String(val).trim();
+        // 1. YYYY-MM-DD
         const m = s.match(/(202\d|203[0-5])[\.\-\/\s]+(\d{1,2})[\.\-\/\s]+(\d{1,2})/);
         if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+        
+        // 2. YYYYMMDD
         if (/^(202\d|203[0-5])(\d{2})(\d{2})$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+        
+        // 3. YYMMDD (e.g. 240512)
+        const mShort = s.match(/^(24|25|26|27|28|29|30)(\d{2})(\d{2})$/);
+        if (mShort) return `20${mShort[1]}-${mShort[2]}-${mShort[3]}`;
+
+        // 4. MM-DD or MM월 DD일
+        const mMD = s.match(/^(\d{1,2})월?[\.\-\/\s]*(\d{1,2})일?$/);
+        if (mMD) {
+          const y = new Date().getFullYear();
+          return `${y}-${mMD[1].padStart(2, "0")}-${mMD[2].padStart(2, "0")}`;
+        }
+
+        // 5. Fallback Date parsing
         const d = new Date(s);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        if (!isNaN(d.getTime())) {
+          if (d.getFullYear() < 2020) d.setFullYear(new Date().getFullYear());
+          return d.toISOString().split('T')[0];
+        }
         return null;
       };
 
