@@ -364,8 +364,6 @@ export default function AiIntelligencePage() {
                 
                 <button 
                   onClick={() => {
-                    const historyKey = history.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
-                    localStorage.removeItem(`strategic_briefing_${emrType || 'all'}_${historyKey}`);
                     setShouldAnalyze(true);
                     trackEvent("ai_analysis", { emrType, startMonth, endMonth });
                   }}
