@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [userRole, pathname, router]);
 
-  // Security: Auto-logout after 10 minutes of inactivity
+  // Security: Auto-logout after 1 hour of inactivity
   React.useEffect(() => {
     if (status !== "authenticated") return;
     let timeoutId: NodeJS.Timeout;
@@ -46,7 +46,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         signOut({ callbackUrl: '/' });
-      }, 10 * 60 * 1000); // 10 minutes
+      }, 60 * 60 * 1000); // 1 hour
     };
 
     window.addEventListener('mousemove', resetTimer);
