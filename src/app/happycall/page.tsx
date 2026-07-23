@@ -55,6 +55,43 @@ export default function HappyCallDashboard() {
   const [aiCustomContext, setAiCustomContext] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Upload History Modal State
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState<{date: string, count: number}[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  const fetchUploadHistory = async () => {
+    setIsHistoryLoading(true);
+    try {
+      const res = await fetch('/api/happycall/history');
+      if (!res.ok) throw new Error('업로드 내역을 불러오는데 실패했습니다.');
+      const data = await res.json();
+      setUploadHistory(data.history || []);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  const handleDeleteHistory = async (date: string) => {
+    if (!confirm(`${date} 내원 환자 데이터를 삭제하시겠습니까?`)) return;
+    toast.loading("데이터 삭제 중...", { id: "delete-history" });
+    try {
+      const res = await fetch('/api/happycall/history', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date })
+      });
+      if (!res.ok) throw new Error("삭제 실패");
+      toast.success(`${date} 데이터가 삭제되었습니다.`, { id: "delete-history" });
+      fetchUploadHistory();
+      fetchTargets();
+    } catch (err: any) {
+      toast.error(err.message, { id: "delete-history" });
+    }
+  };
+
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,6 +249,7 @@ export default function HappyCallDashboard() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchTargets();
+      fetchUploadHistory();
     }
   }, [status]);
 
@@ -437,8 +475,15 @@ export default function HappyCallDashboard() {
                 <Clock size={14} className="animate-pulse" />
                 Happy Call System (Security Audited)
               </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight">재내원 해피콜 관리</h1>
-              <p className="text-slate-400 text-sm mt-1">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tight flex flex-col md:flex-row md:items-center gap-3">
+                재내원 해피콜 관리
+                {uploadHistory.length > 0 && (
+                  <span className="text-sm font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full whitespace-nowrap self-start md:self-auto flex items-center gap-1.5">
+                    <Sparkles size={14} /> 최신 데이터: {uploadHistory[0].date}
+                  </span>
+                )}
+              </h1>
+              <p className="text-slate-400 text-sm mt-2">
                 {userRole === 'staff' 
                   ? `${clinicName} - ${staffName}님 담당 환자 리스트입니다. (민감정보 보호중)` 
                   : `마지막 방문 이후 경과일에 따라 분류된 스마트 미내원 환자 목록입니다. (${clinicName})`}
@@ -460,6 +505,15 @@ export default function HappyCallDashboard() {
               
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls, .csv" className="hidden" />
+                <button
+                  onClick={() => {
+                    setIsHistoryModalOpen(true);
+                    fetchUploadHistory();
+                  }}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-white/10 text-white px-4 py-3 rounded-2xl text-xs font-bold transition-all"
+                >
+                  <History size={14} /> 내역 관리
+                </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/10 text-white px-4 py-3 rounded-2xl text-xs font-bold transition-all"
@@ -851,7 +905,71 @@ export default function HappyCallDashboard() {
           </div>
         </div>
       )}
-    </DashboardLayout>
 
+      {/* Upload History Modal */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative bg-[#083021] border border-white/10 w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-[#0B3A28]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-800 border border-slate-700 text-amber-400 rounded-xl flex items-center justify-center shrink-0">
+                  <History size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-white">업로드 내역 관리</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">최신 등록 일자를 확인하고 삭제할 수 있습니다.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsHistoryModalOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {isHistoryLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : uploadHistory.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 text-sm">업로드된 내역이 없습니다.</div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-emerald-900/30 border border-emerald-500/20 p-4 rounded-2xl flex items-start gap-3">
+                    <AlertCircle size={16} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm text-emerald-100 font-bold">
+                        가장 최근 등록된 내원일은 <span className="text-amber-400 text-base mx-1">{uploadHistory[0].date}</span>입니다.
+                      </p>
+                      <p className="text-xs text-emerald-400/80 mt-1">다음 업로드 시 해당 일자 이후의 데이터를 등록해 주세요.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {uploadHistory.map((item, idx) => (
+                      <div key={item.date} className="flex items-center justify-between bg-[#0B3A28] border border-white/5 p-4 rounded-2xl">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {idx === 0 && <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] font-bold rounded">최신</span>}
+                            <span className="font-bold text-white">{item.date}</span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">등록 환자수: {item.count}명</p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteHistory(item.date)}
+                          className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold rounded-xl transition-all"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
   );
 }
