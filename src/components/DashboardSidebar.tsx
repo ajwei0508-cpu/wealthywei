@@ -170,7 +170,12 @@ export default function DashboardSidebar() {
       ] 
     },
     { label: "실비", soon: true },
-    { label: "眞장부맥법", soon: true },
+    { 
+      label: "眞장부맥법", 
+      items: [
+        { label: "강의 영상 모음", url: "/jinmaek" }
+      ] 
+    },
     { 
       label: "바른 비급여", 
       items: [
