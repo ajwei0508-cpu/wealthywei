@@ -133,8 +133,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="flex min-h-screen bg-[#031C13] select-none">
       <Watermark />
-      <DashboardSidebar />
-      <main className="flex-1 ml-72 overflow-x-hidden">
+      <div className="print:hidden">
+        <DashboardSidebar />
+      </div>
+      <main className="flex-1 ml-72 print:ml-0 overflow-x-hidden">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

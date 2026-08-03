@@ -21,7 +21,8 @@ import {
   Users,
   Search,
   RefreshCw,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Download
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
@@ -41,6 +42,9 @@ export default function AiIntelligencePage() {
   const searchParams = useSearchParams();
   const { trackEvent } = useAnalytics();
   const emrType = searchParams.get("emr"); // 'hanchart' or 'okchart'
+  
+  const reportRef = React.useRef<HTMLDivElement>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
   
   const availableMonths = useMemo(() => {
     return Object.keys(monthlyData)
@@ -228,6 +232,12 @@ export default function AiIntelligencePage() {
     }
   }, [briefing]);
 
+  const handleDownloadPDF = () => {
+    trackEvent("download_pdf", { emrType });
+    // Use native browser print which perfectly preserves colors and avoids html2canvas 'oklab' parsing issues with Tailwind v4
+    window.print();
+  };
+
   if (availableMonths.length === 0) {
     return (
       <DashboardLayout>
@@ -412,8 +422,22 @@ export default function AiIntelligencePage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-12"
                 >
-                  {/* Detailed Analysis Card */}
-                  <div className="bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 rounded-[4rem] p-12 lg:p-20 shadow-2xl relative overflow-hidden group">
+                  {/* PDF Download Button */}
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={handleDownloadPDF}
+                      disabled={isPdfLoading}
+                      className="flex items-center gap-2 bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-600/30 text-emerald-400 font-bold px-5 py-2.5 rounded-2xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.1)] hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                    >
+                      {isPdfLoading ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+                      {isPdfLoading ? "PDF 생성 중..." : "PDF 리포트 저장"}
+                    </button>
+                  </div>
+                  
+                  {/* Printable Area */}
+                  <div ref={reportRef} className="space-y-12 bg-[#031C13] sm:p-4 rounded-[2rem] -mx-4 sm:mx-0">
+                    {/* Detailed Analysis Card */}
+                    <div className="bg-gradient-to-br from-white/[0.05] to-transparent border border-white/10 rounded-[4rem] p-12 lg:p-20 shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-20 opacity-[0.02] group-hover:scale-110 transition-transform duration-[3s]">
                       <BrainCircuit size={400} />
                     </div>
@@ -487,6 +511,7 @@ export default function AiIntelligencePage() {
                          )}
                        </div>
                     </div>
+                  </div>
                   </div>
                 </motion.div>
               ) : (
