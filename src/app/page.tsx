@@ -19,7 +19,8 @@ import {
   MessageSquare,
   Zap,
   Target,
-  Ticket
+  Ticket,
+  Printer
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -670,17 +671,29 @@ export default function Home() {
                       exit={{ opacity: 0, y: -20, height: 0 }}
                       className="mt-6 p-8 bg-[#083021]/60 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden"
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-emerald-600/10 flex items-center justify-center text-amber-400 shrink-0 border border-emerald-600/20 mt-1">
-                          <BrainCircuit size={20} />
-                        </div>
-                        <div className="flex-1 space-y-2">
-                          <h4 className="text-sm font-bold text-amber-400 uppercase tracking-widest">AI Management Secretary</h4>
-                          <div className="whitespace-pre-wrap text-slate-300 leading-relaxed font-light">
-                            {chatResponse || "데이터를 분석하고 있습니다..."}
-                            {isChatLoading && <span className="inline-block ml-1 animate-pulse">▋</span>}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-4 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-emerald-600/10 flex items-center justify-center text-amber-400 shrink-0 border border-emerald-600/20 mt-1">
+                            <BrainCircuit size={20} />
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <h4 className="text-sm font-bold text-amber-400 uppercase tracking-widest">AI Management Secretary</h4>
+                            <div className="whitespace-pre-wrap text-slate-300 leading-relaxed font-light">
+                              {chatResponse || "데이터를 분석하고 있습니다..."}
+                              {isChatLoading && <span className="inline-block ml-1 animate-pulse">▋</span>}
+                            </div>
                           </div>
                         </div>
+                        {chatResponse && !isChatLoading && (
+                          <button
+                            onClick={() => window.print()}
+                            className="p-2 px-4 bg-emerald-600/10 hover:bg-emerald-600/30 text-emerald-400 rounded-full transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-widest border border-emerald-600/20 whitespace-nowrap"
+                            title="답변 인쇄 / PDF 저장"
+                          >
+                            <Printer size={16} />
+                            <span className="hidden sm:inline">인쇄 / PDF</span>
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   )}
