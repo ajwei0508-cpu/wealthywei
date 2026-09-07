@@ -177,9 +177,12 @@ export default function DashboardSidebar() {
       ] 
     },
     { 
-      label: "바른 비급여", 
+      label: "한약 시스템", 
       items: [
-        { label: "바른복용법", url: "https://naver.me/FJOi4ygo" }
+        { label: "바른복용법", url: "https://naver.me/FJOi4ygo" },
+        { label: "상담 영상", url: "/herbal/consulting" },
+        { label: "한약 문자 안내", url: "/herbal/sms-guide" },
+        { label: "환불 대응 매뉴얼", url: "/herbal/refund-manual" }
       ] 
     },
     { 
@@ -188,7 +191,7 @@ export default function DashboardSidebar() {
     }
   ];
 
-  const [openSubMenus, setOpenSubMenus] = useState<string[]>(["바른 비급여"]);
+  const [openSubMenus, setOpenSubMenus] = useState<string[]>(["한약 시스템"]);
 
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => 
@@ -280,15 +283,22 @@ export default function DashboardSidebar() {
                             exit={{ height: 0, opacity: 0 }}
                             className="overflow-hidden pl-4 space-y-1"
                           >
-                            {sub.items?.map((item, i) => {
-                              const isExternal = item.url.startsWith('http');
+                            {sub.items?.map((item: any, i) => {
+                              if (item.isHeader) {
+                                return (
+                                  <div key={i} className="py-2 mt-1 text-[11px] font-bold text-amber-500/80 uppercase tracking-widest flex items-center gap-2">
+                                    {item.label}
+                                  </div>
+                                );
+                              }
+                              const isExternal = item.url?.startsWith('http');
                               return (
                                 <Link 
                                   key={i}
-                                  href={item.url}
+                                  href={item.url || "#"}
                                   target={isExternal ? "_blank" : undefined}
                                   rel={isExternal ? "noopener noreferrer" : undefined}
-                                  className="flex items-center gap-2 py-2 text-[12px] text-white/50 hover:text-amber-300 transition-colors"
+                                  className="flex items-center gap-2 py-1.5 text-[12px] text-white/50 hover:text-amber-300 transition-colors"
                                 >
                                   <div className="w-1 h-[1px] bg-white/20"></div>
                                   {item.label}
