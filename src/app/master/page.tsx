@@ -652,7 +652,8 @@ export default function MasterDashboardPortal() {
           email: u.email,
           image: u.image,
           perms: u.permissions || { approval_status: 'pending', approved_category: null },
-          raw: u
+          raw: u,
+          createdAt: u.permissions?.created_at || ""
         })),
       ...allStaff.map(s => ({
         type: 'staff' as const,
@@ -665,9 +666,10 @@ export default function MasterDashboardPortal() {
         email: `소속: ${s.parent_email}`,
         image: null,
         perms: null,
-        raw: s
+        raw: s,
+        createdAt: s.created_at || ""
       }))
-    ];
+    ].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
@@ -694,6 +696,7 @@ export default function MasterDashboardPortal() {
                   const isDirector = user.type === 'director';
                   const hasRev = isDirector ? allData.some(d => (d.user_id || d.user_email)?.toLowerCase() === user.email?.toLowerCase()) : false;
                   const hasWb = isDirector ? workbooks.some(w => w.user_id.toLowerCase() === user.email?.toLowerCase()) : false;
+                  const isNew = user.createdAt && (Date.now() - new Date(user.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000);
                   
                   return (
                     <tr key={user.id} className="hover:bg-white/5 transition-colors group">
@@ -708,6 +711,7 @@ export default function MasterDashboardPortal() {
                               <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm border ${isDirector ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>
                                 {isDirector ? '원장' : '직원'}
                               </span>
+                              {isNew && <span className="text-[9px] font-black px-1.5 py-0.5 bg-rose-500/20 text-rose-400 rounded-sm border border-rose-500/20 shadow-sm animate-pulse">신규</span>}
                             </div>
                             {user.kakaoName && <span className="text-[10px] text-white/50 font-bold bg-white/10 px-1.5 py-0.5 rounded w-fit mt-0.5">카카오: {user.kakaoName}</span>}
                           </div>
@@ -717,6 +721,7 @@ export default function MasterDashboardPortal() {
                         <div className="flex flex-col gap-0.5">
                           <span className="text-xs font-bold text-amber-500 bg-emerald-500/10/10 px-2 py-0.5 rounded-md w-fit">{user.clinicName}</span>
                           {user.age && <span className="text-[10px] text-white/50 font-medium ml-1">{user.age}세</span>}
+                          {user.createdAt && <span className="text-[10px] text-white/40 font-medium ml-1 mt-1">가입일: {new Date(user.createdAt).toLocaleDateString('ko-KR')}</span>}
                         </div>
                       </td>
                       <td className="px-8 py-5 flex flex-col gap-1">
