@@ -23,7 +23,8 @@ import {
   Home,
   PhoneForwarded,
   Users,
-  Presentation
+  Presentation,
+  Gem
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -100,6 +101,8 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
 export default function DashboardSidebar() {
   const { data: session } = useSession();
   const [isConsultingOpen, setIsConsultingOpen] = useState(true);
+  const [isLiftingOpen, setIsLiftingOpen] = useState(true);
+  const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -146,7 +149,26 @@ export default function DashboardSidebar() {
   const isConsultingApproved = userStatus === 'approved' && (approvedCategories.includes('consulting') || userCategory === 'consulting');
   const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('treatment_no_download') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
   const isOpeningApproved = userStatus === 'approved' && (approvedCategories.includes('opening') || approvedCategories.includes('consulting') || userCategory === 'opening' || userCategory === 'consulting');
-  const isPrescriptionApproved = userStatus === 'approved' && (approvedCategories.includes('prescription') || userCategory === 'prescription');
+  const isPrescriptionApproved = userStatus === 'approved' && (
+    approvedCategories.includes('prescription') || 
+    approvedCategories.includes('consulting') || 
+    approvedCategories.includes('바른처방법') || 
+    approvedCategories.includes('바른컨설팅') ||
+    userCategory === 'prescription' || 
+    userCategory === 'consulting' ||
+    userCategory === '바른처방법' || 
+    userCategory === '바른컨설팅'
+  );
+  const isLiftingApproved = userStatus === 'approved' && (
+    approvedCategories.includes('lifting') || 
+    approvedCategories.includes('consulting') || 
+    approvedCategories.includes('바른리프팅') || 
+    approvedCategories.includes('바른컨설팅') ||
+    userCategory === 'lifting' || 
+    userCategory === 'consulting' ||
+    userCategory === '바른리프팅' ||
+    userCategory === '바른컨설팅'
+  );
 
   const consultingSubMenus = [
     { label: "AI 차팅", soon: true },
@@ -404,7 +426,105 @@ export default function DashboardSidebar() {
               icon={Pill} 
               label="바른처방법" 
               isLocked={!isPrescriptionApproved && !isMaster} 
-            />
+              isOpen={isPrescriptionOpen}
+              onClick={() => {
+                setIsPrescriptionOpen(prev => !prev);
+                if (pathname !== "/prescription/diagnosis") {
+                  router.push("/prescription/diagnosis");
+                }
+              }}
+              isActive={pathname.startsWith("/prescription")}
+            >
+              <div className="space-y-1">
+                <Link 
+                  href="/prescription/diagnosis" 
+                  className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${
+                    pathname === '/prescription/diagnosis' ? 'text-amber-300 font-bold' : 'text-white/60 hover:text-amber-300'
+                  }`}
+                >
+                  <div className="w-1 h-[1px] bg-white/20"></div>
+                  한열허실 진단
+                  <Sparkles size={10} className="text-amber-400 opacity-80" />
+                </Link>
+              </div>
+            </NavItem>
+          )}
+
+          {/* 5. 바른 리프팅 - Not for staff */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={Gem} 
+              label="바른 리프팅" 
+              isLocked={!isLiftingApproved && !isMaster}
+              isOpen={isLiftingOpen}
+              onClick={() => {
+                setIsLiftingOpen(prev => !prev);
+                if (pathname !== "/lifting") {
+                  router.push("/lifting");
+                }
+              }}
+              isActive={pathname.startsWith("/lifting")}
+            >
+              <div className="space-y-1">
+                {/* 1. 초진상담 영상 (OPEN) */}
+                <Link 
+                  href="/lifting?tab=video" 
+                  className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${
+                    pathname === '/lifting' ? 'text-amber-300 font-bold' : 'text-white/60 hover:text-amber-300'
+                  }`}
+                >
+                  <div className="w-1 h-[1px] bg-white/20"></div>
+                  초진상담 영상
+                  <Sparkles size={10} className="text-amber-400 opacity-80" />
+                </Link>
+
+                {/* 2. 리프팅 시스템 (OPEN) */}
+                <Link 
+                  href="/lifting/system" 
+                  className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${
+                    pathname.startsWith('/lifting/system') ? 'text-amber-300 font-bold' : 'text-white/60 hover:text-amber-300'
+                  }`}
+                >
+                  <div className="w-1 h-[1px] bg-white/20"></div>
+                  리프팅 시스템
+                  <Sparkles size={10} className="text-amber-400 opacity-80" />
+                </Link>
+
+                {/* 3. 소비자 심리 상담 & 티켓팅 (OPEN) */}
+                <Link 
+                  href="/lifting?tab=psychology" 
+                  className="flex items-center gap-2 py-2 text-[12px] text-white/60 hover:text-amber-300 transition-colors"
+                >
+                  <div className="w-1 h-[1px] bg-white/20"></div>
+                  소비자 심리 상담 & 티켓팅
+                  <Sparkles size={10} className="text-amber-400 opacity-80" />
+                </Link>
+
+                {/* 4. 임상 프로토콜 & 매선술 (LOCKED) */}
+                <div 
+                  className="flex items-center justify-between py-2 text-[12px] text-white/30 cursor-not-allowed select-none px-0.5"
+                  title="임상 프로토콜 (현재 잠금 상태)"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-[1px] bg-white/10"></div>
+                    임상 프로토콜 & 매선술
+                  </div>
+                  <Lock size={12} className="text-white/20" />
+                </div>
+
+                {/* 5. 안면 벡터 맵 & SOP (LOCKED) */}
+                <div 
+                  className="flex items-center justify-between py-2 text-[12px] text-white/30 cursor-not-allowed select-none px-0.5"
+                  title="안면 벡터 맵 & SOP (현재 잠금 상태)"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-[1px] bg-white/10"></div>
+                    안면 벡터 맵 & SOP
+                  </div>
+                  <Lock size={12} className="text-white/20" />
+                </div>
+              </div>
+            </NavItem>
           )}
 
 

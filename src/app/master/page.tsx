@@ -375,7 +375,8 @@ export default function MasterDashboardPortal() {
     { id: 'treatment', name: '바른진료법' },
     { id: 'treatment_no_download', name: '바른진료법 (다운로드 불가)' },
     { id: 'opening', name: '바른개원법' },
-    { id: 'prescription', name: '바른처방법' }
+    { id: 'prescription', name: '바른처방법' },
+    { id: 'lifting', name: '바른리프팅' }
   ];
 
   if (status === "loading" || loading) {
