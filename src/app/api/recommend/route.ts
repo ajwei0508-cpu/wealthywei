@@ -1,13 +1,30 @@
 import { model } from "@/lib/gemini";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 
 // 서버 측 키(GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY)를 우선하고, 클라이언트 측 키(NEXT_PUBLIC_GEMINI_API_KEY)를 차선으로 사용합니다.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
+// Rate limiting in-memory map
+const recommendRateLimitMap = new Map<string, { count: number; timestamp: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const MAX_RECOMMEND_REQUESTS_PER_MINUTE = 10;
+
+// In-memory cache for repeated monthly analysis
+const recommendCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30분 캐시 (중복 호출 시 API 비용 0원)
+
 export async function POST(req: Request) {
   let rawResponseText = "";
   try {
-    // 1. API 키 유효성 검사
+    // 1. 인증 유효성 검사
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. API 키 유효성 검사
     if (!GEMINI_API_KEY) {
       console.error("🔥 AI 분석 API 에러: GEMINI_API_KEY가 설정되지 않았습니다.");
       return NextResponse.json(
@@ -16,10 +33,38 @@ export async function POST(req: Request) {
       );
     }
 
+    // 3. Rate Limiting 적용
+    const userEmail = session.user.email;
+    const now = Date.now();
+    const userRate = recommendRateLimitMap.get(userEmail);
+
+    if (userRate) {
+      if (now - userRate.timestamp < RATE_LIMIT_WINDOW) {
+        if (userRate.count >= MAX_RECOMMEND_REQUESTS_PER_MINUTE) {
+          return NextResponse.json(
+            { error: "AI 분석 요청이 너무 빈번합니다. 잠시 후 다시 시도해 주세요." },
+            { status: 429 }
+          );
+        }
+        userRate.count += 1;
+      } else {
+        recommendRateLimitMap.set(userEmail, { count: 1, timestamp: now });
+      }
+    } else {
+      recommendRateLimitMap.set(userEmail, { count: 1, timestamp: now });
+    }
+
     const { metrics, userInfo, targetMonth, compareMonth, expertKeywords } = await req.json();
 
     if (!metrics || !Array.isArray(metrics)) {
       return NextResponse.json({ error: "Invalid metrics array" }, { status: 400 });
+    }
+
+    // 4. 캐시 키 확인 (동일 사용자의 동일 월 분석 중복 과금 차단)
+    const cacheKey = `${userEmail}_${targetMonth}_${compareMonth}_${JSON.stringify(metrics.map((m: any) => m.percent))}`;
+    const cached = recommendCache.get(cacheKey);
+    if (cached && cached.expiry > now) {
+      return NextResponse.json(cached.data);
     }
 
     const userName = userInfo?.name || "원장님";
@@ -69,13 +114,10 @@ export async function POST(req: Request) {
       }
     `;
 
-    // 2. 중앙화된 Gemini 모델 호출 (src/lib/gemini.ts의 singleton 사용)
+    // 5. 중앙화된 Gemini 모델 호출
     const result = await model.generateContent(prompt);
     const response = await result.response;
     rawResponseText = response.text();
-    
-    console.log("=== Raw Gemini Response ===");
-    console.log(rawResponseText);
 
     let data;
     const jsonMatch = rawResponseText.match(/\{[\s\S]*\}/);
@@ -85,9 +127,11 @@ export async function POST(req: Request) {
       throw new Error("No JSON object found in response");
     }
 
+    // 6. 결과 캐싱 (30분간 동일 요청은 Gemini 호출 없이 캐시 반환)
+    recommendCache.set(cacheKey, { data, expiry: now + CACHE_TTL });
+
     return NextResponse.json(data);
   } catch (error) {
-    // 3. 에러 로깅 강화
     console.error("🔥 AI 분석 API 에러 상세:", error);
     
     return NextResponse.json(

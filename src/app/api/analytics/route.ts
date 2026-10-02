@@ -9,8 +9,21 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { user_email, user_role, action_type, path, metadata } = body;
+    let body: any;
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/json')) {
+      body = await req.json();
+    } else {
+      const text = await req.text();
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = {};
+      }
+    }
+
+    const { user_email, user_role, action_type, path, metadata } = body || {};
 
     // Validate essential fields
     if (!action_type || !path) {

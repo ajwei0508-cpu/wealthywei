@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 
+// 24시간 인메모리 캐시 (YouTube API 쿼터 고갈 및 비용 방지)
+const youtubeCache = new Map<string, { data: any; expiry: number }>();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q");
 
   if (!q) {
     return NextResponse.json({ error: "Missing query parameter 'q'" }, { status: 400 });
+  }
+
+  // 1. 캐시 검사
+  const cached = youtubeCache.get(q);
+  if (cached && cached.expiry > Date.now()) {
+    return NextResponse.json(cached.data);
   }
 
   const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
@@ -25,16 +35,20 @@ export async function GET(req: Request) {
     if (!res.ok) {
        const errorBody = await res.json();
        console.error("YouTube API failure:", errorBody);
-        const isQuotaExceeded = errorBody.error?.errors?.some((e: any) => e.reason === "quotaExceeded");
-        const isKeyRestricted = errorBody.error?.errors?.some((e: any) => e.reason === "keyInvalid" || e.reason === "forbidden");
-        
-        return NextResponse.json({ 
-          error: isQuotaExceeded ? "YouTube_Quota_Exceeded" : (isKeyRestricted ? "YouTube_Key_Restricted" : "YouTube API Request Failed"), 
-          details: errorBody 
-        }, { status: res.status });
+       const isQuotaExceeded = errorBody.error?.errors?.some((e: any) => e.reason === "quotaExceeded");
+       const isKeyRestricted = errorBody.error?.errors?.some((e: any) => e.reason === "keyInvalid" || e.reason === "forbidden");
+       
+       return NextResponse.json({ 
+         error: isQuotaExceeded ? "YouTube_Quota_Exceeded" : (isKeyRestricted ? "YouTube_Key_Restricted" : "YouTube API Request Failed"), 
+         details: errorBody 
+       }, { status: res.status });
     }
 
     const data = await res.json();
+
+    // 2. 캐시 저장
+    youtubeCache.set(q, { data, expiry: Date.now() + CACHE_TTL });
+
     return NextResponse.json(data);
   } catch (error) {
     console.error("YouTube API Exception:", error);

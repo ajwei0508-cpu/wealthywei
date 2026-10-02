@@ -1,12 +1,52 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
 
 // Vercel 환경에서 타임아웃을 최대화 (Pro: 300초, Hobby: 60초)
 export const maxDuration = 60;
 
+// Rate limiting in-memory map
+const blogRateLimitMap = new Map<string, { count: number; timestamp: number }>();
+const RATE_LIMIT_WINDOW = 60 * 1000;
+const MAX_BLOG_REQUESTS_PER_MINUTE = 2; // 1분에 최대 2회만 허용하여 고액 과금(DALL-E 3) 원천 차단
+
 export async function POST(req: Request) {
   try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'dummy_key_for_build' });
+    // 1. 인증 검증 (비인가 접속 차단)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 2. Rate Limiting 적용 (DALL-E 3 과도한 호출 방지)
+    const userEmail = session.user.email;
+    const now = Date.now();
+    const userRate = blogRateLimitMap.get(userEmail);
+
+    if (userRate) {
+      if (now - userRate.timestamp < RATE_LIMIT_WINDOW) {
+        if (userRate.count >= MAX_BLOG_REQUESTS_PER_MINUTE) {
+          return NextResponse.json(
+            { error: "단시간 내 너무 많은 블로그 생성 요청이 발생했습니다. 1분 후 다시 시도해 주세요." },
+            { status: 429 }
+          );
+        }
+        userRate.count += 1;
+      } else {
+        blogRateLimitMap.set(userEmail, { count: 1, timestamp: now });
+      }
+    } else {
+      blogRateLimitMap.set(userEmail, { count: 1, timestamp: now });
+    }
+
+    // 3. API 키 유효성 검사
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey === 'dummy_key_for_build') {
+      return NextResponse.json({ error: "OPENAI_API_KEY가 서버 환경변수에 설정되어 있지 않습니다." }, { status: 500 });
+    }
+
+    const openai = new OpenAI({ apiKey });
 
     const { keyword } = await req.json();
     if (!keyword) {

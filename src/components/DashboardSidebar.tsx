@@ -24,7 +24,8 @@ import {
   PhoneForwarded,
   Users,
   Presentation,
-  Gem
+  Gem,
+  Activity
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -109,9 +110,16 @@ export default function DashboardSidebar() {
   const [hasNewNotice, setHasNewNotice] = useState(false);
   const [hasNewRequest, setHasNewRequest] = useState(false);
 
+  const lastCheckTimeRef = React.useRef(0);
+
   useEffect(() => {
     const checkNewItems = async () => {
       if (!session?.user?.email) return;
+      const now = Date.now();
+      // Throttle: 30초 이내 중복 호출 방지
+      if (now - lastCheckTimeRef.current < 30000) return;
+      lastCheckTimeRef.current = now;
+
       try {
         const [noticesRes, requestsRes] = await Promise.all([
           fetch('/api/notices'),
@@ -574,10 +582,17 @@ export default function DashboardSidebar() {
           <div className="flex flex-col gap-2 mt-4">
             <Link 
               href="/master"
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-emerald-500/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-emerald-500/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-blue-400/20 to-blue-500/10 border border-emerald-500/20 hover:from-blue-400/30 hover:to-blue-500/20 hover:border-emerald-500/40 text-blue-200 text-xs font-bold transition-all group shadow-lg shadow-blue-900/10 relative z-10 cursor-pointer active:scale-95"
             >
               <BarChart3 size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
-              마스터 매출 통계 관리
+              마스터 통합 관리
+            </Link>
+            <Link 
+              href="/master?tab=analytics"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 hover:from-emerald-500/30 hover:to-teal-500/20 hover:border-emerald-400 text-emerald-300 text-xs font-bold transition-all group relative z-10 cursor-pointer active:scale-95"
+            >
+              <Activity size={14} className="text-emerald-400 group-hover:scale-110 transition-transform" />
+              실시간 방문·트래픽 통계
             </Link>
           </div>
         )}

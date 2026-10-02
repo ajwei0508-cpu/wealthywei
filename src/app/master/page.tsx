@@ -1,32 +1,34 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import Card from "@/components/Card";
+import MasterAnalyticsDashboard from "@/components/master/MasterAnalyticsDashboard";
 import { 
   ArrowLeft, 
   Users, 
   Database, 
   ShieldCheck, 
-  TrendingUp,
-  TrendingDown,
-  Search,
-  FileText,
-  ArrowRight,
-  ClipboardList,
-  Check,
-  Lock,
-  Unlock,
-  Trash2,
-  Eye,
-  BarChart3,
-  ChevronRight,
-  ChevronDown,
-  X,
-  Activity,
-  Crown
+  TrendingUp, 
+  TrendingDown, 
+  Search, 
+  FileText, 
+  ArrowRight, 
+  ClipboardList, 
+  Check, 
+  Lock, 
+  Unlock, 
+  Trash2, 
+  Eye, 
+  BarChart3, 
+  ChevronRight, 
+  ChevronDown, 
+  X, 
+  Activity, 
+  Crown,
+  Timer
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -94,15 +96,29 @@ const getFlatMetrics = (metrics: any) => {
   };
 };
 
-export default function MasterDashboardPortal() {
+function MasterDashboardPortalContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   
   // -- Common State --
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"unified" | "users" | "staff">("unified");
+  const [activeTab, setActiveTab] = useState<"unified" | "users" | "staff" | "analytics">("unified");
   const masterEmail = process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com";
   const isMaster = session?.user?.email?.toLowerCase() === masterEmail.toLowerCase();
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "analytics") {
+      setActiveTab("analytics");
+    } else if (tabParam === "users") {
+      setActiveTab("users");
+    } else if (tabParam === "staff") {
+      setActiveTab("staff");
+    } else if (tabParam === "unified") {
+      setActiveTab("unified");
+    }
+  }, [searchParams]);
 
   // -- Data State --
   const [allData, setAllData] = useState<any[]>([]);
@@ -402,6 +418,7 @@ export default function MasterDashboardPortal() {
           </div>
           <nav className="flex items-center bg-white/10/50 p-1 rounded-2xl ml-4">
             <button onClick={() => { setActiveTab("unified"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "unified" ? "bg-white/5 text-emerald-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}>통합 데이터 관리</button>
+            <button onClick={() => { setActiveTab("analytics"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "analytics" ? "bg-white/10 text-amber-300 shadow-sm font-black" : "text-white/40 hover:text-white/70"}`}><BarChart3 size={14} className={activeTab === "analytics" ? "text-amber-400" : ""} />방문·트래픽 통계</button>
             <button onClick={() => { setActiveTab("users"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${activeTab === "users" ? "bg-white/5 text-emerald-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}>가입자 현황</button>
             <button onClick={() => { setActiveTab("staff"); setSelectedWorkbook(null); }} className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === "staff" ? "bg-white/5 text-indigo-400 shadow-sm" : "text-white/40 hover:text-white/70"}`}><Users size={14} />직원 현황</button>
             <div className="w-[1px] h-3 bg-white/20 mx-1" />
@@ -950,6 +967,7 @@ export default function MasterDashboardPortal() {
 
   const renderContent = () => {
     if (activeTab === "unified") return renderUnifiedView();
+    if (activeTab === "analytics") return <MasterAnalyticsDashboard />;
     if (activeTab === "users") return renderUsersView();
     if (activeTab === "staff") return renderStaffView();
     return renderUnifiedView();
@@ -987,5 +1005,17 @@ export default function MasterDashboardPortal() {
       )}
       </div>
     </DashboardLayout>
+  );
+}
+
+export default function MasterDashboardPortal() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-transparent flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+      </div>
+    }>
+      <MasterDashboardPortalContent />
+    </Suspense>
   );
 }
