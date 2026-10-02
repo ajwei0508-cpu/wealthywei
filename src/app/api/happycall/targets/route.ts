@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { createClient } from "@supabase/supabase-js";
+import { evaluateHappyCallStage } from "@/lib/holidayUtils";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,7 +98,14 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // 5. Calculate targets
+    // 5. Calculate targets with Holiday & Business Days Engine
+    const { searchParams } = new URL(req.url);
+    const mode = (searchParams.get("mode") as "business" | "calendar") || "business";
+    const closedDaysParam = searchParams.get("closed_days"); // e.g. "0" (Sunday) or "0,6"
+    const closedDaysOfWeek = closedDaysParam 
+      ? closedDaysParam.split(",").map(Number).filter(n => !isNaN(n))
+      : [0]; // default: Sunday (일요일 휴진)
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -112,62 +120,55 @@ export async function GET(req: NextRequest) {
 
     for (const p of (patients || [])) {
       const assignedTo = assignmentMap[p.chart_no];
-      
-      // If staff, hide patients assigned to OTHER staff
-      // Removed: Staff can now see all assigned or unassigned patients
-
 
       const lastVisit = latestVisits[p.id];
       if (!lastVisit) continue;
 
-      const parts = lastVisit.split('-');
-      let lastVisitDate = new Date();
-      if (parts.length >= 3) {
-        lastVisitDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      } else {
-        lastVisitDate = new Date(lastVisit);
-      }
-      lastVisitDate.setHours(0, 0, 0, 0);
-      
-      const diffTime = today.getTime() - lastVisitDate.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      // Smart Evaluation with Holiday / Long-weekend / Business Days lookback
+      const evalResult = evaluateHappyCallStage(lastVisit, today, mode, closedDaysOfWeek);
 
-      if (diffDays < 4) continue;
-
-      let targetStage: '4일차' | '7일차' | '8일 이상' = '8일 이상';
-      if (diffDays >= 4 && diffDays <= 6) {
-        targetStage = '4일차';
-      } else if (diffDays === 7) {
-        targetStage = '7일차';
-      } else {
-        targetStage = '8일 이상';
-      }
+      if (evalResult.targetStage === "대기") continue;
 
       const patientHistory = callLogsByPatient[p.id] || [];
       const latestCall = patientHistory[0] || null;
 
-      // Mask sensitive data for the list view
       const isUnassigned = !assignedTo;
       
       targets.push({
         ...p,
         name: p.name,
         phone: p.phone,
-        original_name_masked: false, // flag to indicate this is masked data
+        original_name_masked: false,
         assigned_to: assignedTo,
         is_mine: assignedTo === staffPhone,
         is_unassigned: isUnassigned,
         last_visit_date: lastVisit,
-        days_passed: diffDays,
-        target_stage: targetStage,
+        days_passed: evalResult.daysPassed,
+        calendar_days: evalResult.calendarDays,
+        business_days: evalResult.businessDays,
+        target_stage: evalResult.targetStage,
+        is_carryover: evalResult.isCarryover,
+        carryover_reason: evalResult.carryoverReason,
+        badge_label: evalResult.badgeLabel,
         latest_call: latestCall,
         history: patientHistory
       });
     }
 
-    targets.sort((a, b) => b.days_passed - a.days_passed);
+    // Sort: Carryover patients first within their stage, then by days passed
+    targets.sort((a, b) => {
+      if (a.is_carryover && !b.is_carryover) return -1;
+      if (!a.is_carryover && b.is_carryover) return 1;
+      return b.days_passed - a.days_passed;
+    });
 
-    return NextResponse.json({ targets });
+    return NextResponse.json({ 
+      targets,
+      mode,
+      closed_days: closedDaysOfWeek,
+      total_count: targets.length,
+      carryover_count: targets.filter(t => t.is_carryover).length
+    });
   } catch (error: any) {
     console.error("GET happycall targets error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

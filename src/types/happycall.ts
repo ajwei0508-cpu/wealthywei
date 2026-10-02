@@ -7,8 +7,17 @@ export interface Patient {
   created_at: string;
   last_visit_date?: string;
   days_passed?: number;
-  target_stage?: '4일차' | '7일차' | '8일 이상';
+  calendar_days?: number;
+  business_days?: number;
+  target_stage?: '4일차' | '7일차' | '8일 이상' | '대기';
+  is_carryover?: boolean;
+  carryover_reason?: string;
+  badge_label?: string;
   latest_call?: CallLog;
+  history?: CallLog[];
+  assigned_to?: string;
+  is_mine?: boolean;
+  is_unassigned?: boolean;
 }
 
 export interface CallLog {

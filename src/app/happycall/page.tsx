@@ -23,11 +23,13 @@ import {
   ExternalLink,
   UserPlus,
   Upload,
-  Trash2
+  Trash2,
+  Calendar,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Patient, CallLog } from '@/types/happycall';
-import { DEFAULT_TEMPLATES, replaceTemplate } from '@/lib/happycallTemplates';
+import { DEFAULT_TEMPLATES, CARRYOVER_TEMPLATES, replaceTemplate } from '@/lib/happycallTemplates';
 import * as XLSX from 'xlsx';
 
 
@@ -42,6 +44,12 @@ export default function HappyCallDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
+  // Calculation Mode & Holiday Settings State
+  const [calculationMode, setCalculationMode] = useState<'business' | 'calendar'>('business');
+  const [closedDays, setClosedDays] = useState<number[]>([0]); // 0: 일요일
+  const [carryoverCount, setCarryoverCount] = useState(0);
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+
   // Modal & Log Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [callStatus, setCallStatus] = useState('성공');
@@ -230,15 +238,16 @@ export default function HappyCallDashboard() {
   };
 
   // Load Happy Call targets
-  const fetchTargets = async () => {
+  const fetchTargets = async (customMode = calculationMode, customClosed = closedDays) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/happycall/targets');
+      const res = await fetch(`/api/happycall/targets?mode=${customMode}&closed_days=${customClosed.join(',')}`);
       if (!res.ok) {
         throw new Error('데이터를 가져오는데 실패했습니다.');
       }
       const data = await res.json();
       setPatients(data.targets || []);
+      setCarryoverCount(data.carryover_count || 0);
     } catch (err: any) {
       toast.error(err.message || '오류가 발생했습니다.');
     } finally {
@@ -246,9 +255,45 @@ export default function HappyCallDashboard() {
     }
   };
 
+  const handleModeChange = (mode: 'business' | 'calendar') => {
+    setCalculationMode(mode);
+    try {
+      localStorage.setItem('happycall_calc_mode', mode);
+    } catch (e) {}
+    fetchTargets(mode, closedDays);
+  };
+
+  const handleToggleClosedDay = (day: number) => {
+    const updated = closedDays.includes(day)
+      ? closedDays.filter(d => d !== day)
+      : [...closedDays, day].sort((a, b) => a - b);
+    setClosedDays(updated);
+    try {
+      localStorage.setItem('happycall_closed_days', JSON.stringify(updated));
+    } catch (e) {}
+    fetchTargets(calculationMode, updated);
+  };
+
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchTargets();
+      let initialMode = calculationMode;
+      let initialClosed = closedDays;
+      try {
+        const savedMode = localStorage.getItem('happycall_calc_mode') as 'business' | 'calendar' | null;
+        if (savedMode && (savedMode === 'business' || savedMode === 'calendar')) {
+          setCalculationMode(savedMode);
+          initialMode = savedMode;
+        }
+        const savedClosed = localStorage.getItem('happycall_closed_days');
+        if (savedClosed) {
+          const parsed = JSON.parse(savedClosed);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setClosedDays(parsed);
+            initialClosed = parsed;
+          }
+        }
+      } catch (e) {}
+      fetchTargets(initialMode, initialClosed);
       fetchUploadHistory();
     }
   }, [status]);
@@ -336,13 +381,15 @@ export default function HappyCallDashboard() {
     setSelectedTreatment('부항');
     setAiCustomContext('');
     
-    const stage = patient.target_stage || '4일차';
-    const initialTemplate = DEFAULT_TEMPLATES[stage];
+    const stage = (patient.target_stage && patient.target_stage !== '대기' ? patient.target_stage : '4일차') as '4일차' | '7일차' | '8일 이상';
+    const templateSource = patient.is_carryover ? CARRYOVER_TEMPLATES : DEFAULT_TEMPLATES;
+    const initialTemplate = templateSource[stage] || DEFAULT_TEMPLATES['4일차'];
     const scriptText = replaceTemplate(initialTemplate, {
       patientName: realName,
       clinicName: clinicName,
       staffName: staffName,
-      treatmentItem: '부항'
+      treatmentItem: '부항',
+      isCarryover: patient.is_carryover
     });
     
     setCurrentScript(scriptText);
@@ -356,13 +403,15 @@ export default function HappyCallDashboard() {
     if (!selectedPatient) return;
     setSelectedTreatment(treatment);
     
-    const stage = selectedPatient.target_stage || '4일차';
-    const initialTemplate = DEFAULT_TEMPLATES[stage];
+    const stage = (selectedPatient.target_stage && selectedPatient.target_stage !== '대기' ? selectedPatient.target_stage : '4일차') as '4일차' | '7일차' | '8일 이상';
+    const templateSource = selectedPatient.is_carryover ? CARRYOVER_TEMPLATES : DEFAULT_TEMPLATES;
+    const initialTemplate = templateSource[stage] || DEFAULT_TEMPLATES['4일차'];
     const scriptText = replaceTemplate(initialTemplate, {
       patientName: selectedPatient.name, // Real name is already in selectedPatient
       clinicName: clinicName,
       staffName: staffName,
-      treatmentItem: treatment
+      treatmentItem: treatment,
+      isCarryover: selectedPatient.is_carryover
     });
     
     setCurrentScript(scriptText);
@@ -531,6 +580,63 @@ export default function HappyCallDashboard() {
             </div>
           </div>
 
+          {/* Smart Re-visit Calendar & Business-Day Controls */}
+          <div className="bg-[#083021]/80 border border-white/10 rounded-3xl p-5 mb-8 backdrop-blur-md shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                <Calendar size={16} className="text-emerald-400" />
+                <span>누락 방지 기준:</span>
+              </div>
+              <div className="flex items-center bg-[#031C13] p-1 rounded-2xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('business')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    calculationMode === 'business'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="공휴일/휴진일을 건너뛰고 실제 진료한 날수만 누적 계산합니다"
+                >
+                  <span>📅 실제 진료일 기준</span>
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-black">추천</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleModeChange('calendar')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    calculationMode === 'calendar'
+                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="달력 날짜를 세되 주말/연휴 동안 골든타임이 지난 환자를 오늘로 자동 이월합니다"
+                >
+                  <span>🗓️ 달력 일수 + 연휴 자동이월</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
+              {carryoverCount > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl text-xs font-bold animate-pulse">
+                  <span>⚡</span>
+                  <span>연휴·주말 누락 방지 이월 <strong>{carryoverCount}명</strong></span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsHolidayModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/10 hover:border-emerald-500/40 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all"
+              >
+                <Settings size={14} className="text-emerald-400" />
+                <span>휴진 요일 설정</span>
+                <span className="text-[10px] bg-black/40 text-emerald-300 px-1.5 py-0.5 rounded font-mono">
+                  {closedDays.map(d => ['일','월','화','수','목','금','토'][d]).join(',')}
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* Kanban Board */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
@@ -574,10 +680,17 @@ export default function HappyCallDashboard() {
                           >
                             <div className="flex justify-between items-start mb-3">
                               <div>
-                                <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
-                                  {patient.name}
-                                  <span className="text-xs font-medium text-white/50">#{patient.chart_no}</span>
-                                </h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
+                                    {patient.name}
+                                    <span className="text-xs font-medium text-white/50">#{patient.chart_no}</span>
+                                  </h3>
+                                  {patient.is_carryover && (
+                                    <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full animate-pulse flex items-center gap-1">
+                                      ⚡ {patient.badge_label || '연휴 이월'}
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
                                   최근 방문: {patient.last_visit_date}
                                   {(patient as any).original_name_masked && (
@@ -585,9 +698,23 @@ export default function HappyCallDashboard() {
                                   )}
                                 </p>
                               </div>
-                              <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
-                                {patient.days_passed}일째
-                              </span>
+                              <div className="flex flex-col items-end">
+                                <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
+                                  {calculationMode === 'business'
+                                    ? `진료 ${patient.business_days ?? patient.days_passed}일차`
+                                    : `${patient.calendar_days ?? patient.days_passed}일째`}
+                                </span>
+                                {calculationMode === 'business' && patient.calendar_days && patient.calendar_days !== (patient.business_days ?? patient.days_passed) && (
+                                  <span className="text-[10px] text-slate-400 mt-0.5">
+                                    (달력 {patient.calendar_days}일 경과)
+                                  </span>
+                                )}
+                                {patient.carryover_reason && (
+                                  <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium text-right max-w-[150px] leading-tight">
+                                    {patient.carryover_reason}
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             {/* Latest Call Log Preview */}
@@ -674,9 +801,30 @@ export default function HappyCallDashboard() {
             </div>
 
             {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 custom-scrollbar bg-[#031C13]/50">
-              
-              {/* Left Column: Call Logging & History */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 custom-scrollbar bg-[#031C13]/50">
+              {/* Carryover Alert Banner */}
+              {selectedPatient.is_carryover && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-sm shrink-0">⚡</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-300 flex items-center gap-2">
+                        연휴·휴진일 자동 이월 환자
+                        <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-md border border-amber-500/30">
+                          {selectedPatient.badge_label || '연휴 이월'}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-300 mt-0.5">
+                        {selectedPatient.carryover_reason || '연휴/휴진 기간 동안 경과일이 지나 누락될 수 있던 환자를 출근 첫날 골든타임으로 자동 이월했습니다.'}
+                        {' '}(연휴 안부 맞춤 멘트가 자동 적용되었습니다.)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column: Call Logging & History */}
               <div className="space-y-6">
                 
                 {/* 1. Log Call Form */}
@@ -899,7 +1047,7 @@ export default function HappyCallDashboard() {
                 </div>
 
               </div>
-
+            </div>
             </div>
 
           </div>
@@ -966,6 +1114,93 @@ export default function HappyCallDashboard() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Holiday / Clinic Closed Days Settings Modal */}
+      {isHolidayModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative bg-[#083021] border border-white/10 w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-[#0B3A28]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-600/20 border border-emerald-600/30 text-amber-400 rounded-xl flex items-center justify-center shrink-0">
+                  <Settings size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg text-white">정기 휴진 요일 및 공휴일 설정</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">한의원 정기 휴진 요일을 지정하면 재내원 일수에 완벽 반영됩니다.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Day of Week Selection */}
+              <div>
+                <label className="text-xs font-bold text-slate-300 block mb-2">한의원 정기 휴진 요일 선택 (중복 선택 가능)</label>
+                <div className="grid grid-cols-7 gap-2">
+                  {[
+                    { day: 0, label: '일' },
+                    { day: 1, label: '월' },
+                    { day: 2, label: '화' },
+                    { day: 3, label: '수' },
+                    { day: 4, label: '목' },
+                    { day: 5, label: '금' },
+                    { day: 6, label: '토' },
+                  ].map(({ day, label }) => {
+                    const isClosed = closedDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => handleToggleClosedDay(day)}
+                        className={`py-3 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center gap-1 ${
+                          isClosed
+                            ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 shadow-lg shadow-rose-900/20'
+                            : 'bg-[#0B3A28] border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        <span className="text-sm">{label}</span>
+                        <span className={`text-[9px] font-bold ${isClosed ? 'text-rose-400' : 'text-slate-500'}`}>
+                          {isClosed ? '휴진' : '진료'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Automatic Statutory Holiday Recognition */}
+              <div className="bg-emerald-950/40 border border-emerald-500/20 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                  <CheckCircle2 size={16} />
+                  <span>대한민국 법정 공휴일 자동 탑재 (2024~2027)</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  설날 연휴, 추석 연휴, 대체공휴일, 삼일절, 광복절 등 <strong>대한민국 모든 법정 공휴일</strong>이 시스템에 이미 내장되어 있어 별도 입력 없이 자동으로 휴진 처리 및 누락 방지 계산이 수행됩니다.
+                </p>
+              </div>
+
+              <div className="bg-blue-950/30 border border-blue-500/20 rounded-2xl p-4 text-xs text-slate-300 space-y-1">
+                <p className="font-bold text-blue-300">💡 계산 방식 안내</p>
+                <p>• <strong>실제 진료일 기준</strong>: 쉬는 날은 카운트하지 않아 추석 연휴(5일)가 지나도 환자의 진료 골든타임(4일차/7일차)이 그대로 보존됩니다.</p>
+                <p>• <strong>달력 일수 기준</strong>: 달력 일수를 세되, 주말이나 긴 연휴 직후 출근 날에 기간 중 7일차를 맞이한 환자를 첫 근무일로 자동 이월합니다.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm shadow-xl shadow-emerald-900/20 transition-all active:scale-[0.99]"
+              >
+                설정 완료
+              </button>
             </div>
           </div>
         </div>
