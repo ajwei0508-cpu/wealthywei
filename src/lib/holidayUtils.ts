@@ -225,7 +225,8 @@ export function evaluateHappyCallStage(
 
     if (businessDays < 4) {
       stage = "대기";
-    } else if (businessDays >= 4 && businessDays <= 6) {
+    } else if (businessDays === 4) {
+      // 미내원 4일차 되는 환자만 추출
       stage = "4일차";
       // 만약 중간에 긴 연휴나 주말이 2일 이상 끼어있었다면 연휴 안내 뱃지
       if (closedDays >= 2) {
@@ -244,8 +245,12 @@ export function evaluateHappyCallStage(
           : "주말 휴진 반영";
         badgeLabel = holidaysEncountered.length > 0 ? "연휴 보정" : "주말 보정";
       }
-    } else {
+    } else if (businessDays >= 8) {
       stage = "8일 이상";
+    } else {
+      // businessDays === 5 || businessDays === 6
+      // 미내원 4일차 해피콜 시점이 지난 환자는 7일차(집중) 도래 전까지 대기
+      stage = "대기";
     }
 
     return {
@@ -288,24 +293,31 @@ export function evaluateHappyCallStage(
 
   if (calendarDays < 4) {
     stage = "대기";
-  } else if (calendarDays >= 4 && calendarDays <= 6) {
+  } else if (calendarDays === 4) {
+    // 미내원 4일차 되는 환자
     stage = "4일차";
+  } else if (consecutiveClosedDaysBeforeToday > 0 && calendarDays > 4 && calendarDays <= 4 + consecutiveClosedDaysBeforeToday) {
+    // 직전 휴일/주말 동안 미내원 4일차를 맞이했던 환자 -> 첫 출근일에 4일차로 자동 이월
+    stage = "4일차";
+    isCarryover = true;
+    const holidayName = holidaysInStreak.length > 0 ? holidaysInStreak.join("/") : "주말";
+    carryoverReason = `${holidayName} 기간 중 4일차 도래 (이월됨)`;
+    badgeLabel = consecutiveClosedDaysBeforeToday >= 3 ? "장기연휴 이월⚠️" : "주말이월⚠️";
   } else if (calendarDays === 7) {
     stage = "7일차";
+  } else if (consecutiveClosedDaysBeforeToday > 0 && calendarDays > 7 && calendarDays <= 7 + consecutiveClosedDaysBeforeToday) {
+    // 직전 연휴/주말 동안 7일차에 도달했던 환자 -> 첫 출근일에 7일차로 자동 이월
+    stage = "7일차";
+    isCarryover = true;
+    const holidayName = holidaysInStreak.length > 0 ? holidaysInStreak.join("/") : "주말";
+    carryoverReason = `${holidayName} 기간 중 7일차 도래 (이월됨)`;
+    badgeLabel = consecutiveClosedDaysBeforeToday >= 3 ? "장기연휴 이월⚠️" : "주말이월⚠️";
+  } else if (calendarDays >= 8) {
+    stage = "8일 이상";
   } else {
-    // 달력상 8일 이상인데, 바로 직전 연휴/주말 동안 7일차에 도달했던 환자인가?
-    // 예: 5일 연휴 직후 출근일이라 calendarDays가 8, 9, 10, 11일이 되었더라도,
-    // 그 연휴 기간(5일) 동안 7일차가 지나갔다면 '7일차 연휴 이월'로 살려냄!
-    const maxCarryoverDays = 7 + consecutiveClosedDaysBeforeToday;
-    if (consecutiveClosedDaysBeforeToday > 0 && calendarDays > 7 && calendarDays <= maxCarryoverDays) {
-      stage = "7일차";
-      isCarryover = true;
-      const holidayName = holidaysInStreak.length > 0 ? holidaysInStreak.join("/") : "주말";
-      carryoverReason = `${holidayName} 연휴 기간 중 7일차 도래 (이월됨)`;
-      badgeLabel = consecutiveClosedDaysBeforeToday >= 3 ? "장기연휴 이월⚠️" : "주말이월⚠️";
-    } else {
-      stage = "8일 이상";
-    }
+    // calendarDays === 5 || calendarDays === 6
+    // 4일차 안부콜 이후 7일차 도래 전까지는 대기
+    stage = "대기";
   }
 
   return {

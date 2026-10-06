@@ -25,7 +25,11 @@ import {
   Upload,
   Trash2,
   Calendar,
-  Settings
+  Settings,
+  CheckSquare,
+  Bell,
+  Filter,
+  Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Patient, CallLog } from '@/types/happycall';
@@ -67,6 +71,14 @@ export default function HappyCallDashboard() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [uploadHistory, setUploadHistory] = useState<{date: string, count: number}[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+
+  // 놓침 방지 체크 및 필터 State (Top-level Hook declaration)
+  const [stageFilters, setStageFilters] = useState<Record<string, 'all' | 'uncontacted' | 'contacted'>>({
+    '4일차': 'all',
+    '7일차': 'all',
+    '8일 이상': 'all'
+  });
+  const [globalUncontactedOnly, setGlobalUncontactedOnly] = useState(false);
 
   const fetchUploadHistory = async () => {
     setIsHistoryLoading(true);
@@ -329,6 +341,86 @@ export default function HappyCallDashboard() {
     '4일차': filteredPatients.filter(p => p.target_stage === '4일차'),
     '7일차': filteredPatients.filter(p => p.target_stage === '7일차'),
     '8일 이상': filteredPatients.filter(p => p.target_stage === '8일 이상')
+  };
+
+  // 오늘 확인/통화 완료 여부 판별 (당일 골든타임 체크)
+  const isContactedToday = (patient: Patient) => {
+    if (!patient.latest_call?.call_date) return false;
+    const callDate = new Date(patient.latest_call.call_date);
+    const now = new Date();
+    const isSameDay = (
+      callDate.getFullYear() === now.getFullYear() &&
+      callDate.getMonth() === now.getMonth() &&
+      callDate.getDate() === now.getDate()
+    );
+    // 상태가 '성공' 또는 '확인완료' 또는 '통화예정' 등 유효 기록이면 완료로 간주
+    return isSameDay && patient.latest_call.status !== '미확인';
+  };
+
+  // 1초 원클릭 빠른 확인 완료 / 취소 토글
+  const handleQuickCheck = async (e: React.MouseEvent, patient: Patient) => {
+    e.stopPropagation();
+    const isDone = isContactedToday(patient);
+    const newStatus = isDone ? '미확인' : '성공';
+    const memoText = isDone ? '확인 취소 (재검토)' : `${patient.target_stage} 당일 골든타임 확인 완료`;
+
+    toast.loading(isDone ? "상태 재설정 중..." : "확인 완료 처리 중...", { id: `quick-${patient.id}` });
+    try {
+      const res = await fetch('/api/happycall/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_id: patient.id,
+          call_type: '해피콜',
+          status: newStatus,
+          memo: memoText
+        })
+      });
+
+      if (!res.ok) throw new Error('처리에 실패했습니다.');
+      toast.success(`${patient.name}님 ${isDone ? '확인 취소됨' : '확인 완료 처리되었습니다!'}`, { id: `quick-${patient.id}` });
+      fetchTargets();
+    } catch (err: any) {
+      toast.error(err.message || '오류 발생', { id: `quick-${patient.id}` });
+    }
+  };
+
+  // 4일차/7일차별 확인 통계 및 놓침 방지 카운터
+  const stageStats = {
+    '4일차': {
+      total: columnData['4일차'].length,
+      contacted: columnData['4일차'].filter(isContactedToday).length,
+      uncontacted: columnData['4일차'].filter(p => !isContactedToday(p)).length,
+    },
+    '7일차': {
+      total: columnData['7일차'].length,
+      contacted: columnData['7일차'].filter(isContactedToday).length,
+      uncontacted: columnData['7일차'].filter(p => !isContactedToday(p)).length,
+    },
+    '8일 이상': {
+      total: columnData['8일 이상'].length,
+      contacted: columnData['8일 이상'].filter(isContactedToday).length,
+      uncontacted: columnData['8일 이상'].filter(p => !isContactedToday(p)).length,
+    }
+  };
+
+  const totalGoldenUncontacted = stageStats['4일차'].uncontacted + stageStats['7일차'].uncontacted;
+  const totalGoldenPatients = stageStats['4일차'].total + stageStats['7일차'].total;
+  const goldenProgressPercent = totalGoldenPatients > 0 
+    ? Math.round(((totalGoldenPatients - totalGoldenUncontacted) / totalGoldenPatients) * 100) 
+    : 100;
+
+  // 필터가 적용된 컬럼 환자 목록 반환
+  const getFilteredColumnPatients = (stage: '4일차' | '7일차' | '8일 이상') => {
+    let list = columnData[stage];
+    const filter = stageFilters[stage];
+
+    if (globalUncontactedOnly || filter === 'uncontacted') {
+      list = list.filter(p => !isContactedToday(p));
+    } else if (filter === 'contacted') {
+      list = list.filter(p => isContactedToday(p));
+    }
+    return list;
   };
 
   const handleAssignPatient = async (e: React.MouseEvent, patient: Patient) => {
@@ -637,6 +729,79 @@ export default function HappyCallDashboard() {
             </div>
           </div>
 
+          {/* Golden Time Never-Miss Alert Monitor */}
+          <div className="bg-gradient-to-r from-[#0C3B29] via-[#083021] to-[#041D14] border border-amber-500/30 rounded-3xl p-5 mb-8 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-3 w-3 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </span>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    골든타임(4일차·7일차) 놓침 방지 체크 모니터
+                    <span className="text-xs font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                      실시간 확인율 {goldenProgressPercent}%
+                    </span>
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-300">
+                  {totalGoldenUncontacted > 0 ? (
+                    <span>
+                      오늘 반드시 연락해야 할 골든타임 환자가 총 <strong className="text-amber-400 text-sm">{totalGoldenUncontacted}명</strong> 남아있습니다. 리스트별로 체크하여 1명도 놓치지 마세요!
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 font-bold">
+                      🎉 오늘 4일차 및 7일차 골든타임 환자 확인이 100% 완료되었습니다!
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              {/* Stage Quick Counters & Global Filter Toggle */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="bg-[#031C13]/80 border border-white/10 rounded-2xl px-4 py-2 flex items-center gap-3">
+                  <div className="text-center">
+                    <div className="text-[10px] text-slate-400 font-bold">4일차(주의)</div>
+                    <div className="text-sm font-black text-white">
+                      {stageStats['4일차'].contacted}/{stageStats['4일차'].total}
+                      <span className="text-xs text-amber-400 ml-1">({stageStats['4일차'].uncontacted} 남음)</span>
+                    </div>
+                  </div>
+                  <div className="w-[1px] h-7 bg-white/10"></div>
+                  <div className="text-center">
+                    <div className="text-[10px] text-slate-400 font-bold">7일차(집중)</div>
+                    <div className="text-sm font-black text-white">
+                      {stageStats['7일차'].contacted}/{stageStats['7일차'].total}
+                      <span className="text-xs text-rose-400 ml-1">({stageStats['7일차'].uncontacted} 남음)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setGlobalUncontactedOnly(!globalUncontactedOnly)}
+                  className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-lg ${
+                    globalUncontactedOnly
+                      ? 'bg-amber-400 text-slate-950 shadow-amber-400/30 scale-105 ring-2 ring-amber-300'
+                      : 'bg-emerald-600/30 hover:bg-emerald-600/50 text-white border border-emerald-500/40'
+                  }`}
+                >
+                  <Bell size={14} className={globalUncontactedOnly ? 'animate-bounce' : ''} />
+                  <span>{globalUncontactedOnly ? '전체 환자 보기로 전환' : `🚨 미확인 환자만 집중 모아보기 (${totalGoldenUncontacted}명)`}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden mt-4 border border-white/5">
+              <div 
+                className="bg-gradient-to-r from-emerald-500 via-amber-400 to-amber-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${goldenProgressPercent}%` }}
+              ></div>
+            </div>
+          </div>
+
           {/* Kanban Board */}
           {loading ? (
             <div className="flex justify-center items-center py-20">
@@ -647,19 +812,60 @@ export default function HappyCallDashboard() {
               
               {/* Column Generation */}
               {(['4일차', '7일차', '8일 이상'] as const).map(stage => {
-                const columnPatients = columnData[stage];
+                const columnPatients = getFilteredColumnPatients(stage);
+                const stats = stageStats[stage];
                 return (
                   <div key={stage} className="bg-[#083021]/60 border border-white/5 rounded-3xl overflow-hidden flex flex-col min-h-[500px]">
                     
                     {/* Column Header */}
-                    <div className={`p-5 border-b border-white/10 bg-gradient-to-br ${getStageHeaderStyles(stage)} flex items-center justify-between`}>
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-current"></span>
-                        <h2 className="font-black tracking-tight">{stage === '4일차' ? '주의 (4~6일차)' : stage === '7일차' ? '집중 (7일차)' : '심각 (8일 이상)'}</h2>
+                    <div className={`p-5 border-b border-white/10 bg-gradient-to-br ${getStageHeaderStyles(stage)} flex flex-col gap-3`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-current"></span>
+                          <h2 className="font-black tracking-tight">{stage === '4일차' ? '주의 (4일차)' : stage === '7일차' ? '집중 (7일차)' : '심각 (8일 이상)'}</h2>
+                        </div>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/10 text-slate-300 border border-white/10">
+                          완료 {stats.contacted} / 전체 {stats.total}명
+                        </span>
                       </div>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/5 text-slate-400 border border-white/5">
-                        {columnPatients.length}명
-                      </span>
+
+                      {/* Column Filter Tabs */}
+                      <div className="flex items-center gap-1.5 bg-black/30 p-1 rounded-xl border border-white/5">
+                        <button
+                          type="button"
+                          onClick={() => setStageFilters(prev => ({ ...prev, [stage]: 'all' }))}
+                          className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                            stageFilters[stage] === 'all' && !globalUncontactedOnly
+                              ? 'bg-white/20 text-white shadow'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          전체 ({stats.total})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStageFilters(prev => ({ ...prev, [stage]: 'uncontacted' }))}
+                          className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                            stageFilters[stage] === 'uncontacted' || globalUncontactedOnly
+                              ? 'bg-amber-500 text-slate-950 font-black shadow'
+                              : 'text-amber-300/80 hover:text-amber-300'
+                          }`}
+                        >
+                          <span>⚠️ 미확인</span>
+                          <span className="text-[10px] bg-black/20 px-1 rounded-full font-mono">{stats.uncontacted}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStageFilters(prev => ({ ...prev, [stage]: 'contacted' }))}
+                          className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                            stageFilters[stage] === 'contacted' && !globalUncontactedOnly
+                              ? 'bg-emerald-600 text-white shadow'
+                              : 'text-emerald-400/80 hover:text-emerald-300'
+                          }`}
+                        >
+                          ✓ 완료 ({stats.contacted})
+                        </button>
+                      </div>
                     </div>
 
                     {/* Patients Cards List */}
@@ -667,96 +873,140 @@ export default function HappyCallDashboard() {
                       {columnPatients.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-white/70 text-center space-y-2">
                           <CheckCircle2 size={36} className="opacity-40" />
-                          <p className="text-sm font-semibold">대상자가 없습니다</p>
+                          <p className="text-sm font-semibold">
+                            {stageFilters[stage] === 'uncontacted' || globalUncontactedOnly
+                              ? '미확인 대상자가 없습니다! (모두 완료됨)'
+                              : '대상자가 없습니다'}
+                          </p>
                         </div>
                       ) : (
-                        columnPatients.map((patient: any) => (
-                          <div 
-                            key={patient.id} 
-                            className="bg-[#0B3A28] hover:bg-[#0F4C35] border border-white/5 hover:border-emerald-600/30 rounded-2xl p-5 transition-all duration-200 group cursor-pointer"
-                            onClick={() => {
-                              handleOpenModal(patient);
-                            }}
-                          >
-                            <div className="flex justify-between items-start mb-3">
-                              <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
-                                    {patient.name}
-                                    <span className="text-xs font-medium text-white/50">#{patient.chart_no}</span>
-                                  </h3>
-                                  {patient.is_carryover && (
-                                    <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full animate-pulse flex items-center gap-1">
-                                      ⚡ {patient.badge_label || '연휴 이월'}
+                        columnPatients.map((patient: any) => {
+                          const isDone = isContactedToday(patient);
+                          return (
+                            <div 
+                              key={patient.id} 
+                              className={`border rounded-2xl p-5 transition-all duration-200 group cursor-pointer ${
+                                isDone 
+                                  ? 'bg-[#0B3A28]/80 border-emerald-500/30 hover:border-emerald-500/60' 
+                                  : 'bg-[#0E3826] border-amber-500/40 hover:border-amber-400 shadow-lg shadow-black/40'
+                              }`}
+                              onClick={() => {
+                                handleOpenModal(patient);
+                              }}
+                            >
+                              {/* Top Quick-Check Status Row */}
+                              <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
+                                {isDone ? (
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                                      <CheckCircle2 size={12} /> 오늘 확인 완료
                                     </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                                  최근 방문: {patient.last_visit_date}
-                                  {(patient as any).original_name_masked && (
-                                    <span className="bg-emerald-900 text-[9px] px-1.5 py-0.5 rounded text-slate-400">보호됨</span>
-                                  )}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end">
-                                <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
-                                  {calculationMode === 'business'
-                                    ? `진료 ${patient.business_days ?? patient.days_passed}일차`
-                                    : `${patient.calendar_days ?? patient.days_passed}일째`}
-                                </span>
-                                {calculationMode === 'business' && patient.calendar_days && patient.calendar_days !== (patient.business_days ?? patient.days_passed) && (
-                                  <span className="text-[10px] text-slate-400 mt-0.5">
-                                    (달력 {patient.calendar_days}일 경과)
-                                  </span>
-                                )}
-                                {patient.carryover_reason && (
-                                  <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium text-right max-w-[150px] leading-tight">
-                                    {patient.carryover_reason}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Latest Call Log Preview */}
-                                {patient.latest_call ? (
-                                  <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                      <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-full ${getStatusBadgeStyle(patient.latest_call.status)}`}>
-                                        {patient.latest_call.status}
-                                      </span>
-                                      <span className="text-[10px] text-white/50">
-                                        {new Date(patient.latest_call.call_date).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-slate-400 line-clamp-1 italic">
-                                      "{patient.latest_call.memo || '메모 없음'}"
-                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleQuickCheck(e, patient)}
+                                      className="text-[10px] text-slate-400 hover:text-rose-300 underline"
+                                      title="확인 취소"
+                                    >
+                                      취소
+                                    </button>
                                   </div>
                                 ) : (
-                                  <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
-                                    <p className="text-xs text-white/70 italic">최근 통화 이력이 없습니다.</p>
-                                    {!patient.is_unassigned && userRole !== 'staff' && (
-                                      <span className="text-[10px] text-white/50 font-bold bg-white/5 px-2 py-0.5 rounded">
-                                        담당: {patient.assigned_to || '지정 안됨'}
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full animate-pulse">
+                                      <AlertCircle size={12} /> ⚠️ 연락 필요 (미확인)
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleQuickCheck(e, patient)}
+                                      className="inline-flex items-center gap-1 text-[11px] font-black text-slate-950 bg-amber-400 hover:bg-amber-300 px-2.5 py-1 rounded-lg shadow transition-all active:scale-95"
+                                      title="1초 빠른 확인 완료"
+                                    >
+                                      <Check size={13} /> 1초 확인 완료
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors flex items-center gap-2">
+                                      {patient.name}
+                                      <span className="text-xs font-medium text-white/50">#{patient.chart_no}</span>
+                                    </h3>
+                                    {patient.is_carryover && (
+                                      <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full animate-pulse flex items-center gap-1">
+                                        ⚡ {patient.badge_label || '연휴 이월'}
                                       </span>
                                     )}
                                   </div>
-                                )}
-
-                                <div className="mt-4 flex justify-end">
-                                  <button 
-                                    className="flex items-center gap-1 text-xs text-amber-400 font-bold group-hover:underline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenModal(patient);
-                                    }}
-                                  >
-                                    통화 기록 & 상세 열람
-                                    <ChevronRight size={14} />
-                                  </button>
+                                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                                    최근 방문: {patient.last_visit_date}
+                                    {(patient as any).original_name_masked && (
+                                      <span className="bg-emerald-900 text-[9px] px-1.5 py-0.5 rounded text-slate-400">보호됨</span>
+                                    )}
+                                  </p>
                                 </div>
-                          </div>
-                        ))
+                                <div className="flex flex-col items-end">
+                                  <span className="text-xs font-black px-3 py-1 bg-white/5 border border-white/10 rounded-full text-slate-300">
+                                    {calculationMode === 'business'
+                                      ? `진료 ${patient.business_days ?? patient.days_passed}일차`
+                                      : `${patient.calendar_days ?? patient.days_passed}일째`}
+                                  </span>
+                                  {calculationMode === 'business' && patient.calendar_days && patient.calendar_days !== (patient.business_days ?? patient.days_passed) && (
+                                    <span className="text-[10px] text-slate-400 mt-0.5">
+                                      (달력 {patient.calendar_days}일 경과)
+                                    </span>
+                                  )}
+                                  {patient.carryover_reason && (
+                                    <span className="text-[10px] text-amber-400/90 mt-0.5 font-medium text-right max-w-[150px] leading-tight">
+                                      {patient.carryover_reason}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Latest Call Log Preview */}
+                              {patient.latest_call ? (
+                                <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 border rounded-full ${getStatusBadgeStyle(patient.latest_call.status)}`}>
+                                      {patient.latest_call.status}
+                                    </span>
+                                    <span className="text-[10px] text-white/50">
+                                      {new Date(patient.latest_call.call_date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-400 line-clamp-1 italic">
+                                    "{patient.latest_call.memo || '메모 없음'}"
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
+                                  <p className="text-xs text-white/70 italic">최근 통화 이력이 없습니다.</p>
+                                  {!patient.is_unassigned && userRole !== 'staff' && (
+                                    <span className="text-[10px] text-white/50 font-bold bg-white/5 px-2 py-0.5 rounded">
+                                      담당: {patient.assigned_to || '지정 안됨'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="mt-4 flex justify-end">
+                                <button 
+                                  className="flex items-center gap-1 text-xs text-amber-400 font-bold group-hover:underline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenModal(patient);
+                                  }}
+                                >
+                                  통화 기록 & 상세 열람
+                                  <ChevronRight size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
 
