@@ -25,7 +25,8 @@ import {
   Users,
   Presentation,
   Gem,
-  Activity
+  Activity,
+  CreditCard
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -101,9 +102,10 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
 
 export default function DashboardSidebar() {
   const { data: session } = useSession();
-  const [isConsultingOpen, setIsConsultingOpen] = useState(true);
-  const [isLiftingOpen, setIsLiftingOpen] = useState(true);
-  const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(true);
+  const [isConsultingOpen, setIsConsultingOpen] = useState(false);
+  const [isLiftingOpen, setIsLiftingOpen] = useState(false);
+  const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
+  const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -221,7 +223,7 @@ export default function DashboardSidebar() {
     }
   ];
 
-  const [openSubMenus, setOpenSubMenus] = useState<string[]>(["한약 시스템"]);
+  const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
 
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => 
@@ -259,6 +261,14 @@ export default function DashboardSidebar() {
         <div className="mb-4">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
+          <NavItem 
+            icon={CreditCard} 
+            label="개인카드 통합분류" 
+            isActive={pathname.startsWith("/cards")}
+            onClick={() => router.push("/cards")}
+            hasNew={true}
+          />
+
           <NavItem 
             icon={MessageSquare} 
             label="요청사항" 
@@ -392,7 +402,8 @@ export default function DashboardSidebar() {
             <NavItem 
               icon={Stethoscope} 
               label="직원 메뉴" 
-              isOpen={true} 
+              isOpen={isStaffMenuOpen}
+              onClick={() => setIsStaffMenuOpen(prev => !prev)}
             >
               <div className="mb-1 space-y-1 pl-4 pt-1">
                  <Link 

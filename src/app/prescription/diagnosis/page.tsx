@@ -34,6 +34,13 @@ import {
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 
+export interface UnreadableRegion {
+  imageIndex: number;
+  box2d: [number, number, number, number]; // [ymin, xmin, ymax, xmax] 0-1000
+  label?: string;
+  reason: string;
+}
+
 export default function HanYeolHeoSilDiagnosisPage() {
   const { data: session, status } = useSession();
   
@@ -62,7 +69,10 @@ export default function HanYeolHeoSilDiagnosisPage() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState<{ id: string; dataUrl: string; name: string }[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [unreadableRegions, setUnreadableRegions] = useState<UnreadableRegion[]>([]);
+  const [lastAnalysisSummary, setLastAnalysisSummary] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,8 +150,48 @@ export default function HanYeolHeoSilDiagnosisPage() {
     };
   }, [checkedCells]);
 
+  // High-performance canvas-based client-side compression to prevent payload limits and mobile lag
+  const compressImageFile = async (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDimension = 1800;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.onerror = () => {
+          resolve(e.target?.result as string);
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Handle Image File Select (supports multiple files, up to 3)
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -159,26 +209,30 @@ export default function HanYeolHeoSilDiagnosisPage() {
       toast(`최대 3장까지만 선택할 수 있어 앞선 ${availableSlots}장만 추가되었습니다.`, { icon: "ℹ️" });
     }
 
-    filesToRead.forEach((file) => {
-      if (!file.type.startsWith("image/")) {
+    setIsCompressing(true);
+    for (const file of filesToRead) {
+      if (!file.type.startsWith("image/") && !/\.(jpe?g|png|webp|heic|bmp)$/i.test(file.name)) {
         toast.error(`${file.name}은(는) 이미지 파일이 아닙니다.`);
-        return;
+        continue;
       }
 
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        setSelectedImages(prev => {
-          if (prev.length >= 3) return prev;
-          return [...prev, {
-            id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            dataUrl,
-            name: file.name
-          }];
-        });
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        const compressedDataUrl = await compressImageFile(file);
+        if (compressedDataUrl) {
+          setSelectedImages(prev => {
+            if (prev.length >= 3) return prev;
+            return [...prev, {
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              dataUrl: compressedDataUrl,
+              name: file.name
+            }];
+          });
+        }
+      } catch (err) {
+        console.error("Compression error:", err);
+      }
+    }
+    setIsCompressing(false);
 
     // Reset input value so same files can be re-selected if deleted
     e.target.value = "";
@@ -187,6 +241,7 @@ export default function HanYeolHeoSilDiagnosisPage() {
   const handleRemoveImage = (id: string) => {
     if (isAnalyzing) return;
     setSelectedImages(prev => prev.filter(img => img.id !== id));
+    setUnreadableRegions([]);
   };
 
   // Run AI Vision Analysis (Up to 3 images)
@@ -198,6 +253,7 @@ export default function HanYeolHeoSilDiagnosisPage() {
 
     setIsAnalyzing(true);
     setAnalysisError(null);
+    setUnreadableRegions([]);
 
     try {
       const res = await fetch("/api/prescription/analyze-survey", {
@@ -206,7 +262,7 @@ export default function HanYeolHeoSilDiagnosisPage() {
         body: JSON.stringify({
           images: selectedImages.map(img => ({
             imageBase64: img.dataUrl,
-            mimeType: img.dataUrl.startsWith("data:image/png") ? "image/png" : "image/jpeg"
+            mimeType: "image/jpeg"
           }))
         })
       });
@@ -214,13 +270,15 @@ export default function HanYeolHeoSilDiagnosisPage() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        // 해석이 잘 안되거나 오류 발생 시: 작업을 중단하고 문제를 알려줌 (요구사항 3 충족)
         setAnalysisError(data.errorMessage || "이미지 판독 중 오류가 발생했습니다.");
         setIsAnalyzing(false);
         return;
       }
 
-      if (data.isFilled === false || (data.checkedItems && data.checkedItems.length === 0)) {
+      const checkedList = Array.isArray(data.checkedItems) ? data.checkedItems : [];
+      const regions: UnreadableRegion[] = Array.isArray(data.unreadableRegions) ? data.unreadableRegions : [];
+
+      if (checkedList.length === 0 && regions.length === 0 && data.isFilled === false) {
         toast("설문지 양식은 확인되었으나 체크 표시가 발견되지 않았습니다. 직접 체크를 진행해 주세요.", {
           icon: "ℹ️",
           duration: 4000
@@ -230,11 +288,11 @@ export default function HanYeolHeoSilDiagnosisPage() {
         return;
       }
 
-      // Map recognized categories to state
+      // Map recognized categories to state (parse as much as possible)
       const nextChecked = new Set(checkedCells);
       let matchedCount = 0;
 
-      data.checkedItems.forEach((item: { category: string; type: DiagnosisType }) => {
+      checkedList.forEach((item: { category: string; type: DiagnosisType }) => {
         const found = SYMPTOM_DATA.find(s => s.category.trim() === item.category.trim());
         if (found && ["한", "열", "허", "실"].includes(item.type)) {
           nextChecked.add(`${found.id}_${item.type}`);
@@ -243,9 +301,21 @@ export default function HanYeolHeoSilDiagnosisPage() {
       });
 
       setCheckedCells(nextChecked);
-      setIsUploadModalOpen(false);
-      setIsAnalyzing(false);
-      toast.success(`총 ${selectedImages.length}장의 사진에서 ${matchedCount}개 증상이 종합 판독되어 반영되었습니다!`);
+      setUnreadableRegions(regions);
+      setLastAnalysisSummary(data.summary || null);
+
+      if (regions.length > 0) {
+        // Partially recognized with errors/unreadable areas marked in red on the images
+        setIsAnalyzing(false);
+        toast(`판독 가능한 ${matchedCount}개 증상이 체크되었습니다. 사진상 붉게 표시된 미판독 영역을 확인해 주세요.`, {
+          icon: "⚠️",
+          duration: 6000
+        });
+      } else {
+        setIsUploadModalOpen(false);
+        setIsAnalyzing(false);
+        toast.success(`총 ${selectedImages.length}장의 사진에서 ${matchedCount}개 증상이 성공적으로 판독되어 반영되었습니다!`);
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -527,6 +597,37 @@ ${rankText}
             )}
           </div>
 
+          {/* Unreadable Regions Notice Banner */}
+          {unreadableRegions.length > 0 && (
+            <div className="mb-6 p-5 rounded-3xl bg-gradient-to-r from-rose-950/70 via-black/80 to-[#041E14] border border-rose-500/50 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xl backdrop-blur-xl">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/40 shadow-inner">
+                  <AlertTriangle size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
+                      PARTIAL OCR APPLIED
+                    </span>
+                    <h4 className="text-sm font-black text-white">AI 부분 판독 완료 (미판독 영역 발생)</h4>
+                  </div>
+                  <p className="text-xs text-white/70 mt-1 leading-relaxed">
+                    판독 가능한 증상은 아래 표에 모두 반영되었습니다. <strong className="text-rose-400 underline decoration-rose-500">{unreadableRegions.length}개 영역</strong>은 사진 품질 문제(빛반사/초점 등)로 제외되었으니 아래 진단표에서 직접 확인 후 체크해 주세요.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 text-xs font-bold border border-rose-500/40 flex items-center gap-2 transition-all shadow-md active:scale-95"
+                >
+                  <Camera size={14} />
+                  <span>붉은색 표시 사진 확인</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Interactive 19-Category Diagnostic Table */}
           <div className="rounded-3xl bg-black/50 border border-white/10 shadow-2xl overflow-hidden backdrop-blur-md">
             
@@ -729,19 +830,46 @@ ${rankText}
               {/* Upload Dropzone & Actions */}
               <div className="space-y-4 overflow-y-auto flex-1 pr-1">
                 
-                {/* Error Banner when unreadable (요구사항 3: 강제로 하지말고 작업을 멈추고 문제를 알려줌) */}
+                {/* Error Banner when unreadable */}
                 {analysisError && (
                   <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs space-y-1.5 animate-shake">
                     <div className="flex items-center gap-2 font-bold text-rose-300 text-sm">
                       <AlertTriangle size={18} className="text-rose-400 shrink-0" />
-                      <span>판독 중단 안내</span>
+                      <span>판독 안내</span>
                     </div>
                     <p className="leading-relaxed text-rose-100">
                       {analysisError}
                     </p>
                     <p className="text-[11px] text-rose-300/80 pt-1">
-                      ⚠️ 글자나 체크 표시가 흐릿하면 임의로 판독하지 않고 안전을 위해 작업을 중단합니다. 선명한 사진으로 다시 시도하거나 직접 수동 체크를 진행해 주세요.
+                      ⚠️ 선명한 한열허실 설문지 사진으로 다시 등록하거나 직접 수동 체크를 진행해 주세요.
                     </p>
+                  </div>
+                )}
+
+                {/* Unreadable Regions Banner in Modal */}
+                {unreadableRegions.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-950/80 via-red-950/40 to-neutral-950 border border-rose-500/50 shadow-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
+                        <AlertTriangle size={18} className="text-rose-400 animate-bounce" />
+                        <span>부분 판독 완료 ({unreadableRegions.length}개 미판독 영역 붉은 표시)</span>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/30">
+                        판독 가능 항목 표에 반영됨
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/80 leading-relaxed">
+                      식별 가능한 증상은 진단표에 <strong>자동 체크 반영</strong>되었습니다.
+                      사진 상에 <strong className="text-rose-400 font-bold underline decoration-rose-500">붉은색 점선 박스</strong>로 표시된 부분은 빛 반사, 그림자 또는 초점 흐림으로 인해 판독할 수 없었던 영역입니다. 필요시 아래 진단표에서 해당 증상을 직접 체크해 주세요.
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {unreadableRegions.map((reg, rIdx) => (
+                        <div key={rIdx} className="px-2.5 py-1 rounded-xl bg-rose-500/20 border border-rose-500/40 text-[11px] text-rose-200 flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                          <strong>[사진 {reg.imageIndex + 1}]</strong> {reg.label || "식별 불가"}: {reg.reason}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -749,34 +877,72 @@ ${rankText}
                 {selectedImages.length > 0 ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                      {selectedImages.map((img, idx) => (
-                        <div 
-                          key={img.id}
-                          className="relative aspect-[4/3] rounded-2xl overflow-hidden border border-white/20 bg-black/60 flex items-center justify-center group shadow-md"
-                        >
-                          <img 
-                            src={img.dataUrl} 
-                            alt={img.name} 
-                            className="max-h-full max-w-full object-contain"
-                          />
+                      {selectedImages.map((img, idx) => {
+                        const imgRegions = unreadableRegions.filter(r => r.imageIndex === idx);
+                        const hasUnreadable = imgRegions.length > 0;
 
-                          {/* Top Tag & Delete Button */}
-                          <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none">
-                            <span className="px-2 py-0.5 rounded-md bg-black/80 text-amber-300 font-bold text-[10px] border border-amber-500/30 backdrop-blur-sm shadow">
-                              사진 {idx + 1}
-                            </span>
-                            {!isAnalyzing && (
-                              <button
-                                onClick={() => handleRemoveImage(img.id)}
-                                className="w-6 h-6 rounded-md bg-black/80 hover:bg-rose-600 text-white/80 hover:text-white flex items-center justify-center transition-colors pointer-events-auto border border-white/20"
-                                title="사진 삭제"
-                              >
-                                <X size={12} />
-                              </button>
-                            )}
+                        return (
+                          <div 
+                            key={img.id}
+                            className={`relative aspect-[4/3] rounded-2xl overflow-hidden border ${hasUnreadable ? "border-rose-500/80 ring-2 ring-rose-500/40" : "border-white/20"} bg-black/60 flex items-center justify-center group shadow-xl`}
+                          >
+                            <img 
+                              src={img.dataUrl} 
+                              alt={img.name} 
+                              className="w-full h-full object-contain select-none"
+                            />
+
+                            {/* Red Bounding Box Highlights for Unreadable Regions */}
+                            {imgRegions.map((region, rIdx) => {
+                              const [ymin, xmin, ymax, xmax] = region.box2d;
+                              const top = `${Math.min(92, Math.max(0, ymin / 10)).toFixed(1)}%`;
+                              const left = `${Math.min(92, Math.max(0, xmin / 10)).toFixed(1)}%`;
+                              const width = `${Math.max(12, Math.min(100 - (xmin / 10), (xmax - xmin) / 10)).toFixed(1)}%`;
+                              const height = `${Math.max(10, Math.min(100 - (ymin / 10), (ymax - ymin) / 10)).toFixed(1)}%`;
+
+                              return (
+                                <div
+                                  key={rIdx}
+                                  className="absolute border-2 border-dashed border-rose-500 bg-rose-500/35 rounded-xl pointer-events-auto transition-all shadow-[0_0_25px_rgba(244,63,94,0.8)] animate-pulse hover:bg-rose-500/50 cursor-pointer group/box z-20"
+                                  style={{ top, left, width, height }}
+                                  title={`${region.label || '판독 불가'}: ${region.reason}`}
+                                >
+                                  <div className="absolute -top-3.5 left-1 bg-gradient-to-r from-rose-600 to-red-600 text-white font-black text-[9px] px-2 py-0.5 rounded shadow-lg flex items-center gap-1 whitespace-nowrap z-30 pointer-events-none border border-rose-400/40">
+                                    <AlertTriangle size={10} className="text-amber-300" />
+                                    <span>{region.label || "판독 불가 영역"}</span>
+                                  </div>
+                                  
+                                  {/* Tooltip on hover */}
+                                  <div className="opacity-0 group-hover/box:opacity-100 transition-opacity absolute bottom-full left-0 mb-1.5 w-56 p-2.5 rounded-xl bg-neutral-900/95 border border-rose-500 text-[10px] text-white shadow-2xl pointer-events-none z-40 backdrop-blur-md">
+                                    <p className="font-black text-rose-300 flex items-center gap-1 text-[11px]">
+                                      <AlertCircle size={12} className="text-rose-400" />
+                                      {region.label || "판독 제외 사유"}
+                                    </p>
+                                    <p className="text-white/90 mt-1 leading-snug">{region.reason}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {/* Top Tag & Delete Button */}
+                            <div className="absolute top-2 left-2 right-2 flex items-center justify-between pointer-events-none z-30">
+                              <span className={`px-2 py-0.5 rounded-md ${hasUnreadable ? "bg-rose-950/90 text-rose-300 border-rose-500/60" : "bg-black/80 text-amber-300 border-amber-500/30"} font-bold text-[10px] border backdrop-blur-sm shadow flex items-center gap-1`}>
+                                {hasUnreadable && <AlertTriangle size={10} className="text-rose-400" />}
+                                사진 {idx + 1} {hasUnreadable ? `(판독 제외 ${imgRegions.length}곳)` : ""}
+                              </span>
+                              {!isAnalyzing && (
+                                <button
+                                  onClick={() => handleRemoveImage(img.id)}
+                                  className="w-6 h-6 rounded-md bg-black/80 hover:bg-rose-600 text-white/80 hover:text-white flex items-center justify-center transition-colors pointer-events-auto border border-white/20"
+                                  title="사진 삭제"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Add more button if less than 3 */}
                       {selectedImages.length < 3 && !isAnalyzing && (
@@ -817,7 +983,7 @@ ${rankText}
                             총 {selectedImages.length}장의 설문지 사진을 AI 비전으로 정밀 대조 및 통합 분석 중입니다...
                           </p>
                           <p className="text-[10px] text-white/50">
-                            19대 지표의 체크 및 동그라미 표시를 교차 검증하고 있습니다.
+                            19대 지표의 체크 및 동그라미 표시를 교차 검증하고 판독 불가 영역을 감지합니다.
                           </p>
                         </div>
                       </div>
@@ -833,7 +999,7 @@ ${rankText}
                         설문지 사진을 업로드하거나 촬영하세요 (최대 3장)
                       </p>
                       <p className="text-xs text-white/50">
-                        PNG, JPG, JPEG 지원 • 설문지 앞/뒷면 또는 분할 촬영본을 한 번에 선택 가능
+                        PNG, JPG, JPEG 지원 • 설문지 앞/뒷면 또는 분할 촬영본을 한 번에 선택 가능 (자동 최적화)
                       </p>
                     </div>
 
@@ -879,42 +1045,71 @@ ${rankText}
                 <div className="p-4 rounded-xl bg-black/40 border border-white/5 text-xs text-white/60 space-y-1">
                   <p className="font-bold text-amber-300 flex items-center gap-1.5">
                     <Info size={14} />
-                    정확한 다중 설문지 판독을 위한 팁
+                    정확한 다중 설문지 판독 안내
                   </p>
                   <ul className="list-disc list-inside space-y-0.5 text-[11px] text-white/50">
                     <li>설문지가 긴 경우 상단/하단 또는 앞면/뒷면으로 나누어 최대 3장까지 등록해 주세요.</li>
-                    <li>모든 사진의 체크 항목이 자동으로 종합 합산되어 표에 일괄 체크됩니다.</li>
-                    <li>글자가 심하게 뭉개지거나 판독이 불가능한 사진이 있을 경우 AI가 안전하게 작업을 중단합니다.</li>
+                    <li>식별 가능한 체크 항목은 즉시 진단표에 반영되며, 빛반사·초점 흐림 등으로 판독되지 않은 영역은 사진 상에 <strong className="text-rose-400">붉은색 박스</strong>로 표시됩니다.</li>
                   </ul>
                 </div>
               </div>
 
               {/* Modal Footer */}
-              <div className="pt-6 border-t border-white/10 mt-6 flex items-center justify-between gap-3">
+              <div className="pt-6 border-t border-white/10 mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <span className="text-xs text-white/50 hidden sm:inline">
-                  {selectedImages.length > 0 ? `${selectedImages.length}장의 사진이 준비되었습니다.` : "사진을 선택해 주세요."}
+                  {unreadableRegions.length > 0
+                    ? `판독 가능한 증상 반영 완료 (${unreadableRegions.length}개 미판독 영역 붉은색 표시됨)`
+                    : selectedImages.length > 0 
+                      ? `${selectedImages.length}장의 사진이 등록되었습니다.` 
+                      : "사진을 선택해 주세요."}
                 </span>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setIsUploadModalOpen(false)}
-                    disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-bold transition-colors"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleStartAnalysis}
-                    disabled={selectedImages.length === 0 || isAnalyzing}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs md:text-sm flex items-center gap-2 transition-all shadow-lg shadow-amber-950/40 disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <Sparkles size={14} />
-                    <span>
-                      {isAnalyzing 
-                        ? `AI 종합 판독 중 (${selectedImages.length}장)...` 
-                        : `AI 종합 정밀 판독 시작 (${selectedImages.length}장)`}
-                    </span>
-                  </button>
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  {unreadableRegions.length > 0 ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          setUnreadableRegions([]);
+                          setSelectedImages([]);
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <RotateCcw size={13} />
+                        <span>사진 초기화 후 재촬영</span>
+                      </button>
+                      <button
+                        onClick={() => setIsUploadModalOpen(false)}
+                        className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs md:text-sm flex items-center gap-2 shadow-lg shadow-emerald-950/40 transition-all"
+                      >
+                        <CheckCircle2 size={16} />
+                        <span>반영 완료 • 진단표 확인하기</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setIsUploadModalOpen(false)}
+                        disabled={isAnalyzing}
+                        className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-bold transition-colors"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={handleStartAnalysis}
+                        disabled={selectedImages.length === 0 || isAnalyzing || isCompressing}
+                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs md:text-sm flex items-center gap-2 transition-all shadow-lg shadow-amber-950/40 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Sparkles size={14} />
+                        <span>
+                          {isCompressing
+                            ? "사진 최적화 압축 중..."
+                            : isAnalyzing 
+                              ? `AI 종합 판독 중 (${selectedImages.length}장)...` 
+                              : `AI 종합 정밀 판독 시작 (${selectedImages.length}장)`}
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 

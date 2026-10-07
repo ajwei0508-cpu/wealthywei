@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import KakaoLogin from "@/components/KakaoLogin";
 import DashboardLayout from "@/components/DashboardLayout";
 import Image from "next/image";
+import Link from "next/link";
 import {
   TrendingUp,
   Stethoscope,
@@ -20,7 +21,8 @@ import {
   Zap,
   Target,
   Ticket,
-  Printer
+  Printer,
+  CreditCard
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -720,6 +722,30 @@ export default function Home() {
                 </div>
               </motion.div>
             </div>
+          </section>
+
+          {/* Personal Card Ledger Quick Access Banner */}
+          <section className="mb-8">
+            <Link href="/cards">
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-neutral-900 via-[#0d2319] to-neutral-950 border border-amber-500/30 p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xl hover:border-amber-400/60 transition-all cursor-pointer group">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-400 flex items-center justify-center border border-amber-400/30 group-hover:scale-105 transition-transform">
+                    <CreditCard size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">NEW SERVICE</span>
+                      <h3 className="text-lg font-bold text-white">개인카드 통합 사용 분석 & 소비 자동 분류 시스템</h3>
+                    </div>
+                    <p className="text-xs text-white/50 mt-1">엑셀 명세서, 카드 문자/알림톡 일괄 인식 및 AI 소비 심리 분석 원장 바로가기</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-300 bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/20 group-hover:bg-amber-500/20 transition-all">
+                  <span>원장 열기</span>
+                  <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </Link>
           </section>
 
           {/* Daily Mission & Management Quotes */}

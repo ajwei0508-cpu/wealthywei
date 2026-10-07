@@ -42,3 +42,4 @@ yarn-error.log*
 next-env.d.ts
 .env*.local
 GEMINI.md
+src/data/browser_session/

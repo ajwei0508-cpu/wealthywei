@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+export const maxDuration = 60;
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 interface ImagePayload {
@@ -48,17 +50,13 @@ export async function POST(req: NextRequest) {
     const selectedImages = imageList.slice(0, 3);
 
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel(
-      { model: "gemini-2.5-flash" }, 
-      { apiVersion: "v1beta" }
-    );
 
     const prompt = `
 당신은 한의학 전문 한열허실(寒熱虛實) 설문지 및 환자 문진표 정밀 판독 AI입니다.
-원장님이 업로드한 설문지/차트 사진(총 ${selectedImages.length}장, 최대 3장)을 정밀하게 종합 분석하여 환자가 체크(V, O, 밑줄, 형광펜, 동그라미 등)한 증상 항목을 정확히 찾아내야 합니다.
+원장님이 업로드한 설문지/차트 사진(총 ${selectedImages.length}장, 최대 3장)을 정밀하게 분석하여 환자가 체크(V, O, 밑줄, 형광펜, 동그라미 등)한 증상 항목을 정확히 찾아내야 합니다.
 
 [다중 이미지 판독 안내]
-- 제공된 ${selectedImages.length}장의 사진은 동일 환자의 앞/뒷면, 또는 분할 촬영된 설문지 페이지들입니다.
+- 제공된 ${selectedImages.length}장의 사진은 동일 환자의 앞/뒷면 또는 분할 촬영된 설문지 페이지들입니다.
 - 각 사진을 순서대로 모두 확인하여, 모든 사진에 걸쳐 체크된 항목들을 중복 없이 통합(Merge)하여 반환해야 합니다.
 
 [19대 기준 증상 구분 카테고리 목록]
@@ -88,25 +86,30 @@ export async function POST(req: NextRequest) {
 - "허": 虛 (Deficiency) 증상 열
 - "실": 實 (Excess) 증상 열
 
-[🚨 가장 중요한 판독 엄격 규칙 (절대 준수)]
-1. [해석 불가 시 강제 중단]:
-   - 업로드된 사진 중 단 한 장이라도 너무 흐릿하거나, 글자가 뭉개졌거나, 심하게 기울어지거나, 조명이 어두워 어떤 글자나 체크인지 판독하기 어려운 경우
-   - 한열허실 설문지가 아니거나 관련 없는 사진이 섞여 있는 경우
-   => 절대로 억지로 끼워맞추거나 허위로 추측하여 체크하지 마십시오.
-   => 반드시 isReadable: false로 설정하고, errorMessage에 몇 번째 사진이 판독 불가인지와 문제 사유를 구체적으로 명시하세요. (예: "제공된 사진 중 2번째 사진의 글씨 및 체크 표시가 흐릿하여 정확한 판독이 불가능합니다. 선명하게 다시 촬영해 주세요.")
+[🚨 가장 중요한 판독 원칙: 부분 판독 및 판독 불가 영역 붉은 표시]
+1. [판독 가능한 항목 최대한 추출]:
+   - 사진 전체를 멈추지 마십시오. 글씨나 체크 표시가 보이는 부분은 판독할 수 있는 데까지 모두 판독하여 checkedItems에 추가하십시오.
+   - 단 한두 개 항목이라도 식별되면 절대로 실패로 처리하지 말고 판독 결과를 반환하십시오.
 
-2. [체크 없는 원본 빈 양식인 경우]:
-   - 설문지는 명확히 식별되나, 환자의 체크/동그라미 표시가 전혀 없는 경우:
-   => isReadable: true, isFilled: false, checkedItems: [] 로 응답하고 summary에 "체크 표시가 없는 빈 양식입니다."라고 기재하세요.
+2. [판독 불가 영역 위치 보고 (unreadableRegions)]:
+   - 빛 반사, 그림자, 초점 흐림, 손가락 가림, 접힘 등으로 특정 영역의 글자나 체크 여부를 명확히 식별하기 어려운 경우, 해당 영역의 좌표와 사유를 unreadableRegions 배열에 반드시 기록하십시오.
+   - imageIndex: 해당 영역이 위치한 사진의 순번 (0부터 시작: 0=첫 번째 사진, 1=두 번째 사진, 2=세 번째 사진)
+   - box2d: [ymin, xmin, ymax, xmax] (사진 전체를 0~1000 기준으로 정규화한 사각형 좌표: ymin=위, xmin=왼쪽, ymax=아래, xmax=오른쪽)
+   - label: 판독 불가 유형 (예: "빛 반사 영역", "초점 흐림 영역", "그림자 가림", "식별 불가")
+   - reason: 구체적인 판독 불가 사유 및 추정되는 영향 항목 (예: "조명 반사로 인해 하단 소변/대변 항목 식별 어려움")
+   - 만약 특정 사진 1장이 완전히 심하게 흔들려 전체 판독이 불가능한 경우, 해당 사진의 imageIndex에 box2d: [50, 50, 950, 950]으로 지정하고 다른 사진들은 계속 판독하십시오.
 
-3. [정상 판독 및 체크 확인 시]:
-   - 제공된 모든 사진에서 발견된 체크 항목을 중복 없이 checkedItems 배열에 종합하세요.
-   - category는 반드시 위 19개 표준 카테고리 중 하나와 일치해야 합니다.
-   - type은 반드시 "한", "열", "허", "실" 중 하나여야 합니다.
+3. [전면 중단(isReadable: false) 조건]:
+   - 오직 업로드된 사진들이 한열허실 설문지가 전혀 아니거나(예: 동물, 음식, 풍경 등 무관한 사진), 모든 사진이 검은 화면이어서 단 하나의 증상도 판독할 수 없을 때만 isReadable: false로 응답하십시오.
 
-반드시 마크다운 따옴표 없이 순수한 JSON 형식으로만 응답하세요:
+4. [체크 없는 원본 빈 양식인 경우]:
+   - 설문지는 식별되나 환자의 체크 표시가 전혀 없는 경우:
+   => isReadable: true, isFilled: false, checkedItems: [], unreadableRegions: []
+
+반드시 마크다운 백틱 없이 순수 JSON 형식으로만 응답하십시오:
 {
   "isReadable": boolean,
+  "isPartial": boolean,
   "isFilled": boolean,
   "errorMessage": string | null,
   "checkedItems": [
@@ -115,7 +118,15 @@ export async function POST(req: NextRequest) {
       "type": "한"
     }
   ],
-  "summary": "총 N장의 설문지에서 M개 항목 종합 판독 완료"
+  "unreadableRegions": [
+    {
+      "imageIndex": 0,
+      "box2d": [ymin, xmin, ymax, xmax],
+      "label": "빛 반사 영역",
+      "reason": "강한 빛 반사로 인해 증상 항목 판독 불가"
+    }
+  ],
+  "summary": "총 N개 증상 판독 완료 (M개 판독 불가 영역 감지)"
 }
 `;
 
@@ -127,38 +138,59 @@ export async function POST(req: NextRequest) {
       }
     }));
 
-    const result = await model.generateContent([
-      prompt,
-      ...imageParts
-    ]);
+    // Try gemini-2.5-flash first, fallback to gemini-3.8-flash if needed
+    let text = "";
+    try {
+      const model = genAI.getGenerativeModel(
+        { model: "gemini-2.5-flash" }, 
+        { apiVersion: "v1beta" }
+      );
+      const result = await model.generateContent([prompt, ...imageParts]);
+      text = result.response.text();
+    } catch (modelError: any) {
+      console.warn("Primary model (gemini-2.5-flash) failed, trying gemini-3.8-flash:", modelError?.message);
+      const fallbackModel = genAI.getGenerativeModel(
+        { model: "gemini-3.8-flash" },
+        { apiVersion: "v1beta" }
+      );
+      const fallbackResult = await fallbackModel.generateContent([prompt, ...imageParts]);
+      text = fallbackResult.response.text();
+    }
 
-    const text = result.response.text();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
     
     if (!jsonMatch) {
       return NextResponse.json({
         success: false,
         isReadable: false,
-        errorMessage: "AI 판독 응답 형식이 올바르지 않습니다. 다시 시도해 주세요."
+        errorMessage: "AI 판독 응답 형식을 파싱할 수 없습니다. 다시 시도해 주세요."
       });
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    if (!parsed.isReadable) {
+    // If completely unreadable and zero items checked
+    if (parsed.isReadable === false && (!parsed.checkedItems || parsed.checkedItems.length === 0)) {
       return NextResponse.json({
         success: false,
         isReadable: false,
-        errorMessage: parsed.errorMessage || "이미지의 글자를 판독하기 어렵습니다. 선명하게 다시 촬영해 주세요."
+        errorMessage: parsed.errorMessage || "설문지 형식을 식별할 수 없습니다. 한열허실 설문지 사진을 올려주세요."
       });
     }
+
+    const checkedItems = Array.isArray(parsed.checkedItems) ? parsed.checkedItems : [];
+    const unreadableRegions = Array.isArray(parsed.unreadableRegions) ? parsed.unreadableRegions : [];
+    const isPartial = unreadableRegions.length > 0 || parsed.isPartial || false;
 
     return NextResponse.json({
       success: true,
       isReadable: true,
-      isFilled: parsed.isFilled ?? (parsed.checkedItems?.length > 0),
-      checkedItems: parsed.checkedItems || [],
-      summary: parsed.summary || `총 ${selectedImages.length}장의 사진에서 판독이 완료되었습니다.`
+      isPartial,
+      isFilled: parsed.isFilled ?? (checkedItems.length > 0),
+      checkedItems,
+      unreadableRegions,
+      summary: parsed.summary || `총 ${selectedImages.length}장의 사진에서 ${checkedItems.length}개 증상이 판독되었습니다.`
     });
 
   } catch (error: any) {
