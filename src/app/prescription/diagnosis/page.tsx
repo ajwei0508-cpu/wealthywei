@@ -355,7 +355,13 @@ export default function HanYeolHeoSilDiagnosisPage() {
       }
 
       if (!res.ok || !data.success) {
-        setAnalysisError(data.errorMessage || "이미지 판독 중 오류가 발생했습니다.");
+        setAnalysisError(
+          data?.errorMessage ||
+          data?.error ||
+          (res.status === 401
+            ? "로그인이 필요하거나 세션이 만료되었습니다."
+            : `AI 판독 응답에 실패했습니다 (상태 코드: ${res.status}). 다시 시도해 주세요.`)
+        );
         setIsAnalyzing(false);
         return;
       }

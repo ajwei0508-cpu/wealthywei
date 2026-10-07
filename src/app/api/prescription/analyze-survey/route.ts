@@ -14,10 +14,9 @@ interface ImagePayload {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 세션 확인 (비로그인 상태나 세션 만료 시에도 한열허실 설문지 판독은 허용)
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userEmail = session?.user?.email || "anonymous_doctor";
 
     if (!GEMINI_API_KEY) {
       return NextResponse.json({ 
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         success: false, 
         isReadable: false, 
-        errorMessage: "분석할 설문지 이미지가 없습니다." 
+        errorMessage: "분석할 설문지 이미지가 등록되지 않았습니다." 
       }, { status: 400 });
     }
 
@@ -72,15 +71,15 @@ export async function POST(req: NextRequest) {
 
 반드시 다음 JSON 구조로 응답하십시오:
 {
-  "isReadable": boolean,
-  "isPartial": boolean,
-  "isFilled": boolean,
+  "isReadable": true,
+  "isPartial": false,
+  "isFilled": true,
   "errorMessage": null,
   "checkedItems": [
     { "category": "소화", "type": "한" }
   ],
   "unreadableRegions": [
-    { "imageIndex": 0, "box2d": [ymin, xmin, ymax, xmax], "label": "빛 반사 영역", "reason": "빛 반사로 소변 항목 판독 불가" }
+    { "imageIndex": 0, "box2d": [100, 200, 300, 400], "label": "빛 반사 영역", "reason": "소변 항목 판독 불가" }
   ],
   "summary": "총 N개 증상 판독 완료"
 }
@@ -97,46 +96,84 @@ export async function POST(req: NextRequest) {
     // Configure fast native JSON mode
     const generationConfig = {
       temperature: 0.1,
-      maxOutputTokens: 1500,
+      maxOutputTokens: 2000,
       responseMimeType: "application/json"
     };
 
+    // Candidate models to try in sequence for maximum reliability
+    const candidateModels = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash"
+    ];
+
     let text = "";
-    try {
-      const model = genAI.getGenerativeModel(
-        { 
-          model: "gemini-2.5-flash",
-          generationConfig
-        }, 
-        { apiVersion: "v1beta" }
-      );
-      const result = await model.generateContent([prompt, ...imageParts]);
-      text = result.response.text();
-    } catch (modelError: any) {
-      console.warn("gemini-2.5-flash failed, falling back to gemini-3.8-flash:", modelError?.message);
-      const fallbackModel = genAI.getGenerativeModel(
-        { 
-          model: "gemini-3.8-flash",
-          generationConfig
-        },
-        { apiVersion: "v1beta" }
-      );
-      const fallbackResult = await fallbackModel.generateContent([prompt, ...imageParts]);
-      text = fallbackResult.response.text();
+    let lastError: any = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        const model = genAI.getGenerativeModel(
+          { 
+            model: modelName,
+            generationConfig
+          }, 
+          { apiVersion: "v1beta" }
+        );
+        const result = await model.generateContent([prompt, ...imageParts]);
+        text = result.response.text();
+        if (text && text.trim().length > 0) {
+          break; // 성공 시 루프 종료
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[AI Vision] ${modelName} 호출 실패, 다음 모델로 대체 시도:`, err?.message);
+      }
+    }
+
+    if (!text) {
+      throw new Error(lastError?.message || "AI 비전 모델로부터 응답을 받지 못했습니다.");
     }
 
     const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+    let parsed: any = null;
+
+    // 1차: 정규식으로 { ... } 추출
     const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-    
-    if (!jsonMatch) {
-      return NextResponse.json({
-        success: false,
-        isReadable: false,
-        errorMessage: "AI 판독 응답 파싱 실패. 다시 시도해 주세요."
-      });
+    if (jsonMatch) {
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch (jsonErr) {
+        console.warn("JSON.parse error on matched block:", jsonErr);
+      }
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    // 2차: 전체 텍스트 직접 파싱
+    if (!parsed) {
+      try {
+        parsed = JSON.parse(cleanText);
+      } catch (directErr) {
+        console.warn("JSON.parse error on direct text:", directErr);
+      }
+    }
+
+    // 3차 폴백: 정규식으로 체크 항목 수동 복원
+    if (!parsed) {
+      console.warn("Falling back to regex recovery for checkedItems");
+      const recoveredItems: Array<{ category: string; type: string }> = [];
+      const itemRegex = /"category"\s*:\s*"([^"]+)"\s*,\s*"type"\s*:\s*"([한열허실])"/g;
+      let match;
+      while ((match = itemRegex.exec(cleanText)) !== null) {
+        recoveredItems.push({ category: match[1], type: match[2] });
+      }
+
+      parsed = {
+        isReadable: recoveredItems.length > 0,
+        isFilled: recoveredItems.length > 0,
+        checkedItems: recoveredItems,
+        unreadableRegions: [],
+        summary: `정규식 복원 판독: ${recoveredItems.length}개 증상 식별`
+      };
+    }
 
     if (parsed.isReadable === false && (!parsed.checkedItems || parsed.checkedItems.length === 0)) {
       return NextResponse.json({
@@ -165,7 +202,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: false,
       isReadable: false,
-      errorMessage: "AI 이미지 분석 도중 오류가 발생했습니다: " + (error?.message || "알 수 없는 오류")
+      errorMessage: "AI 이미지 판독 중 오류가 발생했습니다: " + (error?.message || "서버 통신 실패")
     }, { status: 500 });
   }
 }
