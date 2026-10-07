@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         success: false, 
         isReadable: false, 
-        errorMessage: "분석할 설문지 이미지가 1장 이상 전달되지 않았습니다." 
+        errorMessage: "분석할 설문지 이미지가 없습니다." 
       }, { status: 400 });
     }
 
@@ -52,81 +52,37 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
     const prompt = `
-당신은 한의학 전문 한열허실(寒熱虛實) 설문지 및 환자 문진표 정밀 판독 AI입니다.
-원장님이 업로드한 설문지/차트 사진(총 ${selectedImages.length}장, 최대 3장)을 정밀하게 분석하여 환자가 체크(V, O, 밑줄, 형광펜, 동그라미 등)한 증상 항목을 정확히 찾아내야 합니다.
+한의학 전문 한열허실(寒熱虛實) 설문지/차트 사진(${selectedImages.length}장)을 정밀 판독하십시오.
+환자가 체크(V, O, 밑줄, 형광펜, 동그라미)한 모든 증상을 찾아내십시오.
 
-[다중 이미지 판독 안내]
-- 제공된 ${selectedImages.length}장의 사진은 동일 환자의 앞/뒷면 또는 분할 촬영된 설문지 페이지들입니다.
-- 각 사진을 순서대로 모두 확인하여, 모든 사진에 걸쳐 체크된 항목들을 중복 없이 통합(Merge)하여 반환해야 합니다.
+19대 기준 카테고리:
+소화, 입맛, 수면, 소변, 대변, 땀, 통증, 추위 더위, 흉부 증상, 심리 증상, 피로도, 생리통, 생리 주기, 비염, 두통, 순환, 갈증, 관절, 부종
 
-[19대 기준 증상 구분 카테고리 목록]
-1. 소화
-2. 입맛
-3. 수면
-4. 소변
-5. 대변
-6. 땀
-7. 통증
-8. 추위 더위
-9. 흉부 증상
-10. 심리 증상
-11. 피로도
-12. 생리통
-13. 생리 주기
-14. 비염
-15. 두통
-16. 순환
-17. 갈증
-18. 관절
-19. 부종
+구분:
+한 (Cold), 열 (Heat), 허 (Deficiency), 실 (Excess)
 
-[한열허실(寒熱虛實) 구분]
-- "한": 寒 (Cold) 증상 열
-- "열": 熱 (Heat) 증상 열
-- "허": 虛 (Deficiency) 증상 열
-- "실": 實 (Excess) 증상 열
+[핵심 판독 원칙]
+1. 판독 가능한 항목은 멈추지 말고 끝까지 추출하여 checkedItems에 넣으십시오.
+2. 빛 반사, 그림자, 초점 흐림 등으로 판독이 불가능하거나 모호한 부분은 unreadableRegions에 기록하십시오.
+   - imageIndex: 0부터 시작하는 사진 번호 (0, 1, 2)
+   - box2d: [ymin, xmin, ymax, xmax] (0~1000 정규화 좌표)
+   - label: 판독 불가 사유 ("빛 반사 영역", "초점 흐림", "그림자 가림")
+   - reason: 사유 및 영향 항목 설명
+3. 설문지가 전혀 아니거나 100% 빈 화면일 때만 isReadable: false로 하십시오.
 
-[🚨 가장 중요한 판독 원칙: 부분 판독 및 판독 불가 영역 붉은 표시]
-1. [판독 가능한 항목 최대한 추출]:
-   - 사진 전체를 멈추지 마십시오. 글씨나 체크 표시가 보이는 부분은 판독할 수 있는 데까지 모두 판독하여 checkedItems에 추가하십시오.
-   - 단 한두 개 항목이라도 식별되면 절대로 실패로 처리하지 말고 판독 결과를 반환하십시오.
-
-2. [판독 불가 영역 위치 보고 (unreadableRegions)]:
-   - 빛 반사, 그림자, 초점 흐림, 손가락 가림, 접힘 등으로 특정 영역의 글자나 체크 여부를 명확히 식별하기 어려운 경우, 해당 영역의 좌표와 사유를 unreadableRegions 배열에 반드시 기록하십시오.
-   - imageIndex: 해당 영역이 위치한 사진의 순번 (0부터 시작: 0=첫 번째 사진, 1=두 번째 사진, 2=세 번째 사진)
-   - box2d: [ymin, xmin, ymax, xmax] (사진 전체를 0~1000 기준으로 정규화한 사각형 좌표: ymin=위, xmin=왼쪽, ymax=아래, xmax=오른쪽)
-   - label: 판독 불가 유형 (예: "빛 반사 영역", "초점 흐림 영역", "그림자 가림", "식별 불가")
-   - reason: 구체적인 판독 불가 사유 및 추정되는 영향 항목 (예: "조명 반사로 인해 하단 소변/대변 항목 식별 어려움")
-   - 만약 특정 사진 1장이 완전히 심하게 흔들려 전체 판독이 불가능한 경우, 해당 사진의 imageIndex에 box2d: [50, 50, 950, 950]으로 지정하고 다른 사진들은 계속 판독하십시오.
-
-3. [전면 중단(isReadable: false) 조건]:
-   - 오직 업로드된 사진들이 한열허실 설문지가 전혀 아니거나(예: 동물, 음식, 풍경 등 무관한 사진), 모든 사진이 검은 화면이어서 단 하나의 증상도 판독할 수 없을 때만 isReadable: false로 응답하십시오.
-
-4. [체크 없는 원본 빈 양식인 경우]:
-   - 설문지는 식별되나 환자의 체크 표시가 전혀 없는 경우:
-   => isReadable: true, isFilled: false, checkedItems: [], unreadableRegions: []
-
-반드시 마크다운 백틱 없이 순수 JSON 형식으로만 응답하십시오:
+반드시 다음 JSON 구조로 응답하십시오:
 {
   "isReadable": boolean,
   "isPartial": boolean,
   "isFilled": boolean,
-  "errorMessage": string | null,
+  "errorMessage": null,
   "checkedItems": [
-    {
-      "category": "소화",
-      "type": "한"
-    }
+    { "category": "소화", "type": "한" }
   ],
   "unreadableRegions": [
-    {
-      "imageIndex": 0,
-      "box2d": [ymin, xmin, ymax, xmax],
-      "label": "빛 반사 영역",
-      "reason": "강한 빛 반사로 인해 증상 항목 판독 불가"
-    }
+    { "imageIndex": 0, "box2d": [ymin, xmin, ymax, xmax], "label": "빛 반사 영역", "reason": "빛 반사로 소변 항목 판독 불가" }
   ],
-  "summary": "총 N개 증상 판독 완료 (M개 판독 불가 영역 감지)"
+  "summary": "총 N개 증상 판독 완료"
 }
 `;
 
@@ -138,19 +94,31 @@ export async function POST(req: NextRequest) {
       }
     }));
 
-    // Try gemini-2.5-flash first, fallback to gemini-3.8-flash if needed
+    // Configure fast native JSON mode
+    const generationConfig = {
+      temperature: 0.1,
+      maxOutputTokens: 1500,
+      responseMimeType: "application/json"
+    };
+
     let text = "";
     try {
       const model = genAI.getGenerativeModel(
-        { model: "gemini-2.5-flash" }, 
+        { 
+          model: "gemini-2.5-flash",
+          generationConfig
+        }, 
         { apiVersion: "v1beta" }
       );
       const result = await model.generateContent([prompt, ...imageParts]);
       text = result.response.text();
     } catch (modelError: any) {
-      console.warn("Primary model (gemini-2.5-flash) failed, trying gemini-3.8-flash:", modelError?.message);
+      console.warn("gemini-2.5-flash failed, falling back to gemini-3.8-flash:", modelError?.message);
       const fallbackModel = genAI.getGenerativeModel(
-        { model: "gemini-3.8-flash" },
+        { 
+          model: "gemini-3.8-flash",
+          generationConfig
+        },
         { apiVersion: "v1beta" }
       );
       const fallbackResult = await fallbackModel.generateContent([prompt, ...imageParts]);
@@ -164,13 +132,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: false,
         isReadable: false,
-        errorMessage: "AI 판독 응답 형식을 파싱할 수 없습니다. 다시 시도해 주세요."
+        errorMessage: "AI 판독 응답 파싱 실패. 다시 시도해 주세요."
       });
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
 
-    // If completely unreadable and zero items checked
     if (parsed.isReadable === false && (!parsed.checkedItems || parsed.checkedItems.length === 0)) {
       return NextResponse.json({
         success: false,

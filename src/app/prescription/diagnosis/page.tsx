@@ -153,40 +153,51 @@ export default function HanYeolHeoSilDiagnosisPage() {
   // High-performance canvas-based client-side compression to prevent payload limits and mobile lag
   const compressImageFile = async (file: File): Promise<string> => {
     return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const maxDimension = 1800;
-          let width = img.width;
-          let height = img.height;
-          if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-              height = Math.round((height * maxDimension) / width);
-              width = maxDimension;
-            } else {
-              width = Math.round((width * maxDimension) / height);
-              height = maxDimension;
-            }
+      // Use URL.createObjectURL for fast zero-memory loading on mobile
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        // 1000px is the optimal balance: crystal-clear text for Gemini Vision + ultra-small ~120KB payload
+        const maxDimension = 1000;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
           }
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.85));
-        };
-        img.onerror = () => {
-          resolve(e.target?.result as string);
-        };
-        img.src = e.target?.result as string;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve("");
+          return;
+        }
+        // Smooth scaling
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
+        // Compress to quality 0.75 (produces pristine ~100KB file)
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
       };
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(file);
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        // Fallback to FileReader if objectURL fails
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+      };
+
+      img.src = objectUrl;
     });
   };
 
@@ -255,10 +266,14 @@ export default function HanYeolHeoSilDiagnosisPage() {
     setAnalysisError(null);
     setUnreadableRegions([]);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s safety limit
+
     try {
       const res = await fetch("/api/prescription/analyze-survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           images: selectedImages.map(img => ({
             imageBase64: img.dataUrl,
@@ -267,7 +282,25 @@ export default function HanYeolHeoSilDiagnosisPage() {
         })
       });
 
-      const data = await res.json();
+      clearTimeout(timeoutId);
+
+      const resText = await res.text();
+      let data: any;
+
+      try {
+        data = JSON.parse(resText);
+      } catch (parseErr) {
+        console.error("Non-JSON API response:", res.status, resText);
+        if (res.status === 504) {
+          setAnalysisError("AI 서버 응답 시간(15초)을 초과했습니다. 설문지 사진을 1~2장씩 나누어 등록하시거나 조금 더 선명한 사진으로 다시 시도해 주세요.");
+        } else if (res.status === 413) {
+          setAnalysisError("업로드된 사진 용량이 서버 허용치를 초과했습니다. 사진 장수를 줄여 다시 시도해 주세요.");
+        } else {
+          setAnalysisError(`서버 통신 오류가 발생했습니다 (코드: ${res.status}). 잠시 후 다시 시도해 주세요.`);
+        }
+        setIsAnalyzing(false);
+        return;
+      }
 
       if (!res.ok || !data.success) {
         setAnalysisError(data.errorMessage || "이미지 판독 중 오류가 발생했습니다.");
@@ -318,8 +351,12 @@ export default function HanYeolHeoSilDiagnosisPage() {
       }
 
     } catch (err: any) {
-      console.error(err);
-      setAnalysisError("네트워크 오류 또는 AI 처리 시간 초과가 발생했습니다. 다시 시도해 주세요.");
+      console.error("Survey analysis fetch error:", err);
+      if (err?.name === "AbortError") {
+        setAnalysisError("AI 서버 응답 시간(45초)이 초과되었습니다. 설문지 사진을 1~2장씩 나누어 올려주시거나 선명하게 다시 촬영해 주세요.");
+      } else {
+        setAnalysisError(err?.message || "네트워크 연결이 불안정합니다. 인터넷 연결을 확인 후 다시 시도해 주세요.");
+      }
       setIsAnalyzing(false);
     }
   };
