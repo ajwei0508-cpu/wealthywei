@@ -4,5 +4,10 @@
       "path": "/api/cron/backup-logs",
       "schedule": "0 0 1 * *"
     }
-  ]
+  ],
+  "functions": {
+    "src/app/api/prescription/analyze-survey/route.ts": {
+      "maxDuration": 60
+    }
+  }
 }
