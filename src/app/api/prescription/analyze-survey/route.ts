@@ -14,9 +14,8 @@ interface ImagePayload {
 
 export async function POST(req: NextRequest) {
   try {
-    // 세션 확인 (비로그인 상태나 세션 만료 시에도 한열허실 설문지 판독은 허용)
+    // 세션 확인 (비로그인 상태나 세션 만료 시에도 한열허실 설문지 판독은 전면 허용)
     const session = await getServerSession(authOptions).catch(() => null);
-    const userEmail = session?.user?.email || "anonymous_doctor";
 
     if (!GEMINI_API_KEY) {
       return NextResponse.json({ 
@@ -51,23 +50,24 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
     const prompt = `
-한의학 전문 한열허실(寒熱虛實) 설문지/차트 사진(${selectedImages.length}장)을 정밀 판독하십시오.
-환자가 체크(V, O, 밑줄, 형광펜, 동그라미)한 모든 증상을 찾아내십시오.
+당신은 한의학 전문 "한열허실(寒熱虛實)" 설문지/차트 판독 수석 AI입니다.
+첨부된 설문지 사진(${selectedImages.length}장)에서 환자가 수기로 체크(V 표시, 동그라미, 빗금, 밑줄 등)한 모든 증상을 정밀 판독하십시오.
 
-19대 기준 카테고리:
-소화, 입맛, 수면, 소변, 대변, 땀, 통증, 추위 더위, 흉부 증상, 심리 증상, 피로도, 생리통, 생리 주기, 비염, 두통, 순환, 갈증, 관절, 부종
-
-구분:
-한 (Cold), 열 (Heat), 허 (Deficiency), 실 (Excess)
-
-[핵심 판독 원칙]
-1. 판독 가능한 항목은 멈추지 말고 끝까지 추출하여 checkedItems에 넣으십시오.
-2. 빛 반사, 그림자, 초점 흐림 등으로 판독이 불가능하거나 모호한 부분은 unreadableRegions에 기록하십시오.
+[매우 중요한 판독 규칙]:
+1. 빈 원형(○)이나 체크 표시가 없는 항목은 절대로 포함하지 마십시오.
+   오직 환자가 V 표시나 볼펜/형광펜 체크를 해둔 항목만 정확히 추출하십시오.
+2. 19대 기준 카테고리:
+   소화, 입맛, 수면, 소변, 대변, 땀, 통증, 추위 더위, 흉부 증상, 심리 증상, 피로도, 생리통, 생리 주기, 비염, 두통, 순환, 갈증, 관절, 부종
+3. 판독된 증상의 한열허실(type) 판별 기준:
+   - [한(Cold)]: 따뜻한 물/음식 선호, 찬것 먹으면 설사, 손발/몸 차가움, 맑은 소변, 땀 안 남, 묽은 변/설사
+   - [열(Heat)]: 더위, 찬물 선호, 입술/입안 마름, 속쓰림(공복), 변비, 얼굴 붉음, 땀 많음, 갈증
+   - [허(Deficiency)]: 입이 짧다, 허기 못 참음, 피로, 땀내면 지침, 잔뇨감, 소변 잦음, 소화불량 지속, 기운 없음
+   - [실(Excess)]: 잘 체함, 더부룩함, 가스 잘 참, 배 팽만, 통증 심함, 하루라도 변 못보면 무척 불편, 급체
+4. 빛 반사, 그림자, 초점 흐림 등으로 완전히 판독이 불가능한 영역이 있다면 unreadableRegions에 기록하십시오.
    - imageIndex: 0부터 시작하는 사진 번호 (0, 1, 2)
    - box2d: [ymin, xmin, ymax, xmax] (0~1000 정규화 좌표)
    - label: 판독 불가 사유 ("빛 반사 영역", "초점 흐림", "그림자 가림")
-   - reason: 사유 및 영향 항목 설명
-3. 설문지가 전혀 아니거나 100% 빈 화면일 때만 isReadable: false로 하십시오.
+   - reason: 사유 설명
 
 반드시 다음 JSON 구조로 응답하십시오:
 {
@@ -76,12 +76,10 @@ export async function POST(req: NextRequest) {
   "isFilled": true,
   "errorMessage": null,
   "checkedItems": [
-    { "category": "소화", "type": "한" }
+    { "category": "소화", "type": "한", "text": "배에서 소리가 자주 난다" }
   ],
-  "unreadableRegions": [
-    { "imageIndex": 0, "box2d": [100, 200, 300, 400], "label": "빛 반사 영역", "reason": "소변 항목 판독 불가" }
-  ],
-  "summary": "총 N개 증상 판독 완료"
+  "unreadableRegions": [],
+  "summary": "총 N개 체크 항목 판독 완료"
 }
 `;
 
@@ -93,17 +91,19 @@ export async function POST(req: NextRequest) {
       }
     }));
 
-    // Configure fast native JSON mode
+    // Configure fast native JSON mode with thinking budget disabled to prevent MAX_TOKENS truncation
     const generationConfig = {
       temperature: 0.1,
-      maxOutputTokens: 2000,
-      responseMimeType: "application/json"
+      maxOutputTokens: 4000,
+      responseMimeType: "application/json",
+      thinkingConfig: {
+        thinkingBudget: 0
+      }
     };
 
-    // Candidate models to try in sequence for maximum reliability
+    // Candidate models to try in sequence
     const candidateModels = [
       "gemini-2.5-flash",
-      "gemini-2.0-flash",
       "gemini-1.5-flash"
     ];
 
@@ -115,7 +115,11 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel(
           { 
             model: modelName,
-            generationConfig
+            generationConfig: modelName.includes("2.5") ? generationConfig : {
+              temperature: 0.1,
+              maxOutputTokens: 4000,
+              responseMimeType: "application/json"
+            }
           }, 
           { apiVersion: "v1beta" }
         );
