@@ -183,11 +183,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { patient_id, call_type, status, memo } = body;
-
-    if (!patient_id || !call_type || !status) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
+    const { patient_id, patient_ids, call_type, status, memo } = body;
 
     const role = (session.user as any).role || "director";
     const userEmail = role === "staff" 
@@ -199,6 +195,32 @@ export async function POST(req: NextRequest) {
     }
 
     const createdBy = (session.user as any).realName || session.user.name || "담당 직원";
+
+    // Handle batch insertion
+    if (patient_ids && Array.isArray(patient_ids) && patient_ids.length > 0) {
+      const rows = patient_ids.map((pId: string) => ({
+        patient_id: pId,
+        user_email: userEmail,
+        call_type: call_type || "해피콜",
+        status: status || "성공",
+        memo: memo || "당일 골든타임 일괄 확인 완료",
+        created_by: createdBy,
+        call_date: new Date().toISOString()
+      }));
+
+      const { data, error } = await supabase
+        .from("call_logs")
+        .insert(rows)
+        .select();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, count: rows.length, callLogs: data });
+    }
+
+    // Single patient insertion
+    if (!patient_id || !call_type || !status) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
     // Insert call log
     const { data, error } = await supabase

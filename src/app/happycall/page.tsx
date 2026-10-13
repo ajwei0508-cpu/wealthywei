@@ -80,6 +80,18 @@ export default function HappyCallDashboard() {
   });
   const [globalUncontactedOnly, setGlobalUncontactedOnly] = useState(false);
 
+  // Batch Selection & Auto-Save State (실수 방지 및 일괄 완료용)
+  const [selectedPatientIds, setSelectedPatientIds] = useState<string[]>([]);
+  const [isBatchSubmitting, setIsBatchSubmitting] = useState(false);
+  const hasRestoredChecksRef = React.useRef(false);
+
+  // 오늘 날짜 및 계정 기반 안전 저장소 키 (브라우저 종료시 복원용)
+  const getTodayStorageKey = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const userKey = session?.user?.email ? session.user.email.replace(/[^a-zA-Z0-9]/g, '_') : 'default';
+    return `happycall_checked_patients_${userKey}_${todayStr}`;
+  };
+
   const fetchUploadHistory = async () => {
     setIsHistoryLoading(true);
     try {
@@ -250,9 +262,9 @@ export default function HappyCallDashboard() {
   };
 
   // Load Happy Call targets
-  const fetchTargets = async (customMode = calculationMode, customClosed = closedDays) => {
+  const fetchTargets = async (customMode = calculationMode, customClosed = closedDays, silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await fetch(`/api/happycall/targets?mode=${customMode}&closed_days=${customClosed.join(',')}`);
       if (!res.ok) {
         throw new Error('데이터를 가져오는데 실패했습니다.');
@@ -263,9 +275,36 @@ export default function HappyCallDashboard() {
     } catch (err: any) {
       toast.error(err.message || '오류가 발생했습니다.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  // 작업 중 브라우저가 예기치 않게 닫혔을 때 이전 체크박스 작업 내역 자동 복원
+  useEffect(() => {
+    if (!patients || patients.length === 0 || hasRestoredChecksRef.current) return;
+    try {
+      const storageKey = getTodayStorageKey();
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed: string[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // 아직 완료되지 않은 유효한 대상자만 필터링하여 복원
+          const validIds = parsed.filter(id => {
+            const p = patients.find(item => item.id === id);
+            return p && !isContactedToday(p);
+          });
+          if (validIds.length > 0) {
+            setSelectedPatientIds(validIds);
+            toast.success(`💾 이전 작업 중 체크했던 ${validIds.length}명의 환자가 안전하게 자동 복구되었습니다!`, {
+              id: 'autosave-restore',
+              duration: 3500
+            });
+          }
+        }
+      }
+    } catch (e) {}
+    hasRestoredChecksRef.current = true;
+  }, [patients]);
 
   const handleModeChange = (mode: 'business' | 'calendar') => {
     setCalculationMode(mode);
@@ -357,14 +396,136 @@ export default function HappyCallDashboard() {
     return isSameDay && patient.latest_call.status !== '미확인';
   };
 
-  // 1초 원클릭 빠른 확인 완료 / 취소 토글
+  // 1. 체크박스 개별 토글 (자동 저장 연동)
+  const handleToggleSelectPatient = (e: React.MouseEvent, patientId: string) => {
+    e.stopPropagation();
+    setSelectedPatientIds(prev => {
+      const next = prev.includes(patientId)
+        ? prev.filter(id => id !== patientId)
+        : [...prev, patientId];
+      try {
+        localStorage.setItem(getTodayStorageKey(), JSON.stringify(next));
+      } catch (err) {}
+      return next;
+    });
+  };
+
+  // 2. 컬럼(단계)별 미확인 환자 전체 체크 토글
+  const handleToggleSelectStage = (stage: '4일차' | '7일차' | '8일 이상') => {
+    const stageUncontacted = columnData[stage].filter(p => !isContactedToday(p));
+    const stageUncontactedIds = stageUncontacted.map(p => p.id);
+    if (stageUncontactedIds.length === 0) {
+      toast('해당 단계에 미확인 환자가 없습니다.', { icon: 'ℹ️' });
+      return;
+    }
+
+    const allSelected = stageUncontactedIds.every(id => selectedPatientIds.includes(id));
+    setSelectedPatientIds(prev => {
+      let next: string[];
+      if (allSelected) {
+        next = prev.filter(id => !stageUncontactedIds.includes(id));
+      } else {
+        const set = new Set([...prev, ...stageUncontactedIds]);
+        next = Array.from(set);
+      }
+      try {
+        localStorage.setItem(getTodayStorageKey(), JSON.stringify(next));
+      } catch (err) {}
+      return next;
+    });
+  };
+
+  // 3. 미확인 환자 전체 선택
+  const handleSelectAllUncontacted = () => {
+    const allUncontacted = filteredPatients.filter(p => !isContactedToday(p));
+    const allIds = allUncontacted.map(p => p.id);
+    if (allIds.length === 0) {
+      toast('미확인 대상자가 없습니다.', { icon: 'ℹ️' });
+      return;
+    }
+    setSelectedPatientIds(allIds);
+    try {
+      localStorage.setItem(getTodayStorageKey(), JSON.stringify(allIds));
+    } catch (err) {}
+    toast.success(`미확인 환자 ${allIds.length}명이 모두 선택되었습니다.`);
+  };
+
+  // 4. 선택 초기화
+  const handleClearSelection = () => {
+    setSelectedPatientIds([]);
+    try {
+      localStorage.removeItem(getTodayStorageKey());
+    } catch (err) {}
+    toast('선택이 모두 해제되었습니다.', { icon: '🧹' });
+  };
+
+  // 5. 단계 내 모든 미확인이 선택되었는지 여부
+  const isStageAllSelected = (stage: '4일차' | '7일차' | '8일 이상') => {
+    const stageUncontacted = columnData[stage].filter(p => !isContactedToday(p));
+    if (stageUncontacted.length === 0) return false;
+    return stageUncontacted.every(p => selectedPatientIds.includes(p.id));
+  };
+
+  // 6. 초고속(0초 Optimistic UI) 원클릭 빠른 확인 완료 / 취소 토글
   const handleQuickCheck = async (e: React.MouseEvent, patient: Patient) => {
     e.stopPropagation();
     const isDone = isContactedToday(patient);
     const newStatus = isDone ? '미확인' : '성공';
     const memoText = isDone ? '확인 취소 (재검토)' : `${patient.target_stage} 당일 골든타임 확인 완료`;
 
-    toast.loading(isDone ? "상태 재설정 중..." : "확인 완료 처리 중...", { id: `quick-${patient.id}` });
+    // 0ms Optimistic UI 즉각 반응 (화면 딜레이 제거)
+    const prevPatientCall = patient.latest_call;
+    const nowIso = new Date().toISOString();
+    const optimisticCall = isDone
+      ? {
+          id: `temp-${Date.now()}-${patient.id}`,
+          patient_id: patient.id,
+          user_email: '',
+          call_type: '해피콜',
+          status: '미확인',
+          memo: memoText,
+          created_by: staffName || '담당자',
+          call_date: nowIso,
+          created_at: nowIso
+        }
+      : {
+          id: `temp-${Date.now()}-${patient.id}`,
+          patient_id: patient.id,
+          user_email: '',
+          call_type: '해피콜',
+          status: '성공',
+          memo: memoText,
+          created_by: staffName || '담당자',
+          call_date: nowIso,
+          created_at: nowIso
+        };
+
+    setPatients(prev => prev.map(p => {
+      if (p.id === patient.id) {
+        return {
+          ...p,
+          latest_call: optimisticCall,
+          history: isDone ? p.history : [optimisticCall, ...(p.history || [])]
+        };
+      }
+      return p;
+    }));
+
+    // 선택 목록에 있었다면 자동 제거 및 자동저장 갱신
+    setSelectedPatientIds(prev => {
+      const next = prev.filter(id => id !== patient.id);
+      try {
+        localStorage.setItem(getTodayStorageKey(), JSON.stringify(next));
+      } catch (err) {}
+      return next;
+    });
+
+    toast.success(
+      isDone ? `${patient.name}님 확인 취소되었습니다.` : `⚡ ${patient.name}님 확인 완료!`, 
+      { id: `quick-${patient.id}`, duration: 2000 }
+    );
+
+    // 백그라운드 서버 저장 (UI 깜빡임 없이 조용히 동기화)
     try {
       const res = await fetch('/api/happycall/targets', {
         method: 'POST',
@@ -377,11 +538,100 @@ export default function HappyCallDashboard() {
         })
       });
 
-      if (!res.ok) throw new Error('처리에 실패했습니다.');
-      toast.success(`${patient.name}님 ${isDone ? '확인 취소됨' : '확인 완료 처리되었습니다!'}`, { id: `quick-${patient.id}` });
-      fetchTargets();
+      if (!res.ok) throw new Error('서버 저장에 실패했습니다.');
+      const data = await res.json();
+      if (data.callLog) {
+        setPatients(prev => prev.map(p => {
+          if (p.id === patient.id) {
+            return {
+              ...p,
+              latest_call: data.callLog
+            };
+          }
+          return p;
+        }));
+      }
     } catch (err: any) {
-      toast.error(err.message || '오류 발생', { id: `quick-${patient.id}` });
+      // 실패 시 원래 상태로 롤백
+      setPatients(prev => prev.map(p => {
+        if (p.id === patient.id) {
+          return { ...p, latest_call: prevPatientCall };
+        }
+        return p;
+      }));
+      toast.error('저장에 실패하여 이전 상태로 되돌렸습니다.', { id: `quick-${patient.id}` });
+    }
+  };
+
+  // 7. 선택 환자 일괄 완료 처리 (Optimistic + Batch DB Insert)
+  const handleBatchComplete = async () => {
+    if (selectedPatientIds.length === 0) return;
+    const count = selectedPatientIds.length;
+    const targetIds = [...selectedPatientIds];
+    const targetIdsSet = new Set(targetIds);
+
+    setIsBatchSubmitting(true);
+    toast.loading(`${count}명의 환자를 일괄 완료 처리 중입니다...`, { id: 'batch-complete' });
+
+    // 0ms Optimistic 즉시 상태 반영
+    const nowIso = new Date().toISOString();
+    const prevPatients = [...patients];
+
+    setPatients(prev => prev.map(p => {
+      if (targetIdsSet.has(p.id)) {
+        const optimisticCall = {
+          id: `temp-${Date.now()}-${p.id}`,
+          patient_id: p.id,
+          user_email: '',
+          call_type: '해피콜',
+          status: '성공',
+          memo: `${p.target_stage} 당일 골든타임 일괄 확인 완료`,
+          created_by: staffName || '담당자',
+          call_date: nowIso,
+          created_at: nowIso
+        };
+        return {
+          ...p,
+          latest_call: optimisticCall,
+          history: [optimisticCall, ...(p.history || [])]
+        };
+      }
+      return p;
+    }));
+
+    // 선택 상태 및 로컬 스토리지 즉시 클리어
+    setSelectedPatientIds([]);
+    try {
+      localStorage.removeItem(getTodayStorageKey());
+    } catch (err) {}
+
+    // 서버 일괄 전송
+    try {
+      const res = await fetch('/api/happycall/targets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patient_ids: targetIds,
+          call_type: '해피콜',
+          status: '성공',
+          memo: '당일 골든타임 일괄 확인 완료'
+        })
+      });
+
+      if (!res.ok) throw new Error('일괄 처리에 실패했습니다.');
+      toast.success(`🎉 ${count}명의 환자가 성공적으로 일괄 완료되었습니다!`, { id: 'batch-complete' });
+      // 백그라운드 데이터 조용히 동기화
+      fetchTargets(calculationMode, closedDays, true);
+    } catch (err: any) {
+      // 오류 시 롤백
+      setPatients(prevPatients);
+      setSelectedPatientIds(targetIds);
+      try {
+        localStorage.setItem(getTodayStorageKey(), JSON.stringify(targetIds));
+      } catch (e) {}
+      toast.error(err.message || '일괄 처리 중 오류가 발생했습니다.', { id: 'batch-complete' });
+    } finally {
+      setIsBatchSubmitting(false);
     }
   };
 
@@ -486,7 +736,9 @@ export default function HappyCallDashboard() {
     
     setCurrentScript(scriptText);
     setCallStatus('성공');
-    setCallMemo('');
+    // 임시 저장된 상담 메모 자동 복원
+    const savedDraft = typeof window !== 'undefined' ? localStorage.getItem(`happycall_draft_memo_${patient.id}`) : null;
+    setCallMemo(savedDraft || '');
     setIsModalOpen(true);
   };
 
@@ -575,8 +827,11 @@ export default function HappyCallDashboard() {
       }
 
       toast.success('통화 기록이 저장되었습니다.');
+      try {
+        localStorage.removeItem(`happycall_draft_memo_${selectedPatient.id}`);
+      } catch (e) {}
       setIsModalOpen(false);
-      fetchTargets(); // Refresh lists
+      fetchTargets(calculationMode, closedDays, true); // 깜빡임 없이 조용한 리스트 갱신
     } catch (err: any) {
       toast.error(err.message || '통화 기록 저장 중 오류');
     } finally {
@@ -788,7 +1043,21 @@ export default function HappyCallDashboard() {
                   }`}
                 >
                   <Bell size={14} className={globalUncontactedOnly ? 'animate-bounce' : ''} />
-                  <span>{globalUncontactedOnly ? '전체 환자 보기로 전환' : `🚨 미확인 환자만 집중 모아보기 (${totalGoldenUncontacted}명)`}</span>
+                  <span>{globalUncontactedOnly ? '전체 환자 보기로 전환' : `🚨 미확인 환자만 모아보기 (${totalGoldenUncontacted}명)`}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={selectedPatientIds.length > 0 ? handleClearSelection : handleSelectAllUncontacted}
+                  disabled={totalGoldenUncontacted === 0 && selectedPatientIds.length === 0}
+                  className="px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/40 disabled:opacity-30 disabled:pointer-events-none active:scale-95"
+                >
+                  <CheckSquare size={14} />
+                  <span>
+                    {selectedPatientIds.length > 0
+                      ? `선택 해제 (${selectedPatientIds.length}명)`
+                      : `미확인 전체 체크 (${totalGoldenUncontacted}명)`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -866,6 +1135,24 @@ export default function HappyCallDashboard() {
                           ✓ 완료 ({stats.contacted})
                         </button>
                       </div>
+
+                      {/* Column Level Batch Select Button */}
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSelectStage(stage)}
+                          disabled={stats.uncontacted === 0}
+                          className="text-[11px] font-bold text-slate-300 hover:text-amber-300 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5 transition-colors"
+                        >
+                          <CheckSquare size={13} className={isStageAllSelected(stage) ? 'text-amber-400' : 'text-slate-400'} />
+                          <span>{isStageAllSelected(stage) ? `${stage} 전체 체크 해제` : `${stage} 미확인(${stats.uncontacted}) 전체 체크`}</span>
+                        </button>
+                        {columnPatients.filter((p: any) => selectedPatientIds.includes(p.id)).length > 0 && (
+                          <span className="text-[10px] font-bold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                            {columnPatients.filter((p: any) => selectedPatientIds.includes(p.id)).length}명 선택됨
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Patients Cards List */}
@@ -882,46 +1169,69 @@ export default function HappyCallDashboard() {
                       ) : (
                         columnPatients.map((patient: any) => {
                           const isDone = isContactedToday(patient);
+                          const isSelected = selectedPatientIds.includes(patient.id);
                           return (
                             <div 
                               key={patient.id} 
                               className={`border rounded-2xl p-5 transition-all duration-200 group cursor-pointer ${
-                                isDone 
-                                  ? 'bg-[#0B3A28]/80 border-emerald-500/30 hover:border-emerald-500/60' 
-                                  : 'bg-[#0E3826] border-amber-500/40 hover:border-amber-400 shadow-lg shadow-black/40'
+                                isSelected
+                                  ? 'bg-[#12422E] border-amber-400 shadow-xl ring-2 ring-amber-400/50'
+                                  : isDone 
+                                    ? 'bg-[#0B3A28]/80 border-emerald-500/30 hover:border-emerald-500/60' 
+                                    : 'bg-[#0E3826] border-amber-500/40 hover:border-amber-400 shadow-lg shadow-black/40'
                               }`}
                               onClick={() => {
                                 handleOpenModal(patient);
                               }}
                             >
-                              {/* Top Quick-Check Status Row */}
+                              {/* Top Quick-Check / Selection Status Row */}
                               <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/5">
                                 {isDone ? (
                                   <div className="flex items-center justify-between w-full">
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                                      <CheckCircle2 size={12} /> 오늘 확인 완료
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 rounded-full">
+                                      <CheckCircle2 size={12} className="text-emerald-400" /> 오늘 확인 완료
                                     </span>
                                     <button
                                       type="button"
                                       onClick={(e) => handleQuickCheck(e, patient)}
-                                      className="text-[10px] text-slate-400 hover:text-rose-300 underline"
+                                      className="text-[11px] text-slate-400 hover:text-rose-300 underline"
                                       title="확인 취소"
                                     >
                                       취소
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="flex items-center justify-between w-full">
-                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full animate-pulse">
-                                      <AlertCircle size={12} /> ⚠️ 연락 필요 (미확인)
-                                    </span>
+                                  <div className="flex items-center justify-between w-full gap-2">
+                                    {/* 체크박스 선택 (일괄 완료용) */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleToggleSelectPatient(e, patient.id)}
+                                      className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all active:scale-95 ${
+                                        isSelected
+                                          ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-md ring-1 ring-amber-400/40'
+                                          : 'bg-black/30 border-white/10 text-slate-300 hover:border-amber-400/60 hover:text-white hover:bg-white/5'
+                                      }`}
+                                      title={isSelected ? "일괄 완료 체크 해제" : "일괄 완료 대상으로 체크"}
+                                    >
+                                      <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-black transition-all ${
+                                        isSelected
+                                          ? 'bg-amber-400 text-slate-950 shadow'
+                                          : 'border border-white/30 bg-black/40'
+                                      }`}>
+                                        {isSelected && '✓'}
+                                      </span>
+                                      <span>{isSelected ? '선택됨 (일괄 대기)' : '완료 체크'}</span>
+                                    </button>
+
+                                    {/* 1초 빠른 즉시 완료 버튼 */}
                                     <button
                                       type="button"
                                       onClick={(e) => handleQuickCheck(e, patient)}
-                                      className="inline-flex items-center gap-1 text-[11px] font-black text-slate-950 bg-amber-400 hover:bg-amber-300 px-2.5 py-1 rounded-lg shadow transition-all active:scale-95"
-                                      title="1초 빠른 확인 완료"
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-amber-300 px-2 py-1 rounded-lg hover:bg-white/5 transition-all"
+                                      title="체크하지 않고 즉시 1초 바로 완료"
                                     >
-                                      <Check size={13} /> 1초 확인 완료
+                                      <span>즉시완료</span>
+                                      <Check size={12} />
                                     </button>
                                   </div>
                                 )}
@@ -1020,6 +1330,57 @@ export default function HappyCallDashboard() {
         </div>
       </div>
 
+      {/* Floating Batch Action Bar (체크박스 선택 환자 일괄 완료 바) */}
+      {selectedPatientIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-4xl bg-[#031C13]/95 border-2 border-amber-400/60 rounded-3xl p-4 shadow-2xl backdrop-blur-xl flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-bottom duration-300 ring-4 ring-black/50">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-amber-400/20 shrink-0">
+              <CheckSquare size={22} className="stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-black text-white">
+                  총 <span className="text-amber-400 font-extrabold text-lg">{selectedPatientIds.length}명</span> 선택됨
+                </span>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  자동 저장 보존 중
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                작업 중 창이 꺼지거나 새로고침되어도 체크 목록이 안전하게 유지됩니다.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleClearSelection}
+              className="px-4 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all active:scale-95"
+            >
+              선택 취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectAllUncontacted}
+              className="px-4 py-2.5 text-xs font-bold text-amber-300 hover:text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-2xl transition-all active:scale-95"
+            >
+              전체 미확인 선택
+            </button>
+            <button
+              type="button"
+              onClick={handleBatchComplete}
+              disabled={isBatchSubmitting}
+              className="px-6 py-3 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm rounded-2xl shadow-xl shadow-amber-500/30 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <Check size={18} className="stroke-[3]" />
+              <span>{isBatchSubmitting ? '일괄 완료 처리 중...' : `선택한 ${selectedPatientIds.length}명 일괄 완료하기`}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Detail & Action Modal */}
       {isModalOpen && selectedPatient && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1109,9 +1470,17 @@ export default function HappyCallDashboard() {
                       <label className="text-xs font-bold text-slate-400">통화 상담 메모</label>
                       <textarea
                         rows={3}
-                        placeholder="통화 상세 내용이나 상담 결과 메모를 작성하세요..."
+                        placeholder="통화 상세 내용이나 상담 결과 메모를 작성하세요... (자동 저장 지원)"
                         value={callMemo}
-                        onChange={e => setCallMemo(e.target.value)}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setCallMemo(val);
+                          if (selectedPatient) {
+                            try {
+                              localStorage.setItem(`happycall_draft_memo_${selectedPatient.id}`, val);
+                            } catch (err) {}
+                          }
+                        }}
                         className="w-full bg-[#0B3A28] border border-white/5 rounded-2xl p-4 text-sm focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 text-white placeholder-slate-600"
                       />
                     </div>
