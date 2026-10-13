@@ -26,7 +26,8 @@ import {
   Presentation,
   Gem,
   Activity,
-  CreditCard
+  CreditCard,
+  Megaphone
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -106,6 +107,7 @@ export default function DashboardSidebar() {
   const [isLiftingOpen, setIsLiftingOpen] = useState(false);
   const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
+  const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -219,7 +221,11 @@ export default function DashboardSidebar() {
     },
     { 
       label: "마케팅", 
-      items: isMaster ? [{ label: "자동화 글쓰기", url: "/admin/scheduler" }] : []
+      items: [
+        { label: "플레이스 리뷰", url: "https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing" },
+        { label: "블로그 생성", url: "https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing" },
+        ...(isMaster ? [{ label: "자동화 글쓰기", url: "/admin/scheduler" }] : [])
+      ]
     }
   ];
 
@@ -546,6 +552,42 @@ export default function DashboardSidebar() {
             </NavItem>
           )}
 
+          {/* 6. 바른마케팅 */}
+          <NavItem 
+            icon={Megaphone} 
+            label="바른마케팅" 
+            isOpen={isMarketingOpen}
+            onClick={() => setIsMarketingOpen(prev => !prev)}
+            hasNew={true}
+          >
+            <div className="space-y-1">
+              <a 
+                href="https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-[1px] bg-white/20 group-hover:bg-amber-400 transition-colors"></div>
+                  플레이스 리뷰
+                </div>
+                <Sparkles size={11} className="text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+              </a>
+
+              <a 
+                href="https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-[1px] bg-white/20 group-hover:bg-amber-400 transition-colors"></div>
+                  블로그 생성
+                </div>
+                <Sparkles size={11} className="text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+              </a>
+            </div>
+          </NavItem>
 
         </div>
 
