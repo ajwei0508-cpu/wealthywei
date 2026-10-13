@@ -222,8 +222,8 @@ export default function DashboardSidebar() {
     { 
       label: "마케팅", 
       items: [
-        { label: "플레이스 리뷰", url: "https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing" },
-        { label: "블로그 생성", url: "https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing" },
+        { label: "플레이스 리뷰", url: "https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", isPopup: true },
+        { label: "블로그 생성", url: "https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", isPopup: true },
         ...(isMaster ? [{ label: "자동화 글쓰기", url: "/admin/scheduler" }] : [])
       ]
     }
@@ -234,6 +234,19 @@ export default function DashboardSidebar() {
   const toggleSubMenu = (label: string) => {
     setOpenSubMenus(prev => 
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
+
+  const openGeminiPopup = (url: string, name: string) => {
+    if (typeof window === 'undefined') return;
+    const width = 1200;
+    const height = 850;
+    const left = Math.max(0, (window.screen.width - width) / 2);
+    const top = Math.max(0, (window.screen.height - height) / 2);
+    window.open(
+      url,
+      name,
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no,location=yes,toolbar=no,menubar=no`
     );
   };
 
@@ -335,6 +348,20 @@ export default function DashboardSidebar() {
                                   <div key={i} className="py-2 mt-1 text-[11px] font-bold text-amber-500/80 uppercase tracking-widest flex items-center gap-2">
                                     {item.label}
                                   </div>
+                                );
+                              }
+                              if (item.isPopup) {
+                                return (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => openGeminiPopup(item.url, `gemini_popup_${i}`)}
+                                    className="w-full flex items-center gap-2 py-1.5 text-[12px] text-white/50 hover:text-amber-300 transition-colors cursor-pointer text-left"
+                                  >
+                                    <div className="w-1 h-[1px] bg-white/20"></div>
+                                    {item.label}
+                                    <Sparkles size={10} className="text-amber-400 opacity-50" />
+                                  </button>
                                 );
                               }
                               const isExternal = item.url?.startsWith('http');
@@ -561,31 +588,29 @@ export default function DashboardSidebar() {
             hasNew={true}
           >
             <div className="space-y-1">
-              <a 
-                href="https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group"
+              <button 
+                type="button"
+                onClick={() => openGeminiPopup("https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", "gemini_place_review")}
+                className="w-full flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-[1px] bg-white/20 group-hover:bg-amber-400 transition-colors"></div>
                   플레이스 리뷰
                 </div>
                 <Sparkles size={11} className="text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-              </a>
+              </button>
 
-              <a 
-                href="https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group"
+              <button 
+                type="button"
+                onClick={() => openGeminiPopup("https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", "gemini_blog_create")}
+                className="w-full flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-[1px] bg-white/20 group-hover:bg-amber-400 transition-colors"></div>
                   블로그 생성
                 </div>
                 <Sparkles size={11} className="text-amber-400 opacity-60 group-hover:opacity-100 transition-opacity" />
-              </a>
+              </button>
             </div>
           </NavItem>
 
