@@ -104,12 +104,22 @@ const NavItem = ({ icon: Icon, label, isLocked, isOpen, onClick, children, isAct
 export default function DashboardSidebar() {
   const { data: session } = useSession();
   const [isConsultingOpen, setIsConsultingOpen] = useState(false);
-  const [isLiftingOpen, setIsLiftingOpen] = useState(false);
+  const [isLiftingOpen, setIsLiftingOpen] = useState(true);
+  const [isContourDiagOpen, setIsContourDiagOpen] = useState(true);
   const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
   const [isStaffMenuOpen, setIsStaffMenuOpen] = useState(false);
   const [isMarketingOpen, setIsMarketingOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    if (pathname.startsWith("/lifting")) {
+      setIsLiftingOpen(true);
+      if (pathname.startsWith("/lifting/contour-diagnosis")) {
+        setIsContourDiagOpen(true);
+      }
+    }
+  }, [pathname]);
 
   const [hasNewNotice, setHasNewNotice] = useState(false);
   const [hasNewRequest, setHasNewRequest] = useState(false);
@@ -542,7 +552,57 @@ export default function DashboardSidebar() {
                   <Sparkles size={10} className="text-amber-400 opacity-80" />
                 </Link>
 
-                {/* 3. 소비자 심리 상담 & 티켓팅 (OPEN) */}
+                {/* 3. 윤곽진단 ➔ 리프팅 윤곽비교 (OPEN) */}
+                <div className="mb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsContourDiagOpen(prev => !prev);
+                      if (!pathname.startsWith('/lifting/contour-diagnosis')) {
+                        router.push('/lifting/contour-diagnosis');
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between py-2 text-[12.5px] font-bold transition-colors cursor-pointer ${
+                      pathname.startsWith('/lifting/contour-diagnosis')
+                        ? 'text-emerald-300'
+                        : 'text-emerald-200/85 hover:text-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.8)]"></div>
+                      <span>윤곽진단</span>
+                      <span className="px-1.5 py-0.5 text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded font-extrabold">
+                        NEW
+                      </span>
+                    </div>
+                    <ChevronDown size={12} className={`transition-transform ${isContourDiagOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  <AnimatePresence>
+                    {isContourDiagOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden pl-4 space-y-1"
+                      >
+                        <Link
+                          href="/lifting/contour-diagnosis"
+                          className={`flex items-center gap-2 py-1.5 text-[12px] transition-colors ${
+                            pathname.startsWith('/lifting/contour-diagnosis')
+                              ? 'text-amber-300 font-bold'
+                              : 'text-white/70 hover:text-amber-300'
+                          }`}
+                        >
+                          <div className="w-1 h-[1px] bg-emerald-400/50"></div>
+                          <span>리프팅 윤곽비교</span>
+                          <Sparkles size={10} className="text-amber-400 opacity-90" />
+                        </Link>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 4. 소비자 심리 상담 & 티켓팅 (OPEN) */}
                 <Link 
                   href="/lifting?tab=psychology" 
                   className="flex items-center gap-2 py-2 text-[12px] text-white/60 hover:text-amber-300 transition-colors"
@@ -552,7 +612,7 @@ export default function DashboardSidebar() {
                   <Sparkles size={10} className="text-amber-400 opacity-80" />
                 </Link>
 
-                {/* 4. 임상 프로토콜 & 매선술 (LOCKED) */}
+                {/* 5. 임상 프로토콜 & 매선술 (LOCKED) */}
                 <div 
                   className="flex items-center justify-between py-2 text-[12px] text-white/30 cursor-not-allowed select-none px-0.5"
                   title="임상 프로토콜 (현재 잠금 상태)"
@@ -564,7 +624,7 @@ export default function DashboardSidebar() {
                   <Lock size={12} className="text-white/20" />
                 </div>
 
-                {/* 5. 안면 벡터 맵 & SOP (LOCKED) */}
+                {/* 6. 안면 벡터 맵 & SOP (LOCKED) */}
                 <div 
                   className="flex items-center justify-between py-2 text-[12px] text-white/30 cursor-not-allowed select-none px-0.5"
                   title="안면 벡터 맵 & SOP (현재 잠금 상태)"
