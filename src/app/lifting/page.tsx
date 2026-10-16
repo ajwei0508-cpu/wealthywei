@@ -354,6 +354,16 @@ function LiftingContent() {
             <span className="px-1.5 py-0.5 text-[9px] bg-amber-400 text-black rounded font-black">NEW</span>
           </button>
 
+          {/* 2-B. 윤곽진단 ➔ 리프팅 윤곽비교 (OPEN) */}
+          <button
+            onClick={() => router.push("/lifting/contour-diagnosis")}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs tracking-wider transition-all duration-300 whitespace-nowrap bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-lg shadow-emerald-900/30"
+          >
+            <Target size={15} className="text-emerald-400" />
+            윤곽진단 · 리프팅 윤곽비교
+            <span className="px-1.5 py-0.5 text-[9px] bg-emerald-400 text-black rounded font-black">AI</span>
+          </button>
+
           {/* 3. 소비자 심리 상담 & 티켓팅 (OPEN) */}
           <button
             onClick={() => handleTabChange("psychology")}
