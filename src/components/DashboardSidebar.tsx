@@ -435,8 +435,10 @@ export default function DashboardSidebar() {
           {userRole !== 'staff' && (
             <NavItem 
               icon={FileText} 
-              label="바른개원법" 
-              isLocked={!isOpeningApproved && !isMaster} 
+              label="바른개원법 (진단설문)" 
+              isLocked={!isOpeningApproved && !isMaster}
+              isActive={pathname.startsWith("/survey")}
+              onClick={() => router.push("/survey")}
             />
           )}
           
@@ -726,6 +728,13 @@ export default function DashboardSidebar() {
               마스터 통합 관리
             </Link>
             <Link 
+              href="/survey/admin?tab=studio"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-400/10 border border-amber-400/40 hover:from-amber-500/30 hover:to-amber-400/20 hover:border-amber-300 text-amber-300 text-xs font-black transition-all group relative z-10 cursor-pointer active:scale-95"
+            >
+              <Sparkles size={14} className="text-amber-400 group-hover:scale-110 transition-transform" />
+              마스터 설문 다듬기 스튜디오
+            </Link>
+            <Link 
               href="/master?tab=analytics"
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 hover:from-emerald-500/30 hover:to-teal-500/20 hover:border-emerald-400 text-emerald-300 text-xs font-bold transition-all group relative z-10 cursor-pointer active:scale-95"
             >
@@ -735,15 +744,24 @@ export default function DashboardSidebar() {
           </div>
         )}
 
-        {/* Workbook Button — Not for staff */}
+        {/* Workbook Write & Full View Buttons — For both Master and Directors */}
         {userRole !== 'staff' && (
-          <Link 
-            href="/survey"
-            className="w-full flex items-center justify-center gap-2 py-2.5 mb-3 rounded-xl bg-emerald-600/10 border border-emerald-500/20 hover:bg-emerald-600/20 hover:border-emerald-500/40 text-amber-300 hover:text-blue-200 text-xs font-bold transition-all group relative z-10 mt-3 cursor-pointer active:scale-95"
-          >
-            <ClipboardList size={14} className="group-hover:scale-110 transition-transform" />
-            경영 진단 워크북 작성
-          </Link>
+          <div className="grid grid-cols-2 gap-2 mt-3 mb-3 relative z-10">
+            <Link 
+              href="/survey?mode=edit"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 hover:border-emerald-400 text-amber-300 text-[11px] font-black transition-all group cursor-pointer active:scale-95 text-center"
+            >
+              <ClipboardList size={13} className="group-hover:scale-110 transition-transform flex-shrink-0" />
+              <span>설문 작성·수정</span>
+            </Link>
+            <Link 
+              href="/survey?mode=view"
+              className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-amber-400/15 border border-amber-400/35 hover:bg-amber-400/25 hover:border-amber-300 text-amber-300 text-[11px] font-black transition-all group cursor-pointer active:scale-95 text-center"
+            >
+              <FileText size={13} className="group-hover:scale-110 transition-transform flex-shrink-0" />
+              <span>내 설문지 확인</span>
+            </Link>
+          </div>
         )}
 
         {/* EMR Change Button - Not for staff */}

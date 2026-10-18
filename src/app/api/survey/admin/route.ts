@@ -38,3 +38,37 @@ export async function GET() {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userEmail = session.user.email.toLowerCase();
+  if (userEmail !== MASTER_EMAIL) {
+    return NextResponse.json({ error: "Forbidden - Master Only" }, { status: 403 });
+  }
+
+  try {
+    const { targetUserId, data: updatedData } = await req.json();
+    if (!targetUserId || !updatedData) {
+      return NextResponse.json({ error: "Missing targetUserId or data" }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from("survey_workbook")
+      .update({
+        data: updatedData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", targetUserId.toLowerCase());
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error("🔥 Admin Survey POST error:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
