@@ -500,7 +500,7 @@ export default function SurveyFullSheetView({
           {renderQuestionRow({
             step: "11",
             legacyQ: "Q42",
-            label: "병원 실평수 및 베드 수",
+            label: "병원 실평수 · 베드 수 및 공간 구성 (진료실 / 상담실 / 검사실 / 원내약탕실 유무)",
             value: data.ch2.clinicSize,
             partNumber: 2,
           })}

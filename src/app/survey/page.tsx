@@ -1017,20 +1017,54 @@ export default function SurveyPage() {
           </div>
           <div className="space-y-4">
             <div>
-              <Lbl stepBadge="11" legacyQ="Q42" hint="실평수, 진료실 수, 상담실 유무, 치료실 베드 수를 적어주세요.">
-                병원 실평수 및 베드 수
+              <Lbl
+                stepBadge="11"
+                legacyQ="Q42"
+                hint="실평수, 진료실 수, 상담실 유무, 검사실 유무, 원내약탕실 유무, 치료실 베드 수를 적어주세요."
+              >
+                병원 실평수 · 베드 수 및 공간 구성 (검사실 / 원내약탕실 포함)
               </Lbl>
-              <Inp
+              <STATextarea
+                id="ch2-clinicsize"
                 value={data.ch2.clinicSize}
                 onChange={(v: string) => upd2("clinicSize", v)}
-                placeholder="예: 실평수 45평 / 진료실 1, 상담실 1 / 일반베드 10개, 추나베드 1개"
+                placeholder="예: 실평수 45평 / 진료실 1, 상담실 1, 검사실 유, 원내약탕실 유(또는 원외탕전) / 일반베드 10개, 추나베드 1개"
+                rows={3}
                 readOnly={isReadOnly}
+                listeningId={listeningId}
+                onMic={startSTT}
               />
+              {/* 빠른 클릭 입력 칩 (검사실 / 원내약탕실 / 상담실 유무) */}
+              {!isReadOnly && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[
+                    "상담실 있음",
+                    "상담실 없음",
+                    "검사실 있음",
+                    "검사실 없음",
+                    "원내약탕실 있음",
+                    "원내약탕실 없음(원외탕전)",
+                  ].map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const cur = data.ch2.clinicSize?.trim() || "";
+                        if (cur.includes(tag)) return;
+                        upd2("clinicSize", cur ? `${cur} / ${tag}` : tag);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 text-[11px] font-bold text-amber-300/90 transition-all"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/20">
               <p className="text-[11px] font-black text-amber-300 mb-1">💡 리얼 현황 체크 포인트</p>
               <p className="text-xs text-white/70 leading-relaxed">
-                별도의 독립 상담실이 있는지, 혹은 진료실이나 데스크에서 바로 상담·수납이 이루어지는지도 함께 적어주시면 동선 진단에 큰 도움이 됩니다.
+                별도의 독립된 <strong>상담실·검사실·원내약탕실(탕전실)</strong>이 있는지, 혹은 진료실·데스크 겸용 및 원외탕전을 사용하시는지 함께 적어주시면 공간 동선 진단에 큰 도움이 됩니다.
               </p>
             </div>
           </div>
