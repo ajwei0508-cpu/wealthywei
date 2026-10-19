@@ -251,6 +251,7 @@ function AdminSurveyContent() {
     safePush("한약 복용 안내문 (Q32)", data?.ch2?.herbInstructionsFile);
     safePush("환자 Q&A 매뉴얼 (Q10)", data?.ch3?.patientQnaFile);
     safePush("지표 관리 양식 (Q27)", data?.ch4?.indicatorsFile);
+    safePush("차트 최근 2년 월별 매출·초재진 엑셀 (당월 제외)", data?.ch4?.chartRevenueFiles);
     safePush("채팅 전체 채널 캡처 (Q49)", data?.ch5?.chatSystem?.capture1);
     safePush("채팅 대화 내용 캡처 (Q49)", data?.ch5?.chatSystem?.capture2);
     safePush("소통 가이드라인 문서 (Q49)", data?.ch5?.chatSystem?.guideFile);

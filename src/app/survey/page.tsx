@@ -66,6 +66,7 @@ export type SurveyData = {
     immediateInvestment: string;    // Q25. 당장 투자 금액
     indicators: string;             // Q27. 관찰 지표/관리방법
     indicatorsFile: string[];
+    chartRevenueFiles: string[];    // Q27-2. 차트 프로그램 최근 2년 월별 매출·초재진·청구·본부금·비급여·자보 엑셀 업로드 (당월 제외)
     investmentHistory: string;      // Q28. 투자비용/회수금
     expenses: { item: string; amount: string }[]; // Q29. 경비 내역
   };
@@ -102,11 +103,99 @@ export const SAFETY_ITEMS = [
   "직원 보건 교육", "근골격계 질환 예방"
 ];
 
+export const CHART_EXCEL_REQUIRED_COLUMNS = [
+  "월 매출 (총매출)",
+  "초진 환자수",
+  "재진 환자수",
+  "청구 (보험청구금)",
+  "본부금 (본인부담금)",
+  "비급여 매출",
+  "자보 매출 (자동차보험)",
+];
+
+export const STANDARD_CLINIC_EXPENSES: { item: string; category: string; placeholder: string }[] = [
+  { item: "임대료 및 건물 관리비", category: "고정비", placeholder: "예: 450 (월세 + 건물관리비 합산)" },
+  { item: "인건비 (직원 급여 · 4대보험 · 퇴직적립금)", category: "고정비", placeholder: "예: 1200 (직원 급여 + 4대보험 사업주 부담분)" },
+  { item: "한약재 및 원외탕전비 (파우치·택배비 포함)", category: "변동비", placeholder: "예: 350 (규격 한약재 + 원외탕전 조제·배송비)" },
+  { item: "의약품 및 의료소모품비 (약침·침·부항·뜸·일회용품)", category: "변동비", placeholder: "예: 180 (약침액 + 침/부항컵/소독/시트 등)" },
+  { item: "마케팅 및 광고선전비 (네이버·블로그·당근·오프라인)", category: "변동비", placeholder: "예: 200 (플레이스·파워링크·블로그 대행 등)" },
+  { item: "식대 및 직원 복리후생비 (점심·야간식대·간식·유니폼)", category: "변동비", placeholder: "예: 120 (직원 식사비 + 간식/다과 + 복리후생)" },
+  { item: "공과금 · 통신비 · 전자차트(EMR) 월 사용료", category: "고정비", placeholder: "예: 70 (전기·수도·가스·인터넷·전화·차트비)" },
+  { item: "의료기기 리스 및 원내 렌탈료 (추나베드·치료기·정수기 등)", category: "고정비", placeholder: "예: 80 (의료장비 리스 + 정수기/공기청정기 렌탈)" },
+  { item: "세탁 · 청소용역 · 방역 및 의료폐기물 처리비", category: "고정비", placeholder: "예: 60 (환자복/수건 세탁 + 정기청소 + 폐기물)" },
+  { item: "대출 이자 및 금융 상환비 (닥터론·개원대출 등)", category: "고정비", placeholder: "예: 150 (월 대출이자 또는 원리금 상환액)" },
+  { item: "세무기장료 및 각종 보험료 (배상책임·화재보험 등)", category: "고정비", placeholder: "예: 35 (세무사 기장료 + 한의사배상책임/화재보험)" },
+  { item: "카드수수료 및 기타 운영 잡비 (사무용품·차량유지·수선비 등)", category: "기타", placeholder: "예: 50 (사무/전산소모품 + 기타 예비 경비)" },
+];
+
+export function parseExpenseManWon(raw: string | number | undefined | null): number {
+  if (raw === undefined || raw === null) return 0;
+  const str = String(raw).replace(/,/g, "").trim();
+  if (!str) return 0;
+  const match = str.match(/-?\d+(\.\d+)?/);
+  if (!match) return 0;
+  const num = parseFloat(match[0]);
+  if (isNaN(num) || num <= 0) return 0;
+  // 만약 실수로 '원' 단위(예: 4500000)로 입력한 경우 만 원 단위로 자동 환산
+  if (num >= 100000) {
+    return Math.round((num / 10000) * 10) / 10;
+  }
+  return Math.round(num * 10) / 10;
+}
+
+export function calculateTotalMonthlyExpense(expenses: { item: string; amount: string }[] = []) {
+  let totalManWon = 0;
+  let filledCount = 0;
+  for (const row of expenses) {
+    const val = parseExpenseManWon(row?.amount);
+    if (val > 0) {
+      totalManWon += val;
+      filledCount += 1;
+    }
+  }
+  totalManWon = Math.round(totalManWon * 10) / 10;
+  return { totalManWon, filledCount };
+}
+
+export function normalizeClinicExpenses(savedExpenses?: { item: string; amount: string }[]): { item: string; amount: string }[] {
+  const defaultList = STANDARD_CLINIC_EXPENSES.map(e => ({ item: e.item, amount: "" }));
+  if (!Array.isArray(savedExpenses) || savedExpenses.length === 0) {
+    return defaultList;
+  }
+  // 구버전 기본 3개 항목(임대료, 인건비, 의약품/한약재)만 저장되어 있던 경우 표준 12개 항목으로 자동 확장하면서 기존 입력값 보존
+  if (savedExpenses.length <= 4) {
+    const legacyMap: Record<string, string> = {
+      "임대료": "임대료 및 건물 관리비",
+      "인건비": "인건비 (직원 급여 · 4대보험 · 퇴직적립금)",
+      "의약품/한약재": "한약재 및 원외탕전비 (파우치·택배비 포함)",
+      "재료비": "의약품 및 의료소모품비 (약침·침·부항·뜸·일회용품)",
+      "마케팅비": "마케팅 및 광고선전비 (네이버·블로그·당근·오프라인)",
+    };
+    const merged = defaultList.map(d => ({ ...d }));
+    const customExtras: { item: string; amount: string }[] = [];
+
+    for (const oldRow of savedExpenses) {
+      const cleanName = (oldRow.item || "").trim();
+      const mappedTarget = legacyMap[cleanName] || cleanName;
+      const foundIdx = merged.findIndex(m => m.item === mappedTarget || m.item.startsWith(cleanName));
+      if (foundIdx >= 0) {
+        if (oldRow.amount && !merged[foundIdx].amount) {
+          merged[foundIdx].amount = oldRow.amount;
+        }
+      } else if (cleanName || oldRow.amount) {
+        customExtras.push({ item: cleanName, amount: oldRow.amount || "" });
+      }
+    }
+    return [...merged, ...customExtras];
+  }
+  return savedExpenses;
+}
+
 const CHAPTER_CONFIG = [
   { id: 1, icon: User,          title: "Part 1. 원장님 브랜딩 & 경영 철학", subtitle: "Who You Are",          shortTitle: "브랜딩",     color: "from-emerald-600 to-teal-700",   estMin: 3, cards: ["01-05 브랜딩 & 리더십", "06-09 경영 철학 & 비전"] },
   { id: 2, icon: Stethoscope,   title: "Part 2. 공간 입지 & 환자 경험 여정", subtitle: "Clinic UX & Journey",  shortTitle: "공간·동선",  color: "from-teal-600 to-emerald-800",   estMin: 3, cards: ["10-11 입지 & 공간 규모", "12-16 환자 동선 & 내원/이탈 요인", "17-19 해피콜 & 한약 안내"] },
   { id: 3, icon: ClipboardList, title: "Part 3. 임상 루틴 & 처방 시스템",   subtitle: "Clinical SOP",         shortTitle: "임상루틴",   color: "from-amber-600 to-emerald-700",  estMin: 4, cards: ["20-21 치료 철학 & 장비", "22-24 임상 매뉴얼 & 치료 계획", "25 대표 3대 질환 차팅", "26-29 청구·추나·처방 권유"] },
-  { id: 4, icon: BarChart3,     title: "Part 4. 경영 지표 & 재무 투자",     subtitle: "Numbers & Goals",      shortTitle: "재무목표",   color: "from-emerald-700 to-cyan-700",   estMin: 3, cards: ["30-32 5대 목표 수치 & 수익 배분", "33-35 투자금 & 성장 예산", "36-37 핵심 지표 & 월 고정경비"] },
+  { id: 4, icon: BarChart3,     title: "Part 4. 경영 지표 & 재무 투자",     subtitle: "Numbers & Goals",      shortTitle: "재무목표",   color: "from-emerald-700 to-cyan-700",   estMin: 3, cards: ["30-32 5대 목표 수치 & 수익 배분", "33-35 투자금 & 성장 예산", "36-37 2년 차트 엑셀 & 월 총경비"] },
   { id: 5, icon: Users,         title: "Part 5. 조직 문화 & 팀 빌딩",       subtitle: "People & Culture",     shortTitle: "조직문화",   color: "from-teal-700 to-emerald-600",   estMin: 4, cards: ["38-39 직원 처우 & 파트 인원", "40-42 식사·복리후생·할인", "43-44 인재상 & 직책별 역할", "45-47 메신저 소통 & 교육"] },
   { id: 6, icon: Shield,        title: "Part 6. 안전 리스크 & 마케팅 비전", subtitle: "Safety & Marketing",   shortTitle: "안전·마케팅", color: "from-amber-500 to-emerald-800", estMin: 3, cards: ["48 원내 18대 안전 체크리스트", "49-50 마케팅 & 원내 홍보물", "51 경영 명인의 자화상"] },
 ];
@@ -122,7 +211,7 @@ export const initialData: SurveyData = {
   ch1: { name: "", clinic: "", degree: "", specialist: "", media: "", vision: "", mission: "", goal: "", mbti: "", intro: "", actionStep: "", weakness: "", whyCome: "", whyLeave: "", clinicPride: "", philosophy: "", desiredLeader: "" },
   ch2: { addressHours: "", clinicSize: "", patientFlow: "", consultScript: "", herbConsultProcess: "", happyCallSystem: "", herbInstructions: "", herbInstructionsFile: [], herbManagementSystem: "" },
   ch3: { equipmentDetail: "", treatmentDefinition: "", patientQna: "", patientQnaFile: [], diseasePlans: "", mskExample: "", charting: [{ disease: "대표 질환 1 (예: 경추통)", case1: "", case2: "", case3: "" }, { disease: "대표 질환 2 (예: 요통)", case1: "", case2: "", case3: "" }, { disease: "대표 질환 3 (예: 슬통)", case1: "", case2: "", case3: "" }], billingRoutine: "", chunaRoutine: "", herbRecommendation: "", acupointRecommendation: "" },
-  ch4: { targetMetrics: { revenue: "", profit: "", nonBenefit: "", autoInsurance: "", dailyPatients: "" }, workingDays: "", profitUsage: "", growthInvestment: "", immediateInvestment: "", indicators: "", indicatorsFile: [], investmentHistory: "", expenses: [{ item: "임대료", amount: "" }, { item: "인건비", amount: "" }, { item: "의약품/한약재", amount: "" }] },
+  ch4: { targetMetrics: { revenue: "", profit: "", nonBenefit: "", autoInsurance: "", dailyPatients: "" }, workingDays: "", profitUsage: "", growthInvestment: "", immediateInvestment: "", indicators: "", indicatorsFile: [], chartRevenueFiles: [], investmentHistory: "", expenses: STANDARD_CLINIC_EXPENSES.map(e => ({ item: e.item, amount: "" })) },
   ch5: { staff: [{ role: "실장", salary: "", days: "", hours: "", incentive: "" }, { role: "간호조무사", salary: "", days: "", hours: "", incentive: "" }], staffCounts: { desk: "", treatment: "", decoction: "", other: "" }, mealSnack: { nightMeal: "", snack: "", lunch: "", eatTogether: "" }, welfare: "", staffDiscount: "", idealStaff: "", expectations: { manager: "", regular: "", communication: "" }, chatSystem: { program: "카카오톡", channels: "", capture1: "", capture2: "", guideFile: "", files: [] }, eduMeeting: "", eduMaterials: [] },
   ch6: { safetyEducation: "", safetyItems: Object.fromEntries(SAFETY_ITEMS.map(q => [q, false])), safetyFiles: {}, marketingStatus: { channels: "", cost: "", goal: "" }, promoMaterials: "", promoPhotos: [], finalGoal: "" },
 };
@@ -557,6 +646,14 @@ const LiveReportBuilderWidget = ({
               {data.ch4.targetMetrics.revenue ? `${data.ch4.targetMetrics.revenue}` : "미입력"}
             </span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-white/55 font-medium">월 총 경비(합산)</span>
+            <span className="font-black text-amber-300 truncate max-w-[110px]">
+              {calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon > 0
+                ? `${calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon.toLocaleString()}만 원`
+                : "미입력"}
+            </span>
+          </div>
         </div>
 
         <div className="space-y-2 pt-2">
@@ -597,6 +694,10 @@ export default function SurveyPage() {
   const [stampStep, setStampStep] = useState<number | null>(null);
   const [hasFetched, setHasFetched] = useState(false);
 
+  // 수동 경비 항목 빠른 추가 입력 상태
+  const [manualExpenseItem, setManualExpenseItem] = useState("");
+  const [manualExpenseAmount, setManualExpenseAmount] = useState("");
+
   // 마스터 전용: 본인 설문지뿐만 아니라 모든 회원 원장님 설문지를 선택해 열람/수정 가능
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
   const [masterCoachingMode, setMasterCoachingMode] = useState(false);
@@ -608,6 +709,65 @@ export default function SurveyPage() {
   const [showDossierModal, setShowDossierModal] = useState(false);
 
   const isReadOnly = false;
+
+  // 현재 진료하는 달(당월)을 제외한 최근 2년(24개월) 기간 텍스트 계산
+  const recent2YearsRangeText = useMemo(() => {
+    const now = new Date();
+    // 직전 달 (당월 제외)
+    const endMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    // 24개월 전
+    const startMonthDate = new Date(endMonthDate.getFullYear(), endMonthDate.getMonth() - 23, 1);
+    const fmt = (d: Date) => `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, "0")}월`;
+    const curMonthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`;
+    return {
+      rangeLabel: `${fmt(startMonthDate)} ~ ${fmt(endMonthDate)} (총 24개월)`,
+      excludedCurrentMonth: curMonthLabel,
+    };
+  }, []);
+
+  // 최근 2년(당월 제외) 차트 프로그램 월별 매출·초재진 표준 엑셀 양식 다운로드
+  const handleDownloadStandard2YearExcel = useCallback(async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const now = new Date();
+      const endMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const rows: Record<string, any>[] = [];
+      for (let i = 23; i >= 0; i--) {
+        const d = new Date(endMonthDate.getFullYear(), endMonthDate.getMonth() - i, 1);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        rows.push({
+          "년월(당월제외)": ym,
+          "월 매출(총매출)": "",
+          "초진(명)": "",
+          "재진(명)": "",
+          "청구(보험청구액)": "",
+          "본부금(본인부담금)": "",
+          "비급여 매출": "",
+          "자보 매출(자동차보험)": "",
+          "비고": "",
+        });
+      }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 20 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "최근2년_월별매출통계(당월제외)");
+      XLSX.writeFile(wb, `바른컨설팅_최근2년_월별매출_초재진_표준양식(당월제외).xlsx`);
+      toast.success("최근 2년(현재 진료달 제외) 표준 엑셀 양식이 다운로드되었습니다.");
+    } catch (e) {
+      console.error(e);
+      toast.error("양식 다운로드 중 오류가 발생했습니다.");
+    }
+  }, []);
 
   // URL 파라미터 (?mode=view, ?userId=...) 감지
   useEffect(() => {
@@ -638,6 +798,11 @@ export default function SurveyPage() {
               merged[chKey] = { ...initialData[chKey], ...saved.data[chKey] };
             }
           }
+          merged.ch4 = {
+            ...merged.ch4,
+            chartRevenueFiles: Array.isArray(saved.data.ch4?.chartRevenueFiles) ? saved.data.ch4.chartRevenueFiles : [],
+            expenses: normalizeClinicExpenses(saved.data.ch4?.expenses),
+          };
           setData(merged);
           setSubmitted(Boolean(saved.submitted || saved.data?.submitted));
           setUpdatedAt(saved.updated_at || "");
@@ -727,11 +892,14 @@ export default function SurveyPage() {
       data.ch3.charting[0]?.case1 || "", data.ch3.charting[1]?.case1 || "", data.ch3.charting[2]?.case1 || "",
       data.ch3.billingRoutine, data.ch3.chunaRoutine, data.ch3.herbRecommendation, data.ch3.acupointRecommendation
     ]);
+    const hasChartExcel = (data.ch4.chartRevenueFiles?.length || 0) > 0 ? "uploaded" : "";
+    const hasExpenses = calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon > 0 ? "filled" : "";
     const p4 = countPartFields([
       data.ch4.targetMetrics.revenue, data.ch4.targetMetrics.profit, data.ch4.targetMetrics.nonBenefit,
       data.ch4.targetMetrics.autoInsurance, data.ch4.targetMetrics.dailyPatients,
       data.ch4.workingDays, data.ch4.profitUsage, data.ch4.investmentHistory,
-      data.ch4.growthInvestment, data.ch4.immediateInvestment, data.ch4.indicators
+      data.ch4.growthInvestment, data.ch4.immediateInvestment, data.ch4.indicators,
+      hasChartExcel, hasExpenses
     ]);
     const p5 = countPartFields([
       data.ch5.staff[0]?.salary || "", data.ch5.staffCounts.desk, data.ch5.staffCounts.treatment,
@@ -1586,7 +1754,7 @@ export default function SurveyPage() {
         </div>
       </SCard>
 
-      <SCard id="card-2" badge="STEP 36 ~ 37" title="핵심 관찰 지표 & 월평균 실제 경비 명세" subtitle="현재 관리 중인 숫자와 매월 나가는 실제 비용을 점검합니다">
+      <SCard id="card-2" badge="STEP 36 ~ 37" title="차트 2년 월별 매출 엑셀 업로드 & 한의원 월 총 경비 자동합산" subtitle="차트 프로그램 최근 2년 통계(당월 제외)와 한의원 월별 발생 경비를 정밀 점검합니다">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
           <div>
             <Lbl stepBadge="36-A" legacyQ="Q27" hint="현재 매일/매주 확인하시는 지표(신환수, 재진수, 매출 등)가 있나요? 따로 안 보고 계시면 없다고 적어주세요.">
@@ -1612,82 +1780,407 @@ export default function SurveyPage() {
               label="STEP 36-B. 현재 사용 중인 지표 관리 엑셀/양식 첨부 (Q27)"
               value={data.ch4.indicatorsFile}
               onUpload={(urls: string[]) => upd4("indicatorsFile", urls)}
-              hint="평소 기록하시는 매출장부나 엑셀 시트가 있다면 업로드해주세요."
+              hint="평소 원내에서 자체 기록하시는 일일/월간 장부 양식이 있다면 업로드해주세요."
               disabled={isReadOnly}
             />
           </div>
         </div>
 
-        <div className="pt-4 border-t border-white/10">
-          <Lbl stepBadge="37" legacyQ="Q29" hint="현재 한 달 평균 지출되는 고정비/변동비 내역을 알고 계신 범위 내에서 적어주세요.">
-            월평균 경비 지출 내역 상세
-          </Lbl>
-          <div className="overflow-x-auto mt-3 p-5 bg-[#041810]/80 rounded-2xl border border-white/10">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 pr-4 font-black text-amber-300 text-xs uppercase">경비 항목 (Q29)</th>
-                  <th className="text-left py-3 pr-4 font-black text-amber-300 text-xs uppercase">월 평균 금액 (단위: 만 원)</th>
-                  <th className="w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.ch4.expenses.map((row, idx) => (
-                  <tr key={idx} className="border-b border-white/5 last:border-0">
-                    <td className="py-3 pr-4">
-                      <Inp
-                        value={row.item}
-                        onChange={(v: string) => {
-                          const a = [...data.ch4.expenses];
-                          a[idx] = { ...a[idx], item: v };
-                          setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
-                        }}
-                        placeholder="예: 임대료 / 인건비 / 한약재·원외탕전비 / 마케팅비"
-                        readOnly={isReadOnly}
-                      />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <Inp
-                        value={row.amount}
-                        onChange={(v: string) => {
-                          const a = [...data.ch4.expenses];
-                          a[idx] = { ...a[idx], amount: v };
-                          setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
-                        }}
-                        placeholder="예: 450"
-                        type="text"
-                        readOnly={isReadOnly}
-                      />
-                    </td>
-                    <td className="py-3 text-right">
-                      {!isReadOnly && data.ch4.expenses.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const a = data.ch4.expenses.filter((_, i) => i !== idx);
-                            setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
-                          }}
-                          className="p-2 text-white/30 hover:text-rose-400"
-                        >
-                          <X size={15} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!isReadOnly && (
+        {/* ── 신규 추가 문항 1: 차트 프로그램 최근 2년 월별 매출·초진/재진·세부매출 엑셀 업로드 (현재 진료하는 달 제외) ── */}
+        <div className="pt-6 border-t border-white/10">
+          <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#0A3526] via-[#062419] to-[#041810] border-2 border-amber-400/40 shadow-xl space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-[#031C13] text-[11px] font-black tracking-wider">
+                    STEP 36-C • 필수 데이터 제출
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-[11px] font-black">
+                    ⚠️ 현재 진료하는 달({recent2YearsRangeText.excludedCurrentMonth}) 제외
+                  </span>
+                </div>
+                <h4 className="text-base sm:text-lg font-black text-[#F5F2EB]">
+                  차트 프로그램 최근 2년 월별 매출 · 환자 통계 엑셀 다운로드 및 업로드
+                </h4>
+                <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
+                  사용 중이신 차트 프로그램(한차트, 오케이차트, 한의사랑, 동의보감 등)에서 <strong>최근 2년({recent2YearsRangeText.rangeLabel})</strong> 데이터를 엑셀로 다운로드하여 업로드해 주세요.{" "}
+                  <span className="text-amber-300 font-bold underline underline-offset-4">
+                    (현재 진료 중인 달은 월 마감이 되지 않았으므로 반드시 제외합니다)
+                  </span>
+                </p>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setData(d => ({ ...d, ch4: { ...d.ch4, expenses: [...d.ch4.expenses, { item: "", amount: "" }] } }))}
-                className="mt-4 px-5 py-2.5 text-xs font-black text-amber-300 bg-amber-400/10 rounded-xl hover:bg-amber-400/20 transition-all border border-amber-400/30 flex items-center gap-2"
+                onClick={handleDownloadStandard2YearExcel}
+                className="px-4 py-2.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 text-amber-300 text-xs font-black flex items-center gap-2 self-start whitespace-nowrap transition-all shadow-sm"
               >
-                <PlusCircle size={14} /> 경비 항목 추가하기
+                <FileText size={14} />
+                📥 2년치 표준 엑셀 양식 다운로드 (.xlsx)
               </button>
-            )}
+            </div>
+
+            {/* 필수 포함 7대 항목 안내 박스 */}
+            <div className="p-4 rounded-2xl bg-[#031710]/90 border border-white/10 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                  엑셀 파일 내 반드시 포함되어야 하는 필수 7대 항목 (최근 24개월 월별 수치)
+                </span>
+                <span className="text-[11px] text-white/50">
+                  ※ 차트 프로그램 특성상 여러 개의 엑셀 파일로 나뉘어 다운로드된 경우 다중 업로드 가능
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                {[
+                  { no: "01", title: "월 매출", sub: "월 총수납/총매출" },
+                  { no: "02", title: "초진", sub: "월별 신환(초진) 수" },
+                  { no: "03", title: "재진", sub: "월별 재진 환자수" },
+                  { no: "04", title: "청구", sub: "건보 공단 청구액" },
+                  { no: "05", title: "본부금", sub: "급여 본인부담금" },
+                  { no: "06", title: "비급여", sub: "한약·약침 등 비급여" },
+                  { no: "07", title: "자보 매출", sub: "자동차보험 총액" },
+                ].map(col => (
+                  <div
+                    key={col.no}
+                    className="p-2.5 rounded-xl bg-gradient-to-b from-white/8 to-white/3 border border-amber-400/25 text-center"
+                  >
+                    <span className="text-[9px] font-black text-amber-400 block">필수 {col.no}</span>
+                    <span className="text-xs sm:text-sm font-black text-[#F5F2EB] block mt-0.5">{col.title}</span>
+                    <span className="text-[10px] text-emerald-300/70 block mt-0.5 truncate">{col.sub}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <FileUpload
+              label="차트 프로그램 추출 최근 2년 월별 매출·초진·재진·청구·본부금·비급여·자보 엑셀 파일 업로드 (현재 진료달 제외)"
+              value={data.ch4.chartRevenueFiles || []}
+              onUpload={(urls: string[]) => upd4("chartRevenueFiles", urls)}
+              hint="차트 프로그램에서 다운로드한 엑셀(.xlsx, .xls, .csv) 파일을 그대로 업로드해 주세요. (여러 파일 동시 첨부 가능)"
+              disabled={isReadOnly}
+            />
           </div>
         </div>
+
+        {/* ── 신규 고도화 문항 2: 한의원 일반 경비 항목 리스트 + 수동 항목 추가 + 월 총 경비 자동합산 안내 ── */}
+        {(() => {
+          const { totalManWon, filledCount } = calculateTotalMonthlyExpense(data.ch4.expenses);
+          const totalWon = Math.round(totalManWon * 10000);
+          const annualManWon = Math.round(totalManWon * 12);
+          const targetRevManWon = parseExpenseManWon(data.ch4.targetMetrics.revenue);
+          const expenseRatio = targetRevManWon > 0 && totalManWon > 0
+            ? Math.round((totalManWon / targetRevManWon) * 1000) / 10
+            : null;
+          const expectedNetProfit = targetRevManWon > 0 && totalManWon > 0
+            ? Math.round((targetRevManWon - totalManWon) * 10) / 10
+            : null;
+
+          const missingStandardItems = STANDARD_CLINIC_EXPENSES.filter(
+            std => !data.ch4.expenses.some(r => (r.item || "").trim() === std.item)
+          );
+
+          const handleAddManualExpense = () => {
+            const name = manualExpenseItem.trim();
+            if (!name) {
+              toast.error("추가할 경비 항목 이름을 입력해 주세요.");
+              return;
+            }
+            setData(d => ({
+              ...d,
+              ch4: {
+                ...d.ch4,
+                expenses: [...d.ch4.expenses, { item: name, amount: manualExpenseAmount.trim() }],
+              },
+            }));
+            setManualExpenseItem("");
+            setManualExpenseAmount("");
+            toast.success(`'${name}' 경비 항목이 추가되어 월 총 경비에 합산되었습니다.`);
+          };
+
+          return (
+            <div className="pt-6 border-t border-white/10 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <Lbl
+                  stepBadge="37"
+                  legacyQ="Q29"
+                  hint="일반적인 한의원에서 매월 발생되는 표준 경비 항목들이 준비되어 있습니다. 해당되는 월 평균 금액(단위: 만 원)을 입력하시고, 원내 특수 경비는 수동으로 자유롭게 추가해 주세요."
+                >
+                  한의원 월평균 경비 항목 리스트 & 월 총 경비 자동합산 (단위: 만 원)
+                </Lbl>
+              </div>
+
+              {/* 상단 월 총 경비 실시간 자동합산 안내 배너 */}
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/20 via-[#082E20] to-emerald-600/20 border-2 border-amber-400/50 shadow-xl">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-[#031C13] text-[10px] font-black uppercase tracking-wider">
+                        AUTO-SUM MONTHLY EXPENSE
+                      </span>
+                      <span className="text-xs font-bold text-emerald-300">
+                        총 {data.ch4.expenses.length}개 경비 항목 중 {filledCount}개 금액 입력됨
+                      </span>
+                    </div>
+                    <h4 className="text-lg sm:text-xl font-black text-[#F5F2EB]">
+                      입력하신 모든 경비를 자동 합산한 우리 한의원의{" "}
+                      <span className="text-amber-300 underline decoration-amber-400/60 underline-offset-4">
+                        월 총 경비는 {totalManWon.toLocaleString()}만 원
+                      </span>
+                      입니다.
+                    </h4>
+                    <p className="text-xs text-white/70 leading-relaxed">
+                      • 원화 환산: <strong className="text-[#F5F2EB]">월 약 {totalWon.toLocaleString()}원</strong>{" "}
+                      <span className="mx-1.5 text-white/25">|</span>• 연간 총 경비 환산:{" "}
+                      <strong className="text-amber-200">연 약 {annualManWon.toLocaleString()}만 원</strong>
+                      {expenseRatio !== null && expectedNetProfit !== null && (
+                        <>
+                          <span className="mx-1.5 text-white/25">|</span>• 목표 월매출({targetRevManWon.toLocaleString()}만 원) 대비 경비율:{" "}
+                          <strong className="text-emerald-300">{expenseRatio}%</strong> (목표 달성 시 예상 순익{" "}
+                          <strong className={expectedNetProfit >= 0 ? "text-amber-300" : "text-rose-300"}>
+                            {expectedNetProfit.toLocaleString()}만 원
+                          </strong>
+                          )
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="p-4 sm:px-6 rounded-2xl bg-[#031710]/90 border border-amber-400/40 text-right flex-shrink-0">
+                    <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest">월 총 경비 합계 (자동합산)</p>
+                    <p className="text-2xl sm:text-3xl font-black text-amber-300 mt-1">
+                      {totalManWon.toLocaleString()}
+                      <span className="text-base font-bold text-[#F5F2EB] ml-1">만 원 / 월</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 누락된 표준 경비 항목 1클릭 복원 칩 바 */}
+              {!isReadOnly && missingStandardItems.length > 0 && (
+                <div className="p-4 rounded-2xl bg-[#041810]/90 border border-white/10 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-black text-amber-300">
+                      💡 한의원 표준 경비 항목 빠른 추가 (클릭 시 표에 즉시 추가됩니다)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setData(d => ({
+                          ...d,
+                          ch4: {
+                            ...d.ch4,
+                            expenses: [
+                              ...d.ch4.expenses,
+                              ...missingStandardItems.map(m => ({ item: m.item, amount: "" })),
+                            ],
+                          },
+                        }));
+                        toast.success("누락된 표준 한의원 경비 항목이 모두 추가되었습니다.");
+                      }}
+                      className="text-[11px] font-black text-emerald-300 hover:text-amber-300 underline"
+                    >
+                      + 누락된 표준 항목({missingStandardItems.length}개) 한 번에 모두 추가
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {missingStandardItems.map(std => (
+                      <button
+                        key={std.item}
+                        type="button"
+                        onClick={() => {
+                          setData(d => ({
+                            ...d,
+                            ch4: {
+                              ...d.ch4,
+                              expenses: [...d.ch4.expenses, { item: std.item, amount: "" }],
+                            },
+                          }));
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 text-xs font-bold text-[#F5F2EB] hover:text-amber-300 transition-all"
+                      >
+                        + {std.item}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 경비 항목 상세 테이블 */}
+              <div className="overflow-x-auto p-5 bg-[#041810]/85 rounded-2xl border border-white/10 space-y-5">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10">
+                      <th className="text-left py-3 pr-3 font-black text-amber-300 text-xs uppercase w-20">구분</th>
+                      <th className="text-left py-3 pr-4 font-black text-amber-300 text-xs uppercase">
+                        한의원 경비 항목명 (자유 수정 가능)
+                      </th>
+                      <th className="text-left py-3 pr-4 font-black text-amber-300 text-xs uppercase w-56">
+                        월 평균 금액 (단위: 만 원)
+                      </th>
+                      <th className="text-right py-3 pr-4 font-black text-amber-300 text-xs uppercase w-36 hidden sm:table-cell">
+                        합산 반영액 · 비중
+                      </th>
+                      <th className="w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.ch4.expenses.map((row, idx) => {
+                      const stdMeta = STANDARD_CLINIC_EXPENSES.find(s => s.item === row.item);
+                      const parsedAmt = parseExpenseManWon(row.amount);
+                      const sharePct = totalManWon > 0 && parsedAmt > 0
+                        ? Math.round((parsedAmt / totalManWon) * 1000) / 10
+                        : 0;
+
+                      return (
+                        <tr key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3 pr-3 align-middle">
+                            <span
+                              className={`inline-block px-2 py-1 rounded-lg text-[10px] font-black whitespace-nowrap ${
+                                stdMeta?.category === "고정비"
+                                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                                  : stdMeta?.category === "변동비"
+                                  ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+                                  : "bg-amber-400/15 text-amber-300 border border-amber-400/30"
+                              }`}
+                            >
+                              {stdMeta ? stdMeta.category : "수동추가"}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-4 align-middle">
+                            <Inp
+                              value={row.item}
+                              onChange={(v: string) => {
+                                const a = [...data.ch4.expenses];
+                                a[idx] = { ...a[idx], item: v };
+                                setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
+                              }}
+                              placeholder="경비 항목명 입력 (예: 임대료, 인건비, 원장 교육비 등)"
+                              readOnly={isReadOnly}
+                            />
+                          </td>
+                          <td className="py-3 pr-4 align-middle">
+                            <div className="relative">
+                              <Inp
+                                value={row.amount}
+                                onChange={(v: string) => {
+                                  const a = [...data.ch4.expenses];
+                                  a[idx] = { ...a[idx], amount: v };
+                                  setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
+                                }}
+                                placeholder={stdMeta?.placeholder || "예: 150 (단위: 만 원)"}
+                                type="text"
+                                readOnly={isReadOnly}
+                              />
+                              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-white/35 pointer-events-none">
+                                만 원
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 pr-4 text-right align-middle hidden sm:table-cell">
+                            {parsedAmt > 0 ? (
+                              <div>
+                                <span className="text-sm font-black text-emerald-300">
+                                  {parsedAmt.toLocaleString()}만 원
+                                </span>
+                                <span className="block text-[10px] font-bold text-amber-300/80">
+                                  비중 {sharePct}%
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/25">0만 원</span>
+                            )}
+                          </td>
+                          <td className="py-3 text-right align-middle">
+                            {!isReadOnly && data.ch4.expenses.length > 1 && (
+                              <button
+                                type="button"
+                                title="이 경비 항목 삭제"
+                                onClick={() => {
+                                  const a = data.ch4.expenses.filter((_, i) => i !== idx);
+                                  setData(d => ({ ...d, ch4: { ...d.ch4, expenses: a } }));
+                                }}
+                                className="p-2 text-white/30 hover:text-rose-400 transition-colors"
+                              >
+                                <X size={15} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-amber-400/40 bg-amber-400/10">
+                      <td colSpan={2} className="py-4 px-4 font-black text-amber-300 text-sm sm:text-base">
+                        📊 모든 경비 자동합산 월 총 경비 ({filledCount}개 항목 합산)
+                      </td>
+                      <td colSpan={3} className="py-4 px-4 text-right">
+                        <span className="text-xl sm:text-2xl font-black text-amber-300">
+                          총 {totalManWon.toLocaleString()}만 원 / 월
+                        </span>
+                        <span className="block text-[11px] font-bold text-emerald-200/80 mt-0.5">
+                          (약 {totalWon.toLocaleString()}원 · 연 환산 약 {annualManWon.toLocaleString()}만 원)
+                        </span>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {/* 수동 경비 항목 직접 추가 바 */}
+                {!isReadOnly && (
+                  <div className="pt-4 border-t border-white/10 space-y-3">
+                    <p className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                      <PlusCircle size={14} />
+                      우리 한의원만의 추가 경비 항목 수동 입력 (입력 즉시 위 표와 월 총 경비에 자동 합산됩니다)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      <div className="sm:col-span-6">
+                        <Inp
+                          value={manualExpenseItem}
+                          onChange={(v: string) => setManualExpenseItem(v)}
+                          placeholder="수동 추가할 경비 항목명 (예: 원장 학회/교육비, 외부 주차장 임차료, CRM 문자비 등)"
+                        />
+                      </div>
+                      <div className="sm:col-span-3 relative">
+                        <Inp
+                          value={manualExpenseAmount}
+                          onChange={(v: string) => setManualExpenseAmount(v)}
+                          placeholder="월 금액 (예: 80)"
+                        />
+                        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-white/35 pointer-events-none">
+                          만 원
+                        </span>
+                      </div>
+                      <div className="sm:col-span-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddManualExpense}
+                          className="flex-1 px-4 py-3 text-xs font-black text-[#031C13] bg-gradient-to-r from-amber-400 to-amber-500 rounded-xl hover:brightness-105 transition-all shadow-md flex items-center justify-center gap-1.5 whitespace-nowrap"
+                        >
+                          <PlusCircle size={14} /> 수동 항목 추가
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setData(d => ({
+                              ...d,
+                              ch4: { ...d.ch4, expenses: [...d.ch4.expenses, { item: "", amount: "" }] },
+                            }))
+                          }
+                          title="빈 경비 입력행 추가"
+                          className="px-3 py-3 text-xs font-black text-amber-300 bg-amber-400/10 rounded-xl hover:bg-amber-400/20 transition-all border border-amber-400/30 whitespace-nowrap"
+                        >
+                          + 빈 행
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </SCard>
     </div>
   );
@@ -2663,9 +3156,13 @@ export default function SurveyPage() {
                   <p className="text-[10px] font-black text-white/45 uppercase">목표 월 순이익</p>
                   <p className="text-sm font-black text-[#F5F2EB] mt-1">{data.ch4.targetMetrics.profit || "미입력"}</p>
                 </div>
-                <div className="p-4 rounded-2xl bg-[#041810] border border-white/10">
-                  <p className="text-[10px] font-black text-white/45 uppercase">성향 / 전문과목</p>
-                  <p className="text-sm font-black text-[#F5F2EB] mt-1">{data.ch1.mbti || "-"} / {data.ch1.degree || "-"}</p>
+                <div className="p-4 rounded-2xl bg-[#041810] border border-amber-400/30">
+                  <p className="text-[10px] font-black text-amber-400 uppercase">월 총 경비 (자동합산)</p>
+                  <p className="text-sm font-black text-amber-300 mt-1">
+                    {calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon > 0
+                      ? `총 ${calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon.toLocaleString()}만 원 / 월`
+                      : "미입력"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -2703,8 +3200,20 @@ export default function SurveyPage() {
                 {
                   title: "Part 4~6. 재무·조직·마케팅 비전",
                   items: [
-                    { k: "관찰 지표", v: data.ch4.indicators },
-                    { k: "희망 인재상", v: data.ch5.idealStaff },
+                    {
+                      k: "최근 2년 차트 엑셀 (당월 제외)",
+                      v:
+                        (data.ch4.chartRevenueFiles?.length || 0) > 0
+                          ? `엑셀 파일 ${data.ch4.chartRevenueFiles.length}개 업로드 완료`
+                          : "",
+                    },
+                    {
+                      k: "월 총 경비 (자동합산)",
+                      v:
+                        calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon > 0
+                          ? `월 총 ${calculateTotalMonthlyExpense(data.ch4.expenses).totalManWon.toLocaleString()}만 원 (${calculateTotalMonthlyExpense(data.ch4.expenses).filledCount}개 항목 합산)`
+                          : "",
+                    },
                     { k: "마케팅 현황", v: data.ch6.marketingStatus.channels },
                     { k: "최종 자화상", v: data.ch6.finalGoal },
                   ],

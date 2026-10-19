@@ -21,7 +21,7 @@ import {
   Check,
 } from "lucide-react";
 import type { SurveyData } from "@/app/survey/page";
-import { SAFETY_ITEMS } from "@/app/survey/page";
+import { SAFETY_ITEMS, calculateTotalMonthlyExpense, parseExpenseManWon } from "@/app/survey/page";
 
 interface SurveyFullSheetViewProps {
   data: SurveyData;
@@ -66,7 +66,9 @@ export default function SurveyFullSheetView({
     const p1 = ratioOf([data?.ch1?.name, data?.ch1?.degree, data?.ch1?.intro, data?.ch1?.mbti, data?.ch1?.clinicPride, data?.ch1?.desiredLeader, data?.ch1?.philosophy, data?.ch1?.vision, data?.ch1?.actionStep, data?.ch1?.weakness]);
     const p2 = ratioOf([data?.ch2?.addressHours, data?.ch2?.clinicSize, data?.ch2?.patientFlow, data?.ch2?.consultScript, data?.ch2?.herbConsultProcess, data?.ch1?.whyCome, data?.ch1?.whyLeave, data?.ch2?.happyCallSystem, data?.ch2?.herbInstructions, data?.ch2?.herbManagementSystem]);
     const p3 = ratioOf([data?.ch3?.treatmentDefinition, data?.ch3?.equipmentDetail, data?.ch3?.patientQna, data?.ch3?.diseasePlans, data?.ch3?.mskExample, data?.ch3?.charting?.[0]?.case1, data?.ch3?.billingRoutine, data?.ch3?.chunaRoutine, data?.ch3?.herbRecommendation, data?.ch3?.acupointRecommendation]);
-    const p4 = ratioOf([data?.ch4?.targetMetrics?.revenue, data?.ch4?.targetMetrics?.profit, data?.ch4?.workingDays, data?.ch4?.profitUsage, data?.ch4?.investmentHistory, data?.ch4?.growthInvestment, data?.ch4?.immediateInvestment, data?.ch4?.indicators]);
+    const hasChartExcel = (data?.ch4?.chartRevenueFiles?.length || 0) > 0 ? "uploaded" : "";
+    const hasExpenses = calculateTotalMonthlyExpense(data?.ch4?.expenses).totalManWon > 0 ? "filled" : "";
+    const p4 = ratioOf([data?.ch4?.targetMetrics?.revenue, data?.ch4?.targetMetrics?.profit, data?.ch4?.workingDays, data?.ch4?.profitUsage, data?.ch4?.investmentHistory, data?.ch4?.growthInvestment, data?.ch4?.immediateInvestment, data?.ch4?.indicators, hasChartExcel, hasExpenses]);
     const p5 = ratioOf([data?.ch5?.staff?.[0]?.salary, data?.ch5?.staffCounts?.desk, data?.ch5?.mealSnack?.lunch, data?.ch5?.welfare, data?.ch5?.staffDiscount, data?.ch5?.idealStaff, data?.ch5?.expectations?.manager, data?.ch5?.chatSystem?.program, data?.ch5?.eduMeeting]);
     const safetyCount = Object.values(data?.ch6?.safetyItems || {}).filter(Boolean).length;
     const p6 = ratioOf([safetyCount > 0 ? "checked" : "", data?.ch6?.marketingStatus?.channels, data?.ch6?.marketingStatus?.cost, data?.ch6?.marketingStatus?.goal, data?.ch6?.promoMaterials, data?.ch6?.finalGoal]);
@@ -90,6 +92,7 @@ export default function SurveyFullSheetView({
     pushFiles(2, "STEP 18-B", "한약 복용 안내문 (Q32)", data?.ch2?.herbInstructionsFile);
     pushFiles(3, "STEP 22-B", "환자 다빈도 Q&A 매뉴얼 (Q10)", data?.ch3?.patientQnaFile);
     pushFiles(4, "STEP 36-B", "지표 관리 양식/엑셀 (Q27)", data?.ch4?.indicatorsFile);
+    pushFiles(4, "STEP 36-C", "차트 프로그램 최근 2년 월별 매출·초재진·청구·본부금·비급여·자보 엑셀 (당월 제외)", data?.ch4?.chartRevenueFiles);
     pushFiles(5, "STEP 45-C", "메신저 전체 채널 목록 캡처 (Q49)", data?.ch5?.chatSystem?.capture1);
     pushFiles(5, "STEP 45-C", "메신저 실제 대화 예시 캡처 (Q49)", data?.ch5?.chatSystem?.capture2);
     pushFiles(5, "STEP 45-C", "원내 소통 가이드라인 문서 (Q49)", data?.ch5?.chatSystem?.guideFile);
@@ -739,31 +742,79 @@ export default function SurveyFullSheetView({
             studioFieldId: "ch4.indicators",
           })}
           {renderQuestionRow({
-            step: "37",
-            legacyQ: "Q29",
-            label: "월평균 경비 지출 내역 상세",
-            value: data.ch4.expenses?.some(e => hasText(e.amount)) ? (
-              <div className="overflow-x-auto rounded-xl border border-white/10">
-                <table className="w-full text-xs">
-                  <thead className="bg-white/5 text-amber-300 font-black border-b border-white/10">
-                    <tr>
-                      <th className="p-3 text-left">경비 항목</th>
-                      <th className="p-3 text-left">월 평균 금액 (만 원)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.ch4.expenses.map((r, i) => (
-                      <tr key={i} className="border-b border-white/5 last:border-none">
-                        <td className="p-3 font-bold text-[#F5F2EB]">{r.item || "-"}</td>
-                        <td className="p-3 text-emerald-300 font-bold">{r.amount ? `${r.amount}만 원` : "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : "",
+            step: "36-C",
+            legacyQ: "Q27-2",
+            label: "차트 프로그램 최근 2년 월별 매출·초진·재진·청구·본부금·비급여·자보 엑셀 업로드 (현재 진료하는 달 제외)",
+            value:
+              (data.ch4.chartRevenueFiles?.length || 0) > 0
+                ? `최근 2년(당월 제외) 차트 통계 엑셀 파일 총 ${data.ch4.chartRevenueFiles.length}개가 업로드되었습니다.\n(필수 포함 항목: 월 매출 · 초진 · 재진 · 청구 · 본부금 · 비급여 · 자보 매출)`
+                : "",
+            files: data.ch4.chartRevenueFiles,
             partNumber: 4,
           })}
+          {(() => {
+            const { totalManWon, filledCount } = calculateTotalMonthlyExpense(data.ch4.expenses);
+            const totalWon = Math.round(totalManWon * 10000);
+            const annualManWon = Math.round(totalManWon * 12);
+            return renderQuestionRow({
+              step: "37",
+              legacyQ: "Q29",
+              label: `월평균 경비 지출 내역 상세 (월 총 경비 자동합산: 총 ${totalManWon.toLocaleString()}만 원 / 월)`,
+              value: data.ch4.expenses?.some(e => hasText(e.amount)) ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-amber-400/15 border border-amber-400/40 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black text-amber-300">
+                        📊 모든 경비 자동합산 월 총 경비 ({filledCount}개 항목 합산)
+                      </p>
+                      <p className="text-[11px] text-emerald-200/80 mt-0.5">
+                        원화 환산 약 {totalWon.toLocaleString()}원 / 월 · 연간 환산 약 {annualManWon.toLocaleString()}만 원 / 년
+                      </p>
+                    </div>
+                    <span className="text-lg sm:text-xl font-black text-amber-300">
+                      총 {totalManWon.toLocaleString()}만 원 / 월
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto rounded-xl border border-white/10">
+                    <table className="w-full text-xs">
+                      <thead className="bg-white/5 text-amber-300 font-black border-b border-white/10">
+                        <tr>
+                          <th className="p-3 text-left">경비 항목</th>
+                          <th className="p-3 text-right">월 평균 금액 (만 원)</th>
+                          <th className="p-3 text-right">비중</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.ch4.expenses.map((r, i) => {
+                          const amt = parseExpenseManWon(r.amount);
+                          const pct = totalManWon > 0 && amt > 0 ? Math.round((amt / totalManWon) * 1000) / 10 : 0;
+                          return (
+                            <tr key={i} className="border-b border-white/5 last:border-none">
+                              <td className="p-3 font-bold text-[#F5F2EB]">{r.item || "-"}</td>
+                              <td className="p-3 text-right text-emerald-300 font-bold">
+                                {amt > 0 ? `${amt.toLocaleString()}만 원` : r.amount || "-"}
+                              </td>
+                              <td className="p-3 text-right text-amber-300/80 font-bold">
+                                {amt > 0 ? `${pct}%` : "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-amber-400/10 border-t border-amber-400/30 font-black text-amber-300">
+                        <tr>
+                          <td className="p-3">월 총 경비 합계 (자동합산)</td>
+                          <td className="p-3 text-right text-sm">{totalManWon.toLocaleString()}만 원 / 월</td>
+                          <td className="p-3 text-right">100%</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              ) : "",
+              partNumber: 4,
+            });
+          })()}
         </div>
       </div>
 
