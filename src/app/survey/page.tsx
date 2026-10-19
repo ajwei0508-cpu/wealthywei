@@ -725,50 +725,6 @@ export default function SurveyPage() {
     };
   }, []);
 
-  // 최근 2년(당월 제외) 차트 프로그램 월별 매출·초재진 표준 엑셀 양식 다운로드
-  const handleDownloadStandard2YearExcel = useCallback(async () => {
-    try {
-      const XLSX = await import("xlsx");
-      const now = new Date();
-      const endMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const rows: Record<string, any>[] = [];
-      for (let i = 23; i >= 0; i--) {
-        const d = new Date(endMonthDate.getFullYear(), endMonthDate.getMonth() - i, 1);
-        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        rows.push({
-          "년월(당월제외)": ym,
-          "월 매출(총매출)": "",
-          "초진(명)": "",
-          "재진(명)": "",
-          "청구(보험청구액)": "",
-          "본부금(본인부담금)": "",
-          "비급여 매출": "",
-          "자보 매출(자동차보험)": "",
-          "비고": "",
-        });
-      }
-      const ws = XLSX.utils.json_to_sheet(rows);
-      ws["!cols"] = [
-        { wch: 16 },
-        { wch: 18 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 20 },
-        { wch: 20 },
-      ];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "최근2년_월별매출통계(당월제외)");
-      XLSX.writeFile(wb, `바른컨설팅_최근2년_월별매출_초재진_표준양식(당월제외).xlsx`);
-      toast.success("최근 2년(현재 진료달 제외) 표준 엑셀 양식이 다운로드되었습니다.");
-    } catch (e) {
-      console.error(e);
-      toast.error("양식 다운로드 중 오류가 발생했습니다.");
-    }
-  }, []);
-
   // URL 파라미터 (?mode=view, ?userId=...) 감지
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -1789,35 +1745,24 @@ export default function SurveyPage() {
         {/* ── 신규 추가 문항 1: 차트 프로그램 최근 2년 월별 매출·초진/재진·세부매출 엑셀 업로드 (현재 진료하는 달 제외) ── */}
         <div className="pt-6 border-t border-white/10">
           <div className="p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-[#0A3526] via-[#062419] to-[#041810] border-2 border-amber-400/40 shadow-xl space-y-5">
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-[#031C13] text-[11px] font-black tracking-wider">
-                    STEP 36-C • 필수 데이터 제출
-                  </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-[11px] font-black">
-                    ⚠️ 현재 진료하는 달({recent2YearsRangeText.excludedCurrentMonth}) 제외
-                  </span>
-                </div>
-                <h4 className="text-base sm:text-lg font-black text-[#F5F2EB]">
-                  차트 프로그램 최근 2년 월별 매출 · 환자 통계 엑셀 다운로드 및 업로드
-                </h4>
-                <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
-                  사용 중이신 차트 프로그램(한차트, 오케이차트, 한의사랑, 동의보감 등)에서 <strong>최근 2년({recent2YearsRangeText.rangeLabel})</strong> 데이터를 엑셀로 다운로드하여 업로드해 주세요.{" "}
-                  <span className="text-amber-300 font-bold underline underline-offset-4">
-                    (현재 진료 중인 달은 월 마감이 되지 않았으므로 반드시 제외합니다)
-                  </span>
-                </p>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-amber-400 text-[#031C13] text-[11px] font-black tracking-wider">
+                  STEP 36-C • 필수 데이터 제출
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-[11px] font-black">
+                  ⚠️ 현재 진료하는 달({recent2YearsRangeText.excludedCurrentMonth}) 제외
+                </span>
               </div>
-
-              <button
-                type="button"
-                onClick={handleDownloadStandard2YearExcel}
-                className="px-4 py-2.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 border border-amber-400/40 text-amber-300 text-xs font-black flex items-center gap-2 self-start whitespace-nowrap transition-all shadow-sm"
-              >
-                <FileText size={14} />
-                📥 2년치 표준 엑셀 양식 다운로드 (.xlsx)
-              </button>
+              <h4 className="text-base sm:text-lg font-black text-[#F5F2EB]">
+                차트 프로그램 최근 2년 월별 매출 · 환자 통계 엑셀 다운로드 및 업로드
+              </h4>
+              <p className="text-xs sm:text-sm text-emerald-100/80 leading-relaxed">
+                사용 중이신 차트 프로그램(한차트, 오케이차트, 한의사랑, 동의보감 등)에서 <strong>최근 2년({recent2YearsRangeText.rangeLabel})</strong> 데이터를 엑셀로 다운로드하여 업로드해 주세요.{" "}
+                <span className="text-amber-300 font-bold underline underline-offset-4">
+                  (현재 진료 중인 달은 월 마감이 되지 않았으므로 반드시 제외합니다)
+                </span>
+              </p>
             </div>
 
             {/* 필수 포함 7대 항목 안내 박스 */}
