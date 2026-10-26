@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { model } from "@/lib/gemini";
+import { genAI, model } from "@/lib/gemini";
+
+async function generateWithFallback(prompt: string): Promise<string> {
+  const candidateModels = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-1.5-flash"];
+  let lastErr: any = null;
+  for (const modelName of candidateModels) {
+    try {
+      const m = modelName === "gemini-2.5-flash"
+        ? model
+        : genAI.getGenerativeModel({ model: modelName }, { apiVersion: "v1beta" });
+      const result = await m.generateContent(prompt);
+      return await result.response.text();
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`⚠️ [AI Draft] Model ${modelName} failed, trying fallback:`, e?.message);
+    }
+  }
+  throw lastErr || new Error("AI 모델 호출 실패");
+}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -63,8 +81,7 @@ JSON으로만 응답: {"diagnosis": "맞춤 초안 생성 완료", "drafts": ["�
 ${context}`;
     }
 
-    const result = await model.generateContent(prompt);
-    const text = await result.response.text();
+    const text = await generateWithFallback(prompt);
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("AI 응답 파싱 실패");

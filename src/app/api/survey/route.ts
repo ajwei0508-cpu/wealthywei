@@ -31,6 +31,16 @@ export async function GET(req: NextRequest) {
 
     if (error && error.code !== "PGRST116") throw error;
 
+    // 일반 회원(!isMaster)에게는 마스터 전용 비밀 코멘트(masterComments) 및 마스터 AI 진단 캐시(masterAiCache)를 절대 노출하지 않음
+    let sanitizedRecord = data || null;
+    if (sanitizedRecord && !isMaster && sanitizedRecord.data && typeof sanitizedRecord.data === "object") {
+      const { masterComments, masterAiCache, ...publicData } = sanitizedRecord.data;
+      sanitizedRecord = {
+        ...sanitizedRecord,
+        data: publicData,
+      };
+    }
+
     // 마스터인 경우 전체 작성자 목록 요약도 함께 반환하여 /survey 화면에서도 모든 회원의 설문을 전환 열람 가능하게 지원
     let memberList: { user_id: string; name: string; clinic: string; submitted: boolean; updated_at: string }[] = [];
     if (isMaster) {
@@ -62,7 +72,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ data: data || null, memberList });
+    return NextResponse.json({ data: sanitizedRecord, memberList });
   } catch (err: any) {
     console.error("🔥 Survey GET error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -86,12 +96,32 @@ export async function POST(req: NextRequest) {
 
     const { data: existingRow } = await supabaseAdmin
       .from("survey_workbook")
-      .select("user_id")
+      .select("user_id, data")
       .eq("user_id", targetUserId)
       .single();
 
+    // 일반 회원이 저장할 때 기존 DB에 저장되어 있던 마스터 전용 코멘트(masterComments, masterAiCache)가 유실되지 않도록 보존
+    let mergedBody = { ...body };
+    if (!isMaster && existingRow?.data) {
+      if (existingRow.data.masterComments) {
+        mergedBody.masterComments = existingRow.data.masterComments;
+      }
+      if (existingRow.data.masterAiCache) {
+        mergedBody.masterAiCache = existingRow.data.masterAiCache;
+      }
+    } else if (isMaster && existingRow?.data) {
+      mergedBody.masterComments = {
+        ...(existingRow.data.masterComments || {}),
+        ...(body.masterComments || {}),
+      };
+      mergedBody.masterAiCache = {
+        ...(existingRow.data.masterAiCache || {}),
+        ...(body.masterAiCache || {}),
+      };
+    }
+
     const payload = {
-      data: body,
+      data: mergedBody,
       updated_at: new Date().toISOString(),
     };
 

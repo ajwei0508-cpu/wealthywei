@@ -91,6 +91,8 @@ export type SurveyData = {
     promoPhotos: string[];
     finalGoal: string;              // Final. 컨설팅 발전 희망 능력
   };
+  masterComments?: Record<string, string>; // 마스터 전용 붉은색 비밀 코멘트 (일반 회원 열람 불가)
+  masterAiCache?: Record<string, { diagnosis: string; drafts: string[] }>; // 마스터 전용 AI 다듬기 캐시
 };
 
 const MBTI_LIST = ["INTJ","INTP","ENTJ","ENTP","INFJ","INFP","ENFJ","ENFP","ISTJ","ISFJ","ESTJ","ESFJ","ISTP","ISFP","ESTP","ESFP"];
@@ -214,6 +216,8 @@ export const initialData: SurveyData = {
   ch4: { targetMetrics: { revenue: "", profit: "", nonBenefit: "", autoInsurance: "", dailyPatients: "" }, workingDays: "", profitUsage: "", growthInvestment: "", immediateInvestment: "", indicators: "", indicatorsFile: [], chartRevenueFiles: [], investmentHistory: "", expenses: STANDARD_CLINIC_EXPENSES.map(e => ({ item: e.item, amount: "" })) },
   ch5: { staff: [{ role: "실장", salary: "", days: "", hours: "", incentive: "" }, { role: "간호조무사", salary: "", days: "", hours: "", incentive: "" }], staffCounts: { desk: "", treatment: "", decoction: "", other: "" }, mealSnack: { nightMeal: "", snack: "", lunch: "", eatTogether: "" }, welfare: "", staffDiscount: "", idealStaff: "", expectations: { manager: "", regular: "", communication: "" }, chatSystem: { program: "카카오톡", channels: "", capture1: "", capture2: "", guideFile: "", files: [] }, eduMeeting: "", eduMaterials: [] },
   ch6: { safetyEducation: "", safetyItems: Object.fromEntries(SAFETY_ITEMS.map(q => [q, false])), safetyFiles: {}, marketingStatus: { channels: "", cost: "", goal: "" }, promoMaterials: "", promoPhotos: [], finalGoal: "" },
+  masterComments: {},
+  masterAiCache: {},
 };
 
 // ─── STT Hook (원장님 날것 음성 그대로 받아적기) ────────────────────────────
@@ -386,25 +390,52 @@ const Inp = ({ value, onChange, placeholder, type = "text", err, readOnly }: any
   />
 );
 
-// ─── 마스터 전용 1,2번 도구 바 (일반 회원에게는 절대 노출되지 않음) ──────────
+// ─── 마스터 전용 설문 컨텍스트 (붉은색 비밀 코멘트 & 옆 공간 AI 다듬기 동기화) ──
+type MasterSurveyContextType = {
+  isMaster: boolean;
+  masterCoachingMode: boolean;
+  clinicMeta: { name: string; clinic: string; degree: string };
+  masterComments: Record<string, string>;
+  masterAiCache: Record<string, { diagnosis: string; drafts: string[] }>;
+  onUpdateMasterComment: (key: string, val: string) => void;
+  onUpdateMasterAiCache: (key: string, aiData: { diagnosis: string; drafts: string[] }) => void;
+  onForceSave?: () => void;
+};
+
+const MasterSurveyContext = React.createContext<MasterSurveyContextType>({
+  isMaster: false,
+  masterCoachingMode: true,
+  clinicMeta: { name: "원장", clinic: "우리 한의원", degree: "" },
+  masterComments: {},
+  masterAiCache: {},
+  onUpdateMasterComment: () => {},
+  onUpdateMasterAiCache: () => {},
+});
+
+// ─── 마스터 전용 1,2번 도구 바 + 붉은색 비밀 코멘트 & 옆 공간 AI 다듬기 ─────────
 const MasterFieldToolkit = ({
   fieldId,
   questionLabel,
   currentValue,
   onApply,
-  clinicMeta,
+  clinicMeta: propClinicMeta,
 }: {
   fieldId: string;
   questionLabel: string;
   currentValue: string;
   onApply: (val: string) => void;
-  clinicMeta: { name: string; clinic: string; degree: string };
+  clinicMeta?: { name: string; clinic: string; degree: string };
 }) => {
+  const ctx = React.useContext(MasterSurveyContext);
+  const clinicMeta = propClinicMeta || ctx.clinicMeta;
+
   const [loadingAi, setLoadingAi] = useState(false);
-  const [aiResult, setAiResult] = useState<{ diagnosis: string; drafts: string[] } | null>(null);
+  const [localAiResult, setLocalAiResult] = useState<{ diagnosis: string; drafts: string[] } | null>(null);
   const [showPresets, setShowPresets] = useState(false);
 
   const meta = MASTER_SURVEY_FIELDS.find(f => f.id === fieldId);
+  const redCommentValue = ctx.masterComments?.[fieldId] || "";
+  const aiResult = localAiResult || ctx.masterAiCache?.[fieldId] || null;
 
   const handleRunMasterAi = async () => {
     setLoadingAi(true);
@@ -423,8 +454,10 @@ const MasterFieldToolkit = ({
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "AI 분석 오류");
-      setAiResult({ diagnosis: json.diagnosis || "", drafts: json.drafts || [] });
-      toast.success("마스터 AI 진단 및 다듬기 초안이 생성되었습니다.");
+      const nextAi = { diagnosis: json.diagnosis || "", drafts: json.drafts || [] };
+      setLocalAiResult(nextAi);
+      ctx.onUpdateMasterAiCache(fieldId, nextAi);
+      toast.success("AI 다듬기 결과가 붉은색 코멘트 공간 바로 옆에 생성되었습니다!");
     } catch (e: any) {
       toast.error(e.message || "AI 다듬기 실패");
     } finally {
@@ -433,21 +466,26 @@ const MasterFieldToolkit = ({
   };
 
   return (
-    <div className="mt-2.5 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#0A2E20] to-emerald-900/20 border border-amber-400/30 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Crown size={13} className="text-amber-400" />
-          <span className="text-[11px] font-black text-amber-300 uppercase tracking-wider">Master Only 코칭 도구</span>
+    <div className="mt-3 p-4 rounded-2xl bg-gradient-to-r from-[#1A080C]/90 via-[#0A2E20]/95 to-[#062117]/95 border border-red-500/40 space-y-3.5 shadow-xl print:hidden">
+      {/* 상단 마스터 컨트롤 헤더 */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+            <Lock size={10} /> MASTER ONLY 코멘트 & AI 다듬기
+          </span>
+          <span className="text-[11px] font-bold text-red-300/90">
+            (일반 원장님 화면에는 절대 노출되지 않습니다)
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleRunMasterAi}
             disabled={loadingAi}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#031C13] text-xs font-black transition-all shadow-sm disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-[#031C13] text-xs font-black transition-all shadow-md disabled:opacity-50"
           >
             <Wand2 size={12} className={loadingAi ? "animate-spin" : ""} />
-            {loadingAi ? "AI 문제점 분석 중..." : "1번: AI 문제점 진단 & 다듬기"}
+            {loadingAi ? "AI 문제점 분석 중..." : "✨ AI 다듬기 (옆 공간에서 바로 확인)"}
           </button>
           {meta?.presets && (
             <button
@@ -456,7 +494,7 @@ const MasterFieldToolkit = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-[#F5F2EB] text-xs font-bold transition-all"
             >
               <Sparkles size={12} className="text-amber-400" />
-              2번: 1클릭 모범 프리셋 {showPresets ? "닫기" : "열기"}
+              1클릭 모범 프리셋 {showPresets ? "닫기" : "열기"}
             </button>
           )}
         </div>
@@ -464,7 +502,7 @@ const MasterFieldToolkit = ({
 
       {/* 2번: 1클릭 상위 1% 모범 프리셋 */}
       {showPresets && meta?.presets && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-2 border-t border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1 pb-2 border-b border-white/10">
           {(["pain", "diet", "local"] as PresetCategory[]).map(cat => (
             <div key={cat} className="p-3 rounded-xl bg-[#041810]/90 border border-white/10 flex flex-col justify-between gap-2">
               <div>
@@ -473,49 +511,175 @@ const MasterFieldToolkit = ({
                 </span>
                 <p className="text-xs text-white/80 whitespace-pre-wrap leading-relaxed">{meta.presets![cat]}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  onApply(meta.presets![cat]);
-                  toast.success(`[${PRESET_CATEGORY_LABELS[cat].label}] 모범 프리셋이 적용되었습니다.`);
-                }}
-                className="w-full py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-400/30 text-emerald-200 text-[11px] font-bold transition-all"
-              >
-                이 프리셋으로 교체 적용
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onApply(meta.presets![cat]);
+                    toast.success(`[${PRESET_CATEGORY_LABELS[cat].label}] 모범 프리셋이 설문 답변에 적용되었습니다.`);
+                  }}
+                  className="flex-1 py-1.5 rounded-lg bg-emerald-600/40 hover:bg-emerald-600/60 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold transition-all"
+                >
+                  설문 답변 교체
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextComment = redCommentValue
+                      ? `${redCommentValue}\n\n[추천 프리셋]\n${meta.presets![cat]}`
+                      : `[추천 프리셋]\n${meta.presets![cat]}`;
+                    ctx.onUpdateMasterComment(fieldId, nextComment);
+                    toast.success("마스터 붉은색 코멘트에 추가되었습니다.");
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-red-500/25 hover:bg-red-500/40 border border-red-400/40 text-red-200 text-[11px] font-black transition-all"
+                >
+                  코멘트로 복사
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* 1번: AI 문제점 진단 & 3가지 다듬기 결과 */}
-      {aiResult && (
-        <div className="space-y-2.5 pt-2 border-t border-white/10">
-          {aiResult.diagnosis && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-400/30 text-xs text-rose-200">
-              <span className="font-black text-rose-300 mr-1.5">🔍 마스터 AI 리얼 현황 문제점 진단:</span>
-              {aiResult.diagnosis}
-            </div>
-          )}
-          <div className="grid grid-cols-1 gap-2">
-            {aiResult.drafts.map((draft, i) => (
-              <div key={i} className="p-3 rounded-xl bg-[#041810] border border-amber-400/20 flex items-start justify-between gap-3">
-                <p className="text-xs text-[#F5F2EB] whitespace-pre-wrap leading-relaxed flex-1">{draft}</p>
+      {/* ─── 핵심 2열 나란히 배치: [좌측] 마스터 전용 붉은색 코멘트 공간 | [우측] AI 다듬기 바로 확인 공간 ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        {/* 좌측: 1. 마스터만 확인할 수 있는 붉은색 코멘트 작성 공간 */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-red-950/65 via-[#1C070B]/95 to-[#0E0305]/95 border-2 border-red-500/55 shadow-lg flex flex-col justify-between space-y-2.5">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-black text-red-400 flex items-center gap-1.5">
+                🔴 마스터 전용 비밀 코멘트 (붉은색 작성란)
+              </span>
+              {ctx.onForceSave && (
                 <button
                   type="button"
                   onClick={() => {
-                    onApply(draft);
-                    toast.success("AI 컨설팅 다듬기 문장이 적용되었습니다.");
+                    ctx.onForceSave?.();
+                    toast.success("마스터 붉은색 코멘트가 즉시 저장되었습니다.");
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-amber-400 text-[#031C13] text-[11px] font-black flex-shrink-0 hover:bg-amber-300 transition-all"
+                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-black flex items-center gap-1 transition-all shadow-sm"
                 >
-                  적용
+                  <Save size={10} /> 코멘트 저장
                 </button>
-              </div>
-            ))}
+              )}
+            </div>
+            <textarea
+              rows={5}
+              value={redCommentValue}
+              onChange={e => ctx.onUpdateMasterComment(fieldId, e.target.value)}
+              placeholder="🔴 이 문항에 대한 마스터 전용 비밀 진단·코멘트를 작성하세요 (작성된 모든 텍스트는 선명한 붉은색으로 표시되며 마스터만 볼 수 있습니다)."
+              className="w-full p-3.5 rounded-xl bg-black/60 border border-red-500/50 text-red-400 font-bold text-xs sm:text-sm placeholder:text-red-300/35 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-500/30 leading-relaxed resize-y"
+            />
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-red-300/75 pt-1">
+            <span>🔒 원장님 열람 불가 · 자동저장 지원</span>
+            {redCommentValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(redCommentValue);
+                  toast.success("마스터 붉은색 코멘트가 복사되었습니다.");
+                }}
+                className="text-red-300 hover:text-red-200 font-black flex items-center gap-1 underline"
+              >
+                <Copy size={10} /> 코멘트 복사
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {/* 우측: 2. AI 다듬기 클릭 시 코멘트 공간 옆에서 바로 확인할 수 있는 공간 */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0B3324]/95 via-[#072319]/95 to-[#041810]/95 border-2 border-amber-400/45 shadow-lg flex flex-col justify-between space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+            <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+              <Wand2 size={13} className="text-amber-400" /> ✨ AI 다듬기 실시간 확인 공간 (코멘트 옆)
+            </span>
+            <button
+              type="button"
+              onClick={handleRunMasterAi}
+              disabled={loadingAi}
+              className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#031C13] text-[10px] font-black flex items-center gap-1 transition-all disabled:opacity-50"
+            >
+              <Wand2 size={10} className={loadingAi ? "animate-spin" : ""} />
+              {loadingAi ? "다듬는 중..." : aiResult ? "AI 다시 다듬기" : "AI 다듬기 실행"}
+            </button>
+          </div>
+
+          {loadingAi ? (
+            <div className="flex-1 min-h-[125px] flex flex-col items-center justify-center text-center p-4 space-y-2">
+              <div className="w-7 h-7 border-3 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-black text-amber-300">
+                AI가 리얼 현황 문제점을 진단하고 3가지 맞춤형 문장으로 다듬고 있습니다...
+              </p>
+            </div>
+          ) : aiResult ? (
+            <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+              {aiResult.diagnosis && (
+                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/35 text-xs text-rose-200 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-rose-300">🔍 AI 핵심 문제점 진단</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextComment = redCommentValue
+                          ? `${redCommentValue}\n[AI 진단] ${aiResult.diagnosis}`
+                          : `[AI 진단] ${aiResult.diagnosis}`;
+                        ctx.onUpdateMasterComment(fieldId, nextComment);
+                        toast.success("좌측 붉은색 마스터 코멘트란에 추가되었습니다!");
+                      }}
+                      className="px-2 py-0.5 rounded bg-red-500/30 hover:bg-red-500/45 border border-red-400/40 text-red-200 text-[10px] font-black"
+                    >
+                      ← 코멘트로 가져오기
+                    </button>
+                  </div>
+                  <p className="leading-relaxed">{aiResult.diagnosis}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-2">
+                {aiResult.drafts.map((draft, i) => (
+                  <div key={i} className="p-3 rounded-xl bg-[#041810] border border-amber-400/25 space-y-2">
+                    <p className="text-xs text-[#F5F2EB] whitespace-pre-wrap leading-relaxed">{draft}</p>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextComment = redCommentValue
+                            ? `${redCommentValue}\n\n[AI 다듬기 초안 ${i + 1}]\n${draft}`
+                            : `[AI 다듬기 초안 ${i + 1}]\n${draft}`;
+                          ctx.onUpdateMasterComment(fieldId, nextComment);
+                          toast.success("좌측 붉은색 마스터 코멘트 공간에 복사되었습니다!");
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-red-500/25 hover:bg-red-500/40 border border-red-400/40 text-red-200 text-[10px] font-black transition-all"
+                      >
+                        ← 붉은 코멘트에 추가
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onApply(draft);
+                          toast.success("AI 컨설팅 다듬기 문장이 설문 답변에 적용되었습니다.");
+                        }}
+                        className="px-3 py-1 rounded-lg bg-amber-400 text-[#031C13] text-[10px] font-black hover:bg-amber-300 transition-all"
+                      >
+                        설문 답변에 적용
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-[125px] flex flex-col items-center justify-center text-center p-4 rounded-xl bg-black/25 border border-dashed border-amber-400/25 space-y-1.5">
+              <p className="text-xs font-bold text-amber-200/85">
+                상단 또는 우측의 <strong className="text-amber-300">[✨ AI 다듬기]</strong> 클릭 시
+              </p>
+              <p className="text-[11px] text-white/55 leading-relaxed">
+                좌측 <strong>붉은색 마스터 코멘트 공간</strong> 바로 옆 이 공간에서 AI 문제점 진단과 3가지 다듬기 문장을 즉시 비교·확인하실 수 있습니다.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -534,46 +698,52 @@ const STATextarea = ({
   fieldId,
   questionLabel,
   clinicMeta,
-}: any) => (
-  <div>
-    <div className="relative">
-      <textarea
-        id={id}
-        rows={rows}
-        value={value}
-        readOnly={readOnly}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-4 py-3.5 pr-12 rounded-xl border text-[#F5F2EB] text-sm font-medium placeholder:text-white/25 focus:outline-none focus:ring-2 transition-all resize-y leading-relaxed ${
-          err ? "border-red-400 bg-red-950/30 focus:ring-red-400/30" : "border-white/12 bg-[#041810]/90 focus:ring-amber-400/30 focus:border-amber-400/60"
-        } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
-      />
-      {!readOnly && onMic && (
-        <button
-          type="button"
-          title="음성으로 편하게 말하면 그대로 받아적습니다"
-          onClick={() => onMic(id, (t: string) => onChange(value ? value + " " + t : t))}
-          className={`absolute top-3 right-3 p-2 rounded-xl transition-all ${
-            listeningId === id
-              ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40"
-              : "bg-white/8 text-white/50 hover:text-amber-300 hover:bg-white/15"
-          }`}
-        >
-          {listeningId === id ? <MicOff size={15} /> : <Mic size={15} />}
-        </button>
+}: any) => {
+  const ctx = React.useContext(MasterSurveyContext);
+  const resolvedFieldId = fieldId || id;
+  const showMasterPanel = (masterMode ?? (ctx.isMaster && ctx.masterCoachingMode)) && Boolean(resolvedFieldId);
+
+  return (
+    <div>
+      <div className="relative">
+        <textarea
+          id={id}
+          rows={rows}
+          value={value}
+          readOnly={readOnly}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3.5 pr-12 rounded-xl border text-[#F5F2EB] text-sm font-medium placeholder:text-white/25 focus:outline-none focus:ring-2 transition-all resize-y leading-relaxed ${
+            err ? "border-red-400 bg-red-950/30 focus:ring-red-400/30" : "border-white/12 bg-[#041810]/90 focus:ring-amber-400/30 focus:border-amber-400/60"
+          } ${readOnly ? "opacity-60 cursor-not-allowed" : ""}`}
+        />
+        {!readOnly && onMic && (
+          <button
+            type="button"
+            title="음성으로 편하게 말하면 그대로 받아적습니다"
+            onClick={() => onMic(id, (t: string) => onChange(value ? value + " " + t : t))}
+            className={`absolute top-3 right-3 p-2 rounded-xl transition-all ${
+              listeningId === id
+                ? "bg-rose-500 text-white animate-pulse shadow-lg shadow-rose-500/40"
+                : "bg-white/8 text-white/50 hover:text-amber-300 hover:bg-white/15"
+            }`}
+          >
+            {listeningId === id ? <MicOff size={15} /> : <Mic size={15} />}
+          </button>
+        )}
+      </div>
+      {showMasterPanel && (
+        <MasterFieldToolkit
+          fieldId={resolvedFieldId}
+          questionLabel={questionLabel || resolvedFieldId}
+          currentValue={value}
+          onApply={onChange}
+          clinicMeta={clinicMeta || ctx.clinicMeta}
+        />
       )}
     </div>
-    {masterMode && fieldId && (
-      <MasterFieldToolkit
-        fieldId={fieldId}
-        questionLabel={questionLabel || fieldId}
-        currentValue={value}
-        onApply={onChange}
-        clinicMeta={clinicMeta}
-      />
-    )}
-  </div>
-);
+  );
+};
 
 const SCard = ({ id, badge, title, subtitle, children }: { id?: string; badge?: string; title: string; subtitle?: string; children: React.ReactNode }) => (
   <div id={id} className="bg-[#07261B]/90 backdrop-blur-xl rounded-3xl border border-white/10 shadow-xl overflow-hidden scroll-mt-36">
@@ -700,7 +870,7 @@ export default function SurveyPage() {
 
   // 마스터 전용: 본인 설문지뿐만 아니라 모든 회원 원장님 설문지를 선택해 열람/수정 가능
   const isMaster = session?.user?.email?.toLowerCase() === (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
-  const [masterCoachingMode, setMasterCoachingMode] = useState(false);
+  const [masterCoachingMode, setMasterCoachingMode] = useState(true);
   const [memberList, setMemberList] = useState<{ user_id: string; name: string; clinic: string; submitted: boolean; updated_at: string }[]>([]);
   const [targetUserId, setTargetUserId] = useState<string>("");
 
@@ -759,6 +929,8 @@ export default function SurveyPage() {
             chartRevenueFiles: Array.isArray(saved.data.ch4?.chartRevenueFiles) ? saved.data.ch4.chartRevenueFiles : [],
             expenses: normalizeClinicExpenses(saved.data.ch4?.expenses),
           };
+          merged.masterComments = saved.data.masterComments || {};
+          merged.masterAiCache = saved.data.masterAiCache || {};
           setData(merged);
           setSubmitted(Boolean(saved.submitted || saved.data?.submitted));
           setUpdatedAt(saved.updated_at || "");
@@ -936,6 +1108,41 @@ export default function SurveyPage() {
   const upd3 = (f: string, v: any) => setData(d => ({ ...d, ch3: { ...d.ch3, [f]: v } }));
   const upd4 = (f: string, v: any) => setData(d => ({ ...d, ch4: { ...d.ch4, [f]: v } }));
   const upd5 = (f: string, v: any) => setData(d => ({ ...d, ch5: { ...d.ch5, [f]: v } }));
+
+  const handleUpdateMasterComment = useCallback((key: string, commentText: string) => {
+    setData(d => ({
+      ...d,
+      masterComments: {
+        ...(d.masterComments || {}),
+        [key]: commentText,
+      },
+    }));
+  }, []);
+
+  const handleUpdateMasterAiCache = useCallback((key: string, aiData: { diagnosis: string; drafts: string[] }) => {
+    setData(d => ({
+      ...d,
+      masterAiCache: {
+        ...(d.masterAiCache || {}),
+        [key]: aiData,
+      },
+    }));
+  }, []);
+
+  const handleApplyAiToField = useCallback((fieldId: string, newValue: string) => {
+    const dotIdx = fieldId.indexOf(".");
+    if (dotIdx > 0) {
+      const chKey = fieldId.slice(0, dotIdx) as "ch1" | "ch2" | "ch3" | "ch4" | "ch5" | "ch6";
+      const subKey = fieldId.slice(dotIdx + 1);
+      setData(d => ({
+        ...d,
+        [chKey]: {
+          ...(d[chKey] as any),
+          [subKey]: newValue,
+        },
+      }));
+    }
+  }, []);
 
   // ── Part 1: 원장님 브랜딩 & 경영 철학 (01 ~ 09) ───────────────────────────
   const renderCh1 = () => (
@@ -2599,6 +2806,18 @@ export default function SurveyPage() {
   }
 
   return (
+    <MasterSurveyContext.Provider
+      value={{
+        isMaster,
+        masterCoachingMode,
+        clinicMeta,
+        masterComments: data.masterComments || {},
+        masterAiCache: data.masterAiCache || {},
+        onUpdateMasterComment: handleUpdateMasterComment,
+        onUpdateMasterAiCache: handleUpdateMasterAiCache,
+        onForceSave: forceSaveNow,
+      }}
+    >
     <div className="min-h-screen bg-[#031C13] text-[#F5F2EB] pb-24">
       {/* 5번 제작: 우측 고정 실시간 컨설팅 리포트 빌더 위젯 */}
       <LiveReportBuilderWidget
@@ -2838,6 +3057,9 @@ export default function SurveyPage() {
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             onOpenStudio={isMaster ? () => router.push("/survey/admin?tab=studio") : undefined}
+            onSaveMasterComment={handleUpdateMasterComment}
+            onApplyAiToField={handleApplyAiToField}
+            onSaveAiCache={handleUpdateMasterAiCache}
           />
         ) : (
           <>
@@ -3214,5 +3436,6 @@ export default function SurveyPage() {
         </div>
       )}
     </div>
+    </MasterSurveyContext.Provider>
   );
 }

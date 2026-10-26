@@ -19,9 +19,21 @@ import {
   Shield,
   Wand2,
   Check,
+  Lock,
+  Sparkles,
+  Copy,
+  Save,
+  AlertTriangle,
+  Crown,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import type { SurveyData } from "@/app/survey/page";
 import { SAFETY_ITEMS, calculateTotalMonthlyExpense, parseExpenseManWon } from "@/app/survey/page";
+import {
+  MASTER_SURVEY_FIELDS,
+  PRESET_CATEGORY_LABELS,
+  PresetCategory,
+} from "@/lib/surveyPresets";
 
 interface SurveyFullSheetViewProps {
   data: SurveyData;
@@ -35,6 +47,9 @@ interface SurveyFullSheetViewProps {
   isMaster?: boolean;
   onOpenMasterStudioForField?: (fieldId: string, partNumber: number) => void;
   onOpenStudio?: () => void;
+  onSaveMasterComment?: (commentKey: string, commentText: string) => void | Promise<void>;
+  onApplyAiToField?: (fieldId: string, newValue: string) => void | Promise<void>;
+  onSaveAiCache?: (commentKey: string, aiData: { diagnosis: string; drafts: string[] }) => void;
 }
 
 type FilterMode = "all" | "filled" | "empty" | "files";
@@ -51,11 +66,74 @@ export default function SurveyFullSheetView({
   isMaster,
   onOpenMasterStudioForField,
   onOpenStudio,
+  onSaveMasterComment,
+  onApplyAiToField,
+  onSaveAiCache,
 }: SurveyFullSheetViewProps) {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
 
+  // 마스터 전용: 각 문항별 인라인 붉은색 비밀 코멘트 입력 상태 & 옆 공간 AI 다듬기 결과 상태
+  const [localComments, setLocalComments] = useState<Record<string, string>>({});
+  const [aiLoadingMap, setAiLoadingMap] = useState<Record<string, boolean>>({});
+  const [aiResultsMap, setAiResultsMap] = useState<Record<string, { diagnosis: string; drafts: string[] }>>({});
+  const [openAiPanelMap, setOpenAiPanelMap] = useState<Record<string, boolean>>({});
+  const [openPresetsMap, setOpenPresetsMap] = useState<Record<string, boolean>>({});
+
   const hasText = (v: any) => typeof v === "string" && v.trim().length > 0;
   const handleStudioTrigger = onOpenMasterStudioForField || (onOpenStudio ? () => onOpenStudio() : undefined);
+
+  const getMasterCommentValue = (key: string) => {
+    if (localComments[key] !== undefined) return localComments[key];
+    return (data as any)?.masterComments?.[key] || "";
+  };
+
+  const getAiResultForKey = (key: string) => {
+    if (aiResultsMap[key]) return aiResultsMap[key];
+    return (data as any)?.masterAiCache?.[key] || null;
+  };
+
+  const handleRunInlineAi = async (
+    commentKey: string,
+    step: string,
+    label: string,
+    rawValue: string,
+    studioFieldId?: string
+  ) => {
+    setOpenAiPanelMap(prev => ({ ...prev, [commentKey]: true }));
+    setAiLoadingMap(prev => ({ ...prev, [commentKey]: true }));
+    try {
+      const res = await fetch("/api/survey/ai-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data?.ch1?.name || userName || "원장",
+          clinic: data?.ch1?.clinic || "우리 한의원",
+          degree: data?.ch1?.degree || "",
+          questionLabel: `[STEP ${step}] ${label}`,
+          currentValue: rawValue,
+          mode: "master_diagnosis",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "AI 다듬기 분석 실패");
+      const resultObj = {
+        diagnosis: json.diagnosis || "",
+        drafts: Array.isArray(json.drafts) ? json.drafts : [],
+      };
+      setAiResultsMap(prev => ({ ...prev, [commentKey]: resultObj }));
+      if (onSaveAiCache) {
+        onSaveAiCache(commentKey, resultObj);
+      }
+      if (studioFieldId && studioFieldId !== commentKey && onSaveAiCache) {
+        onSaveAiCache(studioFieldId, resultObj);
+      }
+      toast.success(`STEP ${step} AI 다듬기 결과가 코멘트 공간 옆에 생성되었습니다!`);
+    } catch (e: any) {
+      toast.error(e.message || "AI 다듬기 실행 중 오류가 발생했습니다.");
+    } finally {
+      setAiLoadingMap(prev => ({ ...prev, [commentKey]: false }));
+    }
+  };
 
   const computedStats = React.useMemo(() => {
     const ratioOf = (arr: any[]) => {
@@ -137,6 +215,14 @@ export default function SurveyFullSheetView({
     if (filterMode === "empty" && isFilled) return null;
     if (filterMode === "files" && validFiles.length === 0) return null;
 
+    const commentKey = studioFieldId || `step.${step}`;
+    const currentRedComment = getMasterCommentValue(commentKey);
+    const currentAiResult = getAiResultForKey(commentKey) || (studioFieldId ? getAiResultForKey(studioFieldId) : null);
+    const isAiLoading = Boolean(aiLoadingMap[commentKey]);
+    const rawStringVal = typeof value === "string" ? value : "";
+    const presetMeta = studioFieldId ? MASTER_SURVEY_FIELDS.find(f => f.id === studioFieldId) : undefined;
+    const showPresets = Boolean(openPresetsMap[commentKey]);
+
     return (
       <div className={`p-5 rounded-2xl border transition-all ${
         isFilled
@@ -156,7 +242,7 @@ export default function SurveyFullSheetView({
             <h4 className="text-sm font-black text-[#F5F2EB]">{label}</h4>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 ${
               isFilled
                 ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
@@ -165,14 +251,37 @@ export default function SurveyFullSheetView({
               {isFilled ? <><Check size={10} /> 작성 완료</> : "미작성"}
             </span>
 
-            {isMaster && studioFieldId && handleStudioTrigger && (
-              <button
-                type="button"
-                onClick={() => handleStudioTrigger(studioFieldId, partNumber)}
-                className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#031C13] text-[10px] font-black flex items-center gap-1 transition-all"
-              >
-                <Wand2 size={10} /> AI 다듬기·프리셋
-              </button>
+            {isMaster && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleRunInlineAi(commentKey, step, label, rawStringVal, studioFieldId)}
+                  disabled={isAiLoading}
+                  className="px-3 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:brightness-105 text-[#031C13] text-[11px] font-black flex items-center gap-1 transition-all shadow-sm disabled:opacity-50"
+                >
+                  <Wand2 size={11} className={isAiLoading ? "animate-spin" : ""} />
+                  {isAiLoading ? "AI 분석 중..." : "✨ AI 다듬기 (옆 공간 바로 확인)"}
+                </button>
+                {presetMeta?.presets && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenPresetsMap(p => ({ ...p, [commentKey]: !p[commentKey] }))}
+                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-[#F5F2EB] text-[10px] font-bold flex items-center gap-1 transition-all"
+                  >
+                    <Sparkles size={10} className="text-amber-400" />
+                    모범 프리셋 {showPresets ? "닫기" : "열기"}
+                  </button>
+                )}
+                {studioFieldId && handleStudioTrigger && (
+                  <button
+                    type="button"
+                    onClick={() => handleStudioTrigger(studioFieldId, partNumber)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-[10px] font-black flex items-center gap-1 transition-all"
+                  >
+                    <Crown size={10} /> 스튜디오 열기
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -211,6 +320,233 @@ export default function SurveyFullSheetView({
                 </a>
               );
             })}
+          </div>
+        )}
+
+        {/* ─── 마스터 전용 2열 워크스페이스: [좌측] 마스터 전용 붉은색 비밀 코멘트 | [우측] AI 다듬기 바로 확인 공간 ─── */}
+        {isMaster && (
+          <div className="mt-4 pt-4 border-t border-red-500/30 space-y-3 print:hidden">
+            {showPresets && presetMeta?.presets && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pb-2">
+                {(["pain", "diet", "local"] as PresetCategory[]).map(cat => (
+                  <div key={cat} className="p-3 rounded-xl bg-[#03150E] border border-emerald-500/25 flex flex-col justify-between gap-2">
+                    <div>
+                      <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-black mb-1">
+                        {PRESET_CATEGORY_LABELS[cat].label}
+                      </span>
+                      <p className="text-xs text-white/85 whitespace-pre-wrap leading-relaxed">{presetMeta.presets![cat]}</p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {studioFieldId && onApplyAiToField && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onApplyAiToField(studioFieldId, presetMeta.presets![cat]);
+                            toast.success(`[${PRESET_CATEGORY_LABELS[cat].label}] 프리셋이 설문 답변에 반영되었습니다.`);
+                          }}
+                          className="flex-1 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#031C13] text-[11px] font-black transition-all"
+                        >
+                          설문 답변에 적용
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextComment = currentRedComment
+                            ? `${currentRedComment}\n\n[추천 프리셋]\n${presetMeta.presets![cat]}`
+                            : `[추천 프리셋]\n${presetMeta.presets![cat]}`;
+                          setLocalComments(prev => ({ ...prev, [commentKey]: nextComment }));
+                          if (onSaveMasterComment) onSaveMasterComment(commentKey, nextComment);
+                          toast.success("마스터 붉은색 코멘트란에 추가되었습니다.");
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-[11px] font-black transition-all"
+                      >
+                        코멘트로 복사
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+              {/* [1번 요청] 좌측: 마스터만 확인할 수 있는 붉은색 비밀 코멘트 공간 */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-red-950/60 via-[#1A070B]/90 to-[#0D0406]/90 border-2 border-red-500/50 shadow-lg flex flex-col justify-between space-y-2.5">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        <Lock size={10} /> MASTER ONLY 비밀 코멘트
+                      </span>
+                      <span className="text-[11px] font-black text-red-300">
+                        (마스터만 열람 가능 · 붉은색 전용 메모)
+                      </span>
+                    </div>
+                    {onSaveMasterComment && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSaveMasterComment(commentKey, currentRedComment);
+                          toast.success(`STEP ${step} 마스터 비밀 코멘트가 저장되었습니다.`);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-400 text-white text-[10px] font-black flex items-center gap-1 transition-all shadow-sm"
+                      >
+                        <Save size={10} /> 코멘트 저장
+                      </button>
+                    )}
+                  </div>
+
+                  <textarea
+                    rows={4}
+                    value={currentRedComment}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setLocalComments(prev => ({ ...prev, [commentKey]: val }));
+                      if (onSaveMasterComment) {
+                        onSaveMasterComment(commentKey, val);
+                      }
+                    }}
+                    placeholder="🔴 마스터 전용 비밀 진단 코멘트를 작성하세요 (작성된 글씨는 선명한 붉은색으로 표시되며 일반 원장님 화면에는 절대 노출되지 않습니다)."
+                    className="w-full p-3.5 rounded-xl bg-black/55 border border-red-500/50 text-red-400 font-bold text-xs sm:text-sm placeholder:text-red-300/35 focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-500/30 leading-relaxed resize-y"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-red-300/75 pt-1">
+                  <span>🔒 일반 회원 설문 화면 및 API 응답에서 완벽 분리·차단됨</span>
+                  {currentRedComment && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentRedComment);
+                        toast.success("마스터 붉은색 코멘트가 복사되었습니다.");
+                      }}
+                      className="text-red-300 hover:text-red-200 font-black flex items-center gap-1 underline"
+                    >
+                      <Copy size={10} /> 코멘트 복사
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* [2번 요청] 우측: AI 다듬기 클릭 시 코멘트 공간 옆에서 바로 확인할 수 있는 공간 */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0B3324]/95 via-[#072319]/95 to-[#041810]/95 border-2 border-amber-400/45 shadow-lg flex flex-col justify-between space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400 text-[#031C13] text-[10px] font-black uppercase tracking-wider">
+                      <Wand2 size={10} /> AI 다듬기 실시간 확인 공간
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-200/85">
+                      코멘트 공간 바로 옆에서 비교·적용
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRunInlineAi(commentKey, step, label, rawStringVal, studioFieldId)}
+                    disabled={isAiLoading}
+                    className="px-3 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#031C13] text-[11px] font-black flex items-center gap-1 transition-all shadow-sm disabled:opacity-50"
+                  >
+                    <Wand2 size={11} className={isAiLoading ? "animate-spin" : ""} />
+                    {isAiLoading ? "AI 다듬는 중..." : currentAiResult ? "AI 다시 다듬기" : "AI 다듬기 실행"}
+                  </button>
+                </div>
+
+                {isAiLoading ? (
+                  <div className="flex-1 min-h-[120px] flex flex-col items-center justify-center text-center p-4 space-y-2">
+                    <div className="w-7 h-7 border-3 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs font-black text-amber-300">
+                      AI가 원장님의 리얼 현황 문제점을 진단하고 3가지 컨설팅 문장으로 다듬고 있습니다...
+                    </p>
+                  </div>
+                ) : currentAiResult ? (
+                  <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                    {currentAiResult.diagnosis && (
+                      <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/35 text-xs text-rose-200 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-black text-rose-300 flex items-center gap-1">
+                            <AlertTriangle size={12} /> 🔍 AI 핵심 문제점 진단
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextComment = currentRedComment
+                                ? `${currentRedComment}\n[AI 진단] ${currentAiResult.diagnosis}`
+                                : `[AI 진단] ${currentAiResult.diagnosis}`;
+                              setLocalComments(prev => ({ ...prev, [commentKey]: nextComment }));
+                              if (onSaveMasterComment) onSaveMasterComment(commentKey, nextComment);
+                              toast.success("AI 문제점 진단이 좌측 붉은색 마스터 코멘트에 반영되었습니다!");
+                            }}
+                            className="px-2 py-0.5 rounded bg-red-500/30 hover:bg-red-500/45 border border-red-400/40 text-red-200 text-[10px] font-black"
+                          >
+                            ← 코멘트로 가져오기
+                          </button>
+                        </div>
+                        <p className="leading-relaxed">{currentAiResult.diagnosis}</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {currentAiResult.drafts?.map((draft: string, dIdx: number) => (
+                        <div
+                          key={dIdx}
+                          className="p-3 rounded-xl bg-[#03150E] border border-amber-400/25 space-y-2"
+                        >
+                          <p className="text-xs text-[#F5F2EB] whitespace-pre-wrap leading-relaxed">
+                            {draft}
+                          </p>
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextComment = currentRedComment
+                                  ? `${currentRedComment}\n\n[AI 다듬기 안 ${dIdx + 1}]\n${draft}`
+                                  : `[AI 다듬기 안 ${dIdx + 1}]\n${draft}`;
+                                setLocalComments(prev => ({ ...prev, [commentKey]: nextComment }));
+                                if (onSaveMasterComment) onSaveMasterComment(commentKey, nextComment);
+                                toast.success("좌측 붉은색 마스터 코멘트 공간에 복사되었습니다!");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-red-500/25 hover:bg-red-500/40 border border-red-400/40 text-red-200 text-[10px] font-black transition-all"
+                            >
+                              ← 붉은 코멘트에 추가
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(draft);
+                                toast.success("다듬어진 문장이 클립보드에 복사되었습니다.");
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white/80 text-[10px] font-bold flex items-center gap-1"
+                            >
+                              <Copy size={10} /> 복사
+                            </button>
+                            {studioFieldId && onApplyAiToField && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onApplyAiToField(studioFieldId, draft);
+                                  toast.success("설문 답변에 AI 다듬기 문장이 즉시 반영되었습니다!");
+                                }}
+                                className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#031C13] text-[10px] font-black transition-all"
+                              >
+                                설문 답변에 적용
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 min-h-[115px] flex flex-col items-center justify-center text-center p-4 rounded-xl bg-black/25 border border-dashed border-amber-400/25 space-y-2">
+                    <p className="text-xs font-bold text-amber-200/80">
+                      우측 상단의 <strong className="text-amber-300">[✨ AI 다듬기]</strong> 버튼을 클릭하시면
+                    </p>
+                    <p className="text-[11px] text-white/55 leading-relaxed">
+                      좌측 <strong>붉은색 마스터 코멘트 공간</strong> 바로 옆 이 자리에 AI 문제점 진단과 3가지 다듬기 초안이 즉시 표시됩니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -499,6 +835,7 @@ export default function SurveyFullSheetView({
             label: "상세 주소 및 요일별 운영 시간",
             value: data.ch2.addressHours,
             partNumber: 2,
+            studioFieldId: "ch2.addressHours",
           })}
           {renderQuestionRow({
             step: "11",
@@ -506,6 +843,7 @@ export default function SurveyFullSheetView({
             label: "병원 실평수 · 베드 수 및 공간 구성 (진료실 / 상담실 / 검사실 / 원내약탕실 유무)",
             value: data.ch2.clinicSize,
             partNumber: 2,
+            studioFieldId: "ch2.clinicSize",
           })}
           {renderQuestionRow({
             step: "12",
@@ -562,6 +900,7 @@ export default function SurveyFullSheetView({
             value: data.ch2.herbInstructions,
             files: data.ch2.herbInstructionsFile,
             partNumber: 2,
+            studioFieldId: "ch2.herbInstructions",
           })}
           {renderQuestionRow({
             step: "19",
@@ -569,6 +908,7 @@ export default function SurveyFullSheetView({
             label: "한약 및 차트 관리 프로그램 종류",
             value: data.ch2.herbManagementSystem,
             partNumber: 2,
+            studioFieldId: "ch2.herbManagementSystem",
           })}
         </div>
       </div>
@@ -591,6 +931,7 @@ export default function SurveyFullSheetView({
             label: "보유 물리치료 및 검사 기기 상세",
             value: data.ch3.equipmentDetail,
             partNumber: 3,
+            studioFieldId: "ch3.equipmentDetail",
           })}
           {renderQuestionRow({
             step: "22",
@@ -599,6 +940,7 @@ export default function SurveyFullSheetView({
             value: data.ch3.patientQna,
             files: data.ch3.patientQnaFile,
             partNumber: 3,
+            studioFieldId: "ch3.patientQna",
           })}
           {renderQuestionRow({
             step: "23",
@@ -614,6 +956,7 @@ export default function SurveyFullSheetView({
             label: "근골격계 상담 실제 예시",
             value: data.ch3.mskExample,
             partNumber: 3,
+            studioFieldId: "ch3.mskExample",
           })}
           {renderQuestionRow({
             step: "25",
@@ -651,6 +994,7 @@ export default function SurveyFullSheetView({
             label: "질환별 루틴 청구법",
             value: data.ch3.billingRoutine,
             partNumber: 3,
+            studioFieldId: "ch3.billingRoutine",
           })}
           {renderQuestionRow({
             step: "27",
@@ -658,6 +1002,7 @@ export default function SurveyFullSheetView({
             label: "추나 치료 루틴 (전/후 과정)",
             value: data.ch3.chunaRoutine,
             partNumber: 3,
+            studioFieldId: "ch3.chunaRoutine",
           })}
           {renderQuestionRow({
             step: "28",
@@ -702,6 +1047,7 @@ export default function SurveyFullSheetView({
             label: "희망 진료 일수/시간",
             value: data.ch4.workingDays,
             partNumber: 4,
+            studioFieldId: "ch4.workingDays",
           })}
           {renderQuestionRow({
             step: "32",
@@ -717,6 +1063,7 @@ export default function SurveyFullSheetView({
             label: "개설 투자금 및 회수/대출 현황",
             value: data.ch4.investmentHistory,
             partNumber: 4,
+            studioFieldId: "ch4.investmentHistory",
           })}
           {renderQuestionRow({
             step: "34",
@@ -724,6 +1071,7 @@ export default function SurveyFullSheetView({
             label: "월간 추가 성장 투자 의사",
             value: data.ch4.growthInvestment,
             partNumber: 4,
+            studioFieldId: "ch4.growthInvestment",
           })}
           {renderQuestionRow({
             step: "35",
@@ -731,6 +1079,7 @@ export default function SurveyFullSheetView({
             label: "즉시 투입 가능 여유 자금",
             value: data.ch4.immediateInvestment,
             partNumber: 4,
+            studioFieldId: "ch4.immediateInvestment",
           })}
           {renderQuestionRow({
             step: "36",
@@ -886,6 +1235,7 @@ export default function SurveyFullSheetView({
             label: "현재 복지 혜택 상세",
             value: data.ch5.welfare,
             partNumber: 5,
+            studioFieldId: "ch5.welfare",
           })}
           {renderQuestionRow({
             step: "42",
@@ -893,6 +1243,7 @@ export default function SurveyFullSheetView({
             label: "직원 본인 및 지인 할인 혜택",
             value: data.ch5.staffDiscount,
             partNumber: 5,
+            studioFieldId: "ch5.staffDiscount",
           })}
           {renderQuestionRow({
             step: "43",
@@ -1005,6 +1356,7 @@ export default function SurveyFullSheetView({
             value: data.ch6.promoMaterials,
             files: data.ch6.promoPhotos,
             partNumber: 6,
+            studioFieldId: "ch6.promoMaterials",
           })}
           {renderQuestionRow({
             step: "51",
