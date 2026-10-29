@@ -56,13 +56,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing targetUserId or data" }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
+    const normalizedTarget = targetUserId.toLowerCase().trim();
+    const { data: existingRow } = await supabaseAdmin
       .from("survey_workbook")
-      .update({
-        data: updatedData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", targetUserId.toLowerCase());
+      .select("user_id")
+      .eq("user_id", normalizedTarget)
+      .maybeSingle();
+
+    let error: any = null;
+    if (existingRow) {
+      const res = await supabaseAdmin
+        .from("survey_workbook")
+        .update({
+          data: updatedData,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", normalizedTarget);
+      error = res.error;
+    } else {
+      const res = await supabaseAdmin
+        .from("survey_workbook")
+        .insert({
+          user_id: normalizedTarget,
+          data: updatedData,
+          submitted: false,
+          updated_at: new Date().toISOString(),
+        });
+      error = res.error;
+    }
 
     if (error) throw error;
 

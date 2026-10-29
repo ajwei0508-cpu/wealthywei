@@ -1009,7 +1009,10 @@ function AdminSurveyContent() {
               {/* Modal Body: SurveyFullSheetView */}
               <div className="flex-1 overflow-y-auto p-6 sm:p-8">
                 <SurveyFullSheetView
+                  key={`modal-sheet-${selectedUser.user_id}`}
                   data={selectedUser.data}
+                  userName={selectedUser.data?.ch1?.name || userMap.get(selectedUser.user_id.toLowerCase()) || selectedUser.user_id}
+                  userEmail={selectedUser.user_id}
                   updatedAt={selectedUser.updated_at}
                   submitted={selectedUser.submitted || selectedUser.data?.submitted}
                   isMaster={true}

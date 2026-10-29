@@ -394,6 +394,7 @@ const Inp = ({ value, onChange, placeholder, type = "text", err, readOnly }: any
 type MasterSurveyContextType = {
   isMaster: boolean;
   masterCoachingMode: boolean;
+  activeSurveyOwnerKey: string;
   clinicMeta: { name: string; clinic: string; degree: string };
   masterComments: Record<string, string>;
   masterAiCache: Record<string, { diagnosis: string; drafts: string[] }>;
@@ -405,6 +406,7 @@ type MasterSurveyContextType = {
 const MasterSurveyContext = React.createContext<MasterSurveyContextType>({
   isMaster: false,
   masterCoachingMode: true,
+  activeSurveyOwnerKey: "",
   clinicMeta: { name: "원장", clinic: "우리 한의원", degree: "" },
   masterComments: {},
   masterAiCache: {},
@@ -432,6 +434,13 @@ const MasterFieldToolkit = ({
   const [loadingAi, setLoadingAi] = useState(false);
   const [localAiResult, setLocalAiResult] = useState<{ diagnosis: string; drafts: string[] } | null>(null);
   const [showPresets, setShowPresets] = useState(false);
+
+  // 설문 대상(원장님)이나 문항이 바뀌면 로컬 AI 결과 및 프리셋 열림 상태를 즉시 초기화하여 다른 설문지에 전염되는 현상 차단
+  useEffect(() => {
+    setLocalAiResult(null);
+    setShowPresets(false);
+    setLoadingAi(false);
+  }, [ctx.activeSurveyOwnerKey, fieldId]);
 
   const meta = MASTER_SURVEY_FIELDS.find(f => f.id === fieldId);
   const redCommentValue = ctx.masterComments?.[fieldId] || "";
@@ -909,16 +918,43 @@ export default function SurveyPage() {
     }
   }, []);
 
+  const saveTimer = useRef<any>(null);
+  const activeFetchSeq = useRef(0);
+  const loadedOwnerRef = useRef<string>("");
+
+  const resolveOwnerUid = useCallback(
+    (uid?: string) => (uid || targetUserId || session?.user?.email || "self").toLowerCase().trim(),
+    [targetUserId, session?.user?.email]
+  );
+
   const loadSurveyData = useCallback((uid?: string) => {
+    // 설문지 전환 즉시 기존 자동저장 타이머를 취소하고 로딩 완료 전까지 저장을 잠금 (이전 설문지의 코멘트가 새 설문지에 덮어써지는 현상 완벽 차단)
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    setHasFetched(false);
+    setData(initialData);
+    setSubmitted(false);
+    setUpdatedAt("");
+    setSaveStatus("saved");
+
+    const fetchSeq = ++activeFetchSeq.current;
+    const ownerKey = (uid || session?.user?.email || "self").toLowerCase().trim();
     const query = uid ? `?userId=${encodeURIComponent(uid)}` : "";
     fetch(`/api/survey${query}`)
       .then(r => r.json())
       .then(({ data: saved, memberList: mList }) => {
+        if (fetchSeq !== activeFetchSeq.current) return;
         if (mList && Array.isArray(mList)) {
           setMemberList(mList);
         }
         if (saved?.data) {
-          const merged = { ...initialData };
+          const merged: SurveyData = {
+            ...initialData,
+            masterComments: {},
+            masterAiCache: {},
+          };
           for (const chKey of ["ch1", "ch2", "ch3", "ch4", "ch5", "ch6"] as const) {
             if (saved.data[chKey]) {
               merged[chKey] = { ...initialData[chKey], ...saved.data[chKey] };
@@ -929,20 +965,30 @@ export default function SurveyPage() {
             chartRevenueFiles: Array.isArray(saved.data.ch4?.chartRevenueFiles) ? saved.data.ch4.chartRevenueFiles : [],
             expenses: normalizeClinicExpenses(saved.data.ch4?.expenses),
           };
-          merged.masterComments = saved.data.masterComments || {};
-          merged.masterAiCache = saved.data.masterAiCache || {};
+          merged.masterComments = { ...(saved.data.masterComments || {}) };
+          merged.masterAiCache = { ...(saved.data.masterAiCache || {}) };
           setData(merged);
           setSubmitted(Boolean(saved.submitted || saved.data?.submitted));
           setUpdatedAt(saved.updated_at || "");
         } else {
-          setData(initialData);
+          setData({
+            ...initialData,
+            masterComments: {},
+            masterAiCache: {},
+          });
           setSubmitted(false);
           setUpdatedAt("");
         }
+        loadedOwnerRef.current = ownerKey;
         setHasFetched(true);
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        if (fetchSeq === activeFetchSeq.current) {
+          loadedOwnerRef.current = ownerKey;
+          setHasFetched(true);
+        }
+      });
+  }, [session?.user?.email]);
 
   // ── Data Fetching ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -968,10 +1014,18 @@ export default function SurveyPage() {
     }
   }, [status, router, isMaster, hasFetched, targetUserId, loadSurveyData, session?.user?.email, (session?.user as any)?.approvalStatus, (session?.user as any)?.approvedCategory, JSON.stringify((session?.user as any)?.approvedCategories)]);
 
-  // ── Auto-save (2.5초 디바운스) ─────────────────────────────────────────────
-  const saveTimer = useRef<any>(null);
+  // ── Auto-save (2.5초 디바운스 - 현재 로드된 설문지 소유자와 일치할 때만 저장) ─────────
   const forceSaveNow = useCallback(async () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    if (!hasFetched) return false;
+    const currentOwner = resolveOwnerUid();
+    if (loadedOwnerRef.current && loadedOwnerRef.current !== currentOwner) {
+      // 설문지 대상 전환 중에는 절대 이전 데이터를 새 대상에게 저장하지 않음
+      return false;
+    }
     setSaveStatus("saving");
     try {
       const query = isMaster && targetUserId ? `?userId=${encodeURIComponent(targetUserId)}` : "";
@@ -983,17 +1037,19 @@ export default function SurveyPage() {
       setSaveStatus("unsaved");
       return false;
     }
-  }, [data, isMaster, targetUserId]);
+  }, [data, isMaster, targetUserId, hasFetched, resolveOwnerUid]);
 
   useEffect(() => {
     if (isReadOnly || !hasFetched) return;
+    const currentOwner = resolveOwnerUid();
+    if (loadedOwnerRef.current && loadedOwnerRef.current !== currentOwner) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveStatus("unsaved");
     saveTimer.current = setTimeout(() => {
       forceSaveNow();
     }, 2500);
     return () => clearTimeout(saveTimer.current);
-  }, [data, isReadOnly, hasFetched, forceSaveNow]);
+  }, [data, isReadOnly, hasFetched, forceSaveNow, resolveOwnerUid]);
 
   // ── Progress Logic (재배치된 Part 1 ~ Part 6 기준) ────────────────────────
   const fillPct = useMemo(() => {
@@ -1337,6 +1393,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch2-addr"
+              fieldId="ch2.addressHours"
+              questionLabel="상세 주소 및 요일별 운영 시간 (Q30)"
               value={data.ch2.addressHours}
               onChange={(v: string) => upd2("addressHours", v)}
               placeholder="예: 서울시 강남구 OO동 (아파트 단지 앞) / 평일 09:00~19:00 (화·목 야간 21시), 토 09:00~14:00"
@@ -1357,6 +1415,8 @@ export default function SurveyPage() {
               </Lbl>
               <STATextarea
                 id="ch2-clinicsize"
+                fieldId="ch2.clinicSize"
+                questionLabel="병원 실평수 · 베드 수 및 공간 구성 (Q42)"
                 value={data.ch2.clinicSize}
                 onChange={(v: string) => upd2("clinicSize", v)}
                 placeholder="예: 실평수 45평 / 진료실 1, 상담실 1, 검사실 유, 원내약탕실 유(또는 원외탕전) / 일반베드 10개, 추나베드 1개"
@@ -1534,6 +1594,8 @@ export default function SurveyPage() {
               </Lbl>
               <STATextarea
                 id="ch2-herbInst"
+                fieldId="ch2.herbInstructions"
+                questionLabel="한약 복용법 안내 과정 (Q32)"
                 value={data.ch2.herbInstructions}
                 onChange={(v: string) => upd2("herbInstructions", v)}
                 placeholder="예: 택배 상자에 종이 안내문 동봉 / 카톡으로 복용법 이미지 전송 등"
@@ -1599,6 +1661,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch3-equip"
+              fieldId="ch3.equipmentDetail"
+              questionLabel="보유 물리치료 및 검사 기기 상세 (Q7)"
               value={data.ch3.equipmentDetail}
               onChange={(v: string) => upd3("equipmentDetail", v)}
               placeholder="예: ICT 6대, 초음파 2대, 무중력 감압기 1대, 인바디 1대, 수양명경락검사기 1대 등"
@@ -1619,6 +1683,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch3-patientQna"
+              fieldId="ch3.patientQna"
+              questionLabel="환자 다빈도 Q&A 리스트 현황 (Q10)"
               value={data.ch3.patientQna}
               onChange={(v: string) => upd3("patientQna", v)}
               placeholder="표준 Q&A 매뉴얼 보유 여부와 환자들이 가장 자주 묻는 질문들을 적어주세요."
@@ -1665,6 +1731,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch3-mskExample"
+              fieldId="ch3.mskExample"
+              questionLabel="근골격계 상담 실제 예시 (Q14)"
               value={data.ch3.mskExample}
               onChange={(v: string) => upd3("mskExample", v)}
               placeholder="환자에게 허리/목/어깨 통증의 원인과 치료 과정을 어떻게 설명하시는지 적어주세요."
@@ -1702,6 +1770,9 @@ export default function SurveyPage() {
                 <div>
                   <Lbl hint="주로 사용하는 침/전침 술기 및 청구 항목">침 / 전침</Lbl>
                   <STATextarea
+                    id={`ch3-charting-${idx}-case1`}
+                    fieldId={`ch3.charting.${idx}.case1`}
+                    questionLabel={`대표 질환 0${idx + 1} (${row.disease || `질환 ${idx + 1}`}) — 침/전침 (Q16)`}
                     value={row.case1}
                     onChange={(v: string) => {
                       const a = [...data.ch3.charting];
@@ -1716,6 +1787,9 @@ export default function SurveyPage() {
                 <div>
                   <Lbl hint="부항/뜸 등 부수 처치 및 청구 항목">부항 / 뜸</Lbl>
                   <STATextarea
+                    id={`ch3-charting-${idx}-case2`}
+                    fieldId={`ch3.charting.${idx}.case2`}
+                    questionLabel={`대표 질환 0${idx + 1} (${row.disease || `질환 ${idx + 1}`}) — 부항/뜸 (Q16)`}
                     value={row.case2}
                     onChange={(v: string) => {
                       const a = [...data.ch3.charting];
@@ -1730,6 +1804,9 @@ export default function SurveyPage() {
                 <div>
                   <Lbl hint="물리치료 및 비급여/특수 처치 항목">물리치료 / 약침 / 기타</Lbl>
                   <STATextarea
+                    id={`ch3-charting-${idx}-case3`}
+                    fieldId={`ch3.charting.${idx}.case3`}
+                    questionLabel={`대표 질환 0${idx + 1} (${row.disease || `질환 ${idx + 1}`}) — 물리치료/약침/기타 (Q16)`}
                     value={row.case3}
                     onChange={(v: string) => {
                       const a = [...data.ch3.charting];
@@ -1755,6 +1832,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch3-billing"
+              fieldId="ch3.billingRoutine"
+              questionLabel="질환별 루틴 청구법 (Q17)"
               value={data.ch3.billingRoutine}
               onChange={(v: string) => upd3("billingRoutine", v)}
               placeholder="예: 초진 통침+건식부항+ICT / 재진 격일 자락관법 교차 청구 등"
@@ -1770,6 +1849,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch3-chuna"
+              fieldId="ch3.chunaRoutine"
+              questionLabel="추나 치료 루틴 (Q18)"
               value={data.ch3.chunaRoutine}
               onChange={(v: string) => upd3("chunaRoutine", v)}
               placeholder="추나 시행 여부 및 시술 전후 과정, 현재 하루 평균 추나 건수 등"
@@ -1879,6 +1960,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch4-invHist"
+              fieldId="ch4.investmentHistory"
+              questionLabel="개설 투자금 및 회수/대출 현황 (Q28)"
               value={data.ch4.investmentHistory}
               onChange={(v: string) => upd4("investmentHistory", v)}
               placeholder="예: 총 3.5억 투자 (닥터론 2.5억 포함), 현재 잔여 대출 1.8억, 월 원리금 400만 원 상환 중"
@@ -1894,6 +1977,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch4-growthInv"
+              fieldId="ch4.growthInvestment"
+              questionLabel="월간 추가 성장 투자 의사 (Q24)"
               value={data.ch4.growthInvestment}
               onChange={(v: string) => upd4("growthInvestment", v)}
               placeholder="예: 확실한 매출 상승 근거가 있다면 월 200~400만 원 추가 투입 가능"
@@ -2441,6 +2526,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch5-welfare"
+              fieldId="ch5.welfare"
+              questionLabel="현재 복지 혜택 상세 (Q39, 40)"
               value={data.ch5.welfare}
               onChange={(v: string) => upd5("welfare", v)}
               placeholder="현재 시행 중인 복지 혜택을 있는 그대로 적어주세요."
@@ -2456,6 +2543,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch5-discount"
+              fieldId="ch5.staffDiscount"
+              questionLabel="직원 본인 및 지인 할인 혜택 (Q41)"
               value={data.ch5.staffDiscount}
               onChange={(v: string) => upd5("staffDiscount", v)}
               placeholder="예: 직원 본인 침 무료·한약 50% / 직계가족 30% / 따로 정해진 규정 없음 등"
@@ -2496,6 +2585,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch5-managerExp"
+              fieldId="ch5.expectations.manager"
+              questionLabel="중간관리자(실장) 역할 기대치 (Q47)"
               value={data.ch5.expectations.manager}
               onChange={(v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, expectations: { ...d.ch5.expectations, manager: v } } }))}
               placeholder="실장에게 바라는 역할과 현재 아쉬운 점"
@@ -2511,6 +2602,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch5-regularExp"
+              fieldId="ch5.expectations.regular"
+              questionLabel="일반 직원 역할 기대치 (Q47)"
               value={data.ch5.expectations.regular}
               onChange={(v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, expectations: { ...d.ch5.expectations, regular: v } } }))}
               placeholder="치료실/데스크 직원에게 바라는 기본 태도와 업무"
@@ -2526,6 +2619,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch5-commExp"
+              fieldId="ch5.expectations.communication"
+              questionLabel="직원 면담/소통 주기 및 방식 (Q47)"
               value={data.ch5.expectations.communication}
               onChange={(v: string) => setData(d => ({ ...d, ch5: { ...d.ch5, expectations: { ...d.ch5.expectations, communication: v } } }))}
               placeholder="예: 연봉협상 때만 1년에 1번 면담 / 분기별 1:1 면담 등"
@@ -2701,6 +2796,8 @@ export default function SurveyPage() {
               </Lbl>
               <STATextarea
                 id="ch6-mktChannels"
+                fieldId="ch6.marketingStatus.channels"
+                questionLabel="현재 마케팅 운영 채널 현황 (Q53)"
                 value={data.ch6.marketingStatus.channels}
                 onChange={(v: string) => setData(d => ({ ...d, ch6: { ...d.ch6, marketingStatus: { ...d.ch6.marketingStatus, channels: v } } }))}
                 placeholder="예: 브랜드 블로그 대행(월 80), 네이버 플레이스 파워링크(월 50), 당근 광고(월 30) / 또는 마케팅 전혀 안 함"
@@ -2738,6 +2835,8 @@ export default function SurveyPage() {
             </Lbl>
             <STATextarea
               id="ch6-promoMat"
+              fieldId="ch6.promoMaterials"
+              questionLabel="원내 비치 홍보물 현황 (Q54)"
               value={data.ch6.promoMaterials}
               onChange={(v: string) => setData(d => ({ ...d, ch6: { ...d.ch6, promoMaterials: v } }))}
               placeholder="예: 대기실에 공진단 배너 1개, 치료실에는 따로 붙어있는 안내문 없음 등"
@@ -2805,11 +2904,14 @@ export default function SurveyPage() {
     );
   }
 
+  const activeSurveyOwnerKey = resolveOwnerUid();
+
   return (
     <MasterSurveyContext.Provider
       value={{
         isMaster,
         masterCoachingMode,
+        activeSurveyOwnerKey,
         clinicMeta,
         masterComments: data.masterComments || {},
         masterAiCache: data.masterAiCache || {},
@@ -3047,7 +3149,10 @@ export default function SurveyPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-7">
         {pageMode === "view" ? (
           <SurveyFullSheetView
+            key={`full-sheet-${activeSurveyOwnerKey}`}
             data={data}
+            userName={data.ch1.name || session?.user?.name || "원장"}
+            userEmail={activeSurveyOwnerKey}
             updatedAt={updatedAt}
             submitted={submitted}
             isMaster={isMaster}

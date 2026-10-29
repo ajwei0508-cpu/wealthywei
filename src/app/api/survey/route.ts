@@ -19,8 +19,9 @@ export async function GET(req: NextRequest) {
   const isMaster = loggedInEmail === MASTER_EMAIL;
 
   const { searchParams } = new URL(req.url);
-  const requestedUserId = searchParams.get("userId")?.toLowerCase();
-  const targetUserId = isMaster && requestedUserId ? requestedUserId : loggedInEmail;
+  const rawRequestedUserId = searchParams.get("userId")?.toLowerCase().trim() || "";
+  const isValidRequested = rawRequestedUserId.includes("@") && rawRequestedUserId !== "undefined";
+  const targetUserId = isMaster && isValidRequested ? rawRequestedUserId : loggedInEmail;
 
   try {
     const { data, error } = await supabaseAdmin
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
         const seen = new Set<string>();
         for (const r of allRows) {
           const uid = String(r.user_id || "").toLowerCase().trim();
-          if (!uid || uid === MASTER_EMAIL || seen.has(uid)) continue;
+          if (!uid || !uid.includes("@") || uid === "undefined" || uid === MASTER_EMAIL || seen.has(uid)) continue;
           seen.add(uid);
           const dName = r.data?.ch1?.name || uid.split("@")[0];
           const cName = r.data?.ch1?.clinic || "한의원 미입력";
@@ -88,8 +89,9 @@ export async function POST(req: NextRequest) {
   const isMaster = loggedInEmail === MASTER_EMAIL;
 
   const { searchParams } = new URL(req.url);
-  const requestedUserId = searchParams.get("userId")?.toLowerCase();
-  const targetUserId = isMaster && requestedUserId ? requestedUserId : loggedInEmail;
+  const rawRequestedUserId = searchParams.get("userId")?.toLowerCase().trim() || "";
+  const isValidRequested = rawRequestedUserId.includes("@") && rawRequestedUserId !== "undefined";
+  const targetUserId = isMaster && isValidRequested ? rawRequestedUserId : loggedInEmail;
 
   try {
     const body = await req.json();

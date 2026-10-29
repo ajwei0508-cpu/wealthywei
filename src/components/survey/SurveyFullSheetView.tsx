@@ -79,16 +79,26 @@ export default function SurveyFullSheetView({
   const [openAiPanelMap, setOpenAiPanelMap] = useState<Record<string, boolean>>({});
   const [openPresetsMap, setOpenPresetsMap] = useState<Record<string, boolean>>({});
 
+  // 설문지 대상(원장님 이메일/이름/한의원)이 바뀔 때 로컬 코멘트 및 AI 결과 상태를 즉시 초기화하여 다른 설문지에 코멘트가 섞이거나 전염되는 현상 원천 차단
+  const surveyOwnerKey = `${userEmail || ""}::${userName || ""}::${data?.ch1?.clinic || ""}::${data?.ch1?.name || ""}`;
+  React.useEffect(() => {
+    setLocalComments({});
+    setAiLoadingMap({});
+    setAiResultsMap({});
+    setOpenAiPanelMap({});
+    setOpenPresetsMap({});
+  }, [surveyOwnerKey]);
+
   const hasText = (v: any) => typeof v === "string" && v.trim().length > 0;
   const handleStudioTrigger = onOpenMasterStudioForField || (onOpenStudio ? () => onOpenStudio() : undefined);
 
   const getMasterCommentValue = (key: string) => {
-    if (localComments[key] !== undefined) return localComments[key];
+    if (Object.prototype.hasOwnProperty.call(localComments, key)) return localComments[key];
     return (data as any)?.masterComments?.[key] || "";
   };
 
   const getAiResultForKey = (key: string) => {
-    if (aiResultsMap[key]) return aiResultsMap[key];
+    if (Object.prototype.hasOwnProperty.call(aiResultsMap, key)) return aiResultsMap[key];
     return (data as any)?.masterAiCache?.[key] || null;
   };
 
