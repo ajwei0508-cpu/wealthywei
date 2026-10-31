@@ -27,7 +27,8 @@ import {
   Gem,
   Activity,
   CreditCard,
-  Megaphone
+  Megaphone,
+  UserPlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
@@ -305,6 +306,18 @@ export default function DashboardSidebar() {
             onClick={() => router.push("/requests")}
             hasNew={hasNewRequest}
           />
+
+          {/* 초진 시스템 (바른컨설팅 승인 회원 + 마스터 전용) */}
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={UserPlus} 
+              label="초진 시스템" 
+              isLocked={!isConsultingApproved && !isMaster}
+              isActive={pathname.startsWith("/first-visit")}
+              onClick={() => router.push("/first-visit")}
+              hasNew={true}
+            />
+          )}
 
           {/* 재내원 해피콜 (Moved to top) */}
           <NavItem 
