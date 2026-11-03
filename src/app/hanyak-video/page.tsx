@@ -1,49 +1,189 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, ExternalLink, Video, Activity, Stethoscope, Maximize, Pill } from "lucide-react";
+import {
+  Play,
+  ExternalLink,
+  Video,
+  Activity,
+  Stethoscope,
+  Maximize,
+  Pill,
+  Loader2,
+} from "lucide-react";
+
+interface VideoStreamItem {
+  id: string;
+  title: string;
+  streamUrl: string;
+  thumbUrl: string;
+}
+
+function DirectMyboxPlayer({
+  shortUrl,
+  title,
+  badgeColor = "emerald",
+}: {
+  shortUrl: string;
+  title: string;
+  badgeColor?: "emerald" | "blue" | "rose" | "amber" | "purple";
+}) {
+  const [items, setItems] = useState<VideoStreamItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetch(`/api/mybox-video?mode=meta&url=${encodeURIComponent(shortUrl)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.ok && Array.isArray(data.items)) {
+          setItems(data.items);
+          setActiveIndex(0);
+        }
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shortUrl]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, activeIndex]);
+
+  const toggleFullScreen = () => {
+    const container = wrapperRef.current;
+    if (!container) return;
+    if (!document.fullscreenElement) {
+      container.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  const currentItem = items[activeIndex];
+
+  return (
+    <div className="video-card bg-gradient-to-b from-white/10 to-transparent border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-2xl backdrop-blur-sm flex flex-col">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+        <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3">
+          <div className="p-3 bg-emerald-500/20 rounded-2xl">
+            <Video size={26} className="text-emerald-400" />
+          </div>
+          {title}
+        </h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10">
+            {[1, 1.25, 1.5, 2].map((spd) => (
+              <button
+                key={spd}
+                type="button"
+                onClick={() => setPlaybackSpeed(spd)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  playbackSpeed === spd
+                    ? "bg-amber-500 text-black"
+                    : "text-white/60 hover:text-white"
+                }`}
+              >
+                {spd}x
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={toggleFullScreen}
+            className="flex items-center gap-2 text-xs md:text-sm bg-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/40 px-4 py-2.5 rounded-xl transition-all"
+          >
+            <Maximize size={15} />
+            전체 화면
+          </button>
+          <a
+            href={shortUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-xs md:text-sm bg-white/10 text-white/70 font-bold hover:bg-white/20 hover:text-white px-4 py-2.5 rounded-xl transition-all"
+          >
+            <ExternalLink size={15} />
+            원본 링크
+          </a>
+        </div>
+      </div>
+
+      <div
+        ref={wrapperRef}
+        className="video-wrapper w-full aspect-video rounded-3xl overflow-hidden bg-black relative border-2 border-white/10 shadow-2xl flex items-center justify-center"
+      >
+        {loading ? (
+          <div className="flex flex-col items-center gap-3 text-white/60">
+            <Loader2 className="w-10 h-10 text-amber-400 animate-spin" />
+            <span className="text-sm font-bold">고화질 영상 스트리밍 연결 중...</span>
+          </div>
+        ) : currentItem ? (
+          <video
+            key={currentItem.streamUrl}
+            ref={videoRef}
+            src={currentItem.streamUrl}
+            poster={currentItem.thumbUrl}
+            controls
+            playsInline
+            className="w-full h-full object-contain outline-none"
+            onLoadedData={() => {
+              if (videoRef.current) videoRef.current.playbackRate = playbackSpeed;
+            }}
+          />
+        ) : (
+          <div className="text-white/50 text-sm">영상을 불러올 수 없습니다.</div>
+        )}
+      </div>
+
+      {items.length > 1 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {items.map((it, idx) => (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => setActiveIndex(idx)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                idx === activeIndex
+                  ? "bg-amber-500 text-black shadow"
+                  : "bg-white/5 text-white/70 hover:bg-white/10"
+              }`}
+            >
+              {idx + 1}. {it.title}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function HanyakVideoPage() {
   const [activeTab, setActiveTab] = useState<"bokyong" | "jinmaek" | "yeonbok" | "yotong">("bokyong");
-
-  const toggleFullScreen = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const card = (e.currentTarget as HTMLElement).closest('.video-card');
-    const container = card?.querySelector('.video-wrapper') as HTMLElement;
-    if (!container) return;
-    
-    if (!document.fullscreenElement) {
-      if (container.requestFullscreen) {
-        container.requestFullscreen().catch(err => {
-          console.error(`Error attempting to enable fullscreen: ${err.message}`);
-          alert("전체 화면 모드를 지원하지 않는 환경입니다.");
-        });
-      } else if ((container as any).webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        (document as any).webkitExitFullscreen();
-      }
-    }
-  };
 
   const tabs = [
     { id: "bokyong", label: "바른 복용법 설명", number: "1" },
     { id: "jinmaek", label: "바른 중간진맥", number: "2" },
     { id: "yeonbok", label: "바른 종합검사 연복", number: "3" },
-    { id: "yotong", label: "요통초진 다이어트", number: "4" }
+    { id: "yotong", label: "요통초진 다이어트", number: "4" },
   ] as const;
 
   return (
     <DashboardLayout>
       <div className="min-h-screen bg-[#031C13] text-white p-4 md:p-8 overflow-x-hidden">
         <div className="max-w-6xl mx-auto space-y-12 mt-16 relative z-10">
-          
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
@@ -54,22 +194,30 @@ export default function HanyakVideoPage() {
               </div>
               바른 한약 시스템 영상
             </h1>
-            <p className="text-white/60 text-lg ml-2">바른 한약 시스템에 대한 다양한 영상 가이드를 확인하세요.</p>
+            <p className="text-white/60 text-lg ml-2">
+              바른 한약 시스템에 대한 모든 영상을 현재 창에서 바로 재생하여 확인하세요.
+            </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="flex flex-wrap gap-4 border-b border-white/10 pb-6"
           >
             {tabs.map((tab) => (
-              <button 
+              <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-4 rounded-2xl font-bold transition-all flex items-center gap-3 ${activeTab === tab.id ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 scale-105" : "bg-white/5 text-white/50 hover:bg-white/10"}`}
+                className={`px-6 py-4 rounded-2xl font-bold transition-all flex items-center gap-3 ${
+                  activeTab === tab.id
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 scale-105"
+                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                }`}
               >
-                <span className="w-6 h-6 rounded-full bg-black/20 flex items-center justify-center text-xs">{tab.number}</span>
+                <span className="w-6 h-6 rounded-full bg-black/20 flex items-center justify-center text-xs">
+                  {tab.number}
+                </span>
                 {tab.label}
               </button>
             ))}
@@ -83,44 +231,12 @@ export default function HanyakVideoPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
               >
-                <div className="video-card bg-gradient-to-b from-white/10 to-transparent border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
-                      <div className="p-3 bg-blue-500/20 rounded-2xl">
-                        <Video size={28} className="text-blue-400" />
-                      </div>
-                      바른 복용법 설명
-                    </h2>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={toggleFullScreen}
-                        className="flex items-center gap-2 text-sm bg-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Maximize size={16} />
-                        전체 화면
-                      </button>
-                      <a 
-                        href="http://naver.me/Fk7iCMq6" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm bg-blue-500/20 text-blue-300 font-bold hover:bg-blue-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <ExternalLink size={16} />
-                        새 창 열기
-                      </a>
-                    </div>
-                  </div>
-                  <div className="video-wrapper w-full aspect-video rounded-3xl overflow-hidden bg-black/50 relative border-2 border-white/10 shadow-2xl">
-                    <iframe 
-                      src="http://naver.me/Fk7iCMq6" 
-                      className="w-full h-full border-0 relative z-10" 
-                      allowFullScreen
-                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                    ></iframe>
-                  </div>
-                </div>
+                <DirectMyboxPlayer
+                  shortUrl="http://naver.me/Fk7iCMq6"
+                  title="바른 복용법 설명"
+                  badgeColor="blue"
+                />
               </motion.div>
             )}
 
@@ -131,44 +247,12 @@ export default function HanyakVideoPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
               >
-                <div className="video-card bg-gradient-to-b from-white/10 to-transparent border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
-                      <div className="p-3 bg-rose-500/20 rounded-2xl">
-                        <Activity size={28} className="text-rose-400" />
-                      </div>
-                      바른 중간진맥
-                    </h2>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={toggleFullScreen}
-                        className="flex items-center gap-2 text-sm bg-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Maximize size={16} />
-                        전체 화면
-                      </button>
-                      <a 
-                        href="http://naver.me/GvcCCdk9" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm bg-blue-500/20 text-blue-300 font-bold hover:bg-blue-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <ExternalLink size={16} />
-                        새 창 열기
-                      </a>
-                    </div>
-                  </div>
-                  <div className="video-wrapper w-full aspect-video rounded-3xl overflow-hidden bg-black/50 relative border-2 border-white/10 shadow-2xl">
-                    <iframe 
-                      src="http://naver.me/GvcCCdk9" 
-                      className="w-full h-full border-0 relative z-10" 
-                      allowFullScreen
-                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                    ></iframe>
-                  </div>
-                </div>
+                <DirectMyboxPlayer
+                  shortUrl="http://naver.me/GvcCCdk9"
+                  title="바른 중간진맥"
+                  badgeColor="rose"
+                />
               </motion.div>
             )}
 
@@ -179,44 +263,12 @@ export default function HanyakVideoPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-6"
               >
-                <div className="video-card bg-gradient-to-b from-white/10 to-transparent border border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl backdrop-blur-sm">
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
-                      <div className="p-3 bg-amber-500/20 rounded-2xl">
-                        <Stethoscope size={28} className="text-amber-400" />
-                      </div>
-                      바른 종합검사 연복
-                    </h2>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={toggleFullScreen}
-                        className="flex items-center gap-2 text-sm bg-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Maximize size={16} />
-                        전체 화면
-                      </button>
-                      <a 
-                        href="http://naver.me/xOxXcFGE" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm bg-blue-500/20 text-blue-300 font-bold hover:bg-blue-500/40 px-4 py-3 rounded-xl transition-all hover:scale-105 active:scale-95"
-                      >
-                        <ExternalLink size={16} />
-                        새 창 열기
-                      </a>
-                    </div>
-                  </div>
-                  <div className="video-wrapper w-full aspect-video rounded-3xl overflow-hidden bg-black/50 relative border-2 border-white/10 shadow-2xl">
-                    <iframe 
-                      src="http://naver.me/xOxXcFGE" 
-                      className="w-full h-full border-0 relative z-10" 
-                      allowFullScreen
-                      sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                    ></iframe>
-                  </div>
-                </div>
+                <DirectMyboxPlayer
+                  shortUrl="http://naver.me/xOxXcFGE"
+                  title="바른 종합검사 연복"
+                  badgeColor="amber"
+                />
               </motion.div>
             )}
 
@@ -227,94 +279,23 @@ export default function HanyakVideoPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-8"
+                className="grid grid-cols-1 xl:grid-cols-2 gap-8"
               >
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* 요통초진 다이어트 1 */}
-                  <div className="video-card bg-gradient-to-br from-white/10 to-transparent border border-white/10 rounded-[3rem] p-8 flex flex-col hover:border-white/20 transition-all">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-black text-white flex items-center gap-3">
-                        <div className="p-3 bg-purple-500/20 rounded-2xl">
-                          <Play size={24} className="text-purple-400" />
-                        </div>
-                        요통초진에서 다이어트 (초진상담)
-                      </h2>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={toggleFullScreen}
-                          className="flex items-center gap-2 text-xs font-bold bg-white/10 text-emerald-400 hover:bg-white/20 px-3 py-2 rounded-xl transition-all"
-                        >
-                          <Maximize size={14} />
-                          전체 화면
-                        </button>
-                        <a 
-                          href="https://naver.me/FuNhF7NU" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs font-bold bg-white/10 text-white hover:bg-white/20 px-3 py-2 rounded-xl transition-all"
-                        >
-                          <ExternalLink size={14} />
-                          새 창 열기
-                        </a>
-                      </div>
-                    </div>
-                    <div className="video-wrapper w-full aspect-video rounded-2xl overflow-hidden bg-black/50 relative border-2 border-white/10 flex-grow shadow-lg">
-                      <iframe 
-                        src="https://naver.me/FuNhF7NU" 
-                        className="w-full h-full border-0" 
-                        allowFullScreen
-                        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                      ></iframe>
-                    </div>
-                  </div>
-
-                  {/* 요통초진 다이어트 2 */}
-                  <div className="video-card bg-gradient-to-br from-purple-900/20 to-transparent border border-white/10 rounded-[3rem] p-8 flex flex-col hover:border-purple-500/30 transition-all">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-black text-white flex items-center gap-3">
-                        <div className="p-3 bg-emerald-500/20 rounded-2xl">
-                          <Play size={24} className="text-emerald-400" />
-                        </div>
-                        요통초진에서 다이어트 (한약상담)
-                      </h2>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={toggleFullScreen}
-                          className="flex items-center gap-2 text-xs font-bold bg-white/10 text-emerald-400 hover:bg-white/20 px-3 py-2 rounded-xl transition-all"
-                        >
-                          <Maximize size={14} />
-                          전체 화면
-                        </button>
-                        <a 
-                          href="https://naver.me/GFCCwwpr" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-xs font-bold bg-white/10 text-white hover:bg-white/20 px-3 py-2 rounded-xl transition-all"
-                        >
-                          <ExternalLink size={14} />
-                          새 창 열기
-                        </a>
-                      </div>
-                    </div>
-                    <div className="video-wrapper w-full aspect-video rounded-2xl overflow-hidden bg-black/50 relative border-2 border-emerald-500/20 flex-grow shadow-lg">
-                      <iframe 
-                        src="https://naver.me/GFCCwwpr" 
-                        className="w-full h-full border-0" 
-                        allowFullScreen
-                        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                      ></iframe>
-                    </div>
-                  </div>
-                </div>
+                <DirectMyboxPlayer
+                  shortUrl="https://naver.me/FuNhF7NU"
+                  title="요통초진에서 다이어트 (초진상담)"
+                  badgeColor="purple"
+                />
+                <DirectMyboxPlayer
+                  shortUrl="https://naver.me/GFCCwwpr"
+                  title="요통초진에서 다이어트 (한약상담)"
+                  badgeColor="emerald"
+                />
               </motion.div>
             )}
           </AnimatePresence>
-          
-          <p className="mt-8 text-amber-500/70 text-sm font-bold text-center bg-amber-500/5 py-3 rounded-xl max-w-2xl mx-auto">
-            ※ 네이버 정책(권한 등)에 의해 직접 재생이 거부될 수 있습니다. 영상이 빈 화면으로 나오면 '새 창 열기' 버튼을 눌러주세요.
-          </p>
         </div>
-        {/* Background glow effects */}
+
         <div className="absolute top-40 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
         <div className="absolute top-80 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none -z-10"></div>
       </div>
