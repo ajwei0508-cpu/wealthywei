@@ -23,6 +23,7 @@ interface VideoCardConfig {
   title: string;
   subtitle?: string;
   url: string;
+  resourceKey?: string;
   isFolderHint?: boolean;
 }
 
@@ -46,11 +47,46 @@ interface ResolvedPlayableItem {
   sourceUrl: string;
 }
 
+// 상황별 상담 폴더 내 개별 파일명 -> 사용자 지정 표시 제목 매핑
+const SITUATIONAL_TITLE_MAP: Record<string, string> = {
+  "최재헌 약상담": "남자 공진단 세트 약상담",
+  "최재헌 약상담2": "남자 공진단 세트 약상담 2",
+  "이양자불면": "불면",
+  "이미영 람세이헌트 상담": "람세이헌트",
+  "이미영 람세이헌트": "람세이헌트",
+  "백영순 내장지방 씨앗 상담": "내장지방 씨앗 상담",
+  "백영순 내장지방 초진": "내장지방 초진",
+  "백영순약상담": "내장지방 약상담",
+  "백영순약상담2": "내장지방 약상담2",
+};
+
+// 복용법 안내로 이동할 항목의 resourceKey / 제목 식별자
+const MOVED_TO_GUIDE_RESOURCE_KEYS = new Set([
+  "d2VpMDUwOHwzNDcyNTM2MTI2Nzg5Mzg3MzQwfEZ8MjAwODA3Mzc", // 이미영 람세이 헌트 약복용법 설명.mp4
+]);
+
+function normalizeSituationalTitle(rawTitle: string): string {
+  const trimmed = rawTitle.trim();
+  if (SITUATIONAL_TITLE_MAP[trimmed]) {
+    return SITUATIONAL_TITLE_MAP[trimmed];
+  }
+  return trimmed;
+}
+
+function isMovedToGuideItem(item: { resourceKey?: string; title?: string; fileName?: string }): boolean {
+  if (item.resourceKey && MOVED_TO_GUIDE_RESOURCE_KEYS.has(item.resourceKey)) {
+    return true;
+  }
+  const t = `${item.title || ""} ${item.fileName || ""}`;
+  return t.includes("람세이") && t.includes("복용법");
+}
+
 const HERBAL_VIDEOS: VideoSection[] = [
   {
     category: "한약씨앗 심기",
     badge: "STEP 01 · 초진 씨앗 화법",
-    description: "초진 진료 단계에서 환자의 상황에 맞춰 자연스럽게 한약 처방의 필요성을 심어주는 핵심 실전 영상입니다.",
+    description:
+      "초진 진료 단계에서 환자의 상황에 맞춰 자연스럽게 한약 처방의 필요성을 심어주는 핵심 실전 영상입니다.",
     items: [
       {
         id: "seed_1",
@@ -81,7 +117,8 @@ const HERBAL_VIDEOS: VideoSection[] = [
   {
     category: "한약 상담",
     badge: "STEP 02 · 본 상담 & 클로징",
-    description: "종합검사(연복) 안내부터 질환·연령·성별 상황별 실제 한약 상담 클로징까지 모든 케이스를 바로 재생하여 확인하세요.",
+    description:
+      "종합검사(연복) 안내부터 질환·연령·성별 상황별 실제 한약 상담 클로징까지 모든 케이스를 바로 재생하여 확인하세요.",
     items: [
       {
         id: "consult_1",
@@ -91,7 +128,7 @@ const HERBAL_VIDEOS: VideoSection[] = [
       },
       {
         id: "consult_2",
-        title: "상황별 상담 (전체 모음)",
+        title: "상황별 상담",
         subtitle: "내장지방·다이어트·불면·람세이헌트·가족 상담 등 실전 케이스",
         url: "https://naver.me/GVVnDHk8",
         isFolderHint: true,
@@ -101,7 +138,8 @@ const HERBAL_VIDEOS: VideoSection[] = [
   {
     category: "복용법 안내",
     badge: "STEP 03 · 복용 티칭",
-    description: "한약 및 공진단 처방 후 복용 순응도를 극대화하고 환불·컴플레인을 예방하는 복용법 설명 영상입니다.",
+    description:
+      "한약 및 공진단 처방 후 복용 순응도를 극대화하고 환불·컴플레인을 예방하는 복용법 설명 영상입니다.",
     items: [
       {
         id: "guide_1",
@@ -109,12 +147,20 @@ const HERBAL_VIDEOS: VideoSection[] = [
         subtitle: "한약 및 공진단 올바른 복용법과 명현·호전 반응 안내",
         url: "http://naver.me/Fk7iCMq6",
       },
+      {
+        id: "guide_2",
+        title: "람세이헌트 약복용법 설명",
+        subtitle: "람세이헌트 처방 환자 맞춤형 약 복용법 실전 안내",
+        url: "https://naver.me/GVVnDHk8",
+        resourceKey: "d2VpMDUwOHwzNDcyNTM2MTI2Nzg5Mzg3MzQwfEZ8MjAwODA3Mzc",
+      },
     ],
   },
   {
     category: "중간 진맥",
     badge: "STEP 04 · 재진 & 재처방",
-    description: "복용 중반부 중간 진맥을 통해 환자 신뢰도를 높이고 자연스럽게 추가 처방(연복)으로 연결하는 과정입니다.",
+    description:
+      "복용 중반부 중간 진맥을 통해 환자 신뢰도를 높이고 자연스럽게 추가 처방(연복)으로 연결하는 과정입니다.",
     items: [
       {
         id: "pulse_1",
@@ -162,6 +208,46 @@ export default function HerbalConsultingPage() {
     });
   };
 
+  const mapCardItems = (
+    card: VideoCardConfig,
+    sectionCategory: string,
+    rawItems: any[]
+  ): ResolvedPlayableItem[] => {
+    // 1. 특정 resourceKey만 사용하는 단일 카드 (예: 복용법 안내로 이동된 '람세이헌트 약복용법 설명')
+    if (card.resourceKey) {
+      const matched = rawItems.filter((it) => it.resourceKey === card.resourceKey);
+      const targetList = matched.length > 0 ? matched : rawItems.filter(isMovedToGuideItem);
+      return targetList.map((it: any) => ({
+        ...it,
+        title: card.title,
+        parentCardTitle: card.title,
+        parentCategory: sectionCategory,
+        sourceUrl: card.url,
+      }));
+    }
+
+    // 2. 상황별 상담 폴더인 경우: 복용법 안내로 이동한 항목은 제외하고 제목 변경 매핑 적용
+    if (card.id === "consult_2") {
+      return rawItems
+        .filter((it: any) => !isMovedToGuideItem(it))
+        .map((it: any) => ({
+          ...it,
+          title: normalizeSituationalTitle(it.title || ""),
+          parentCardTitle: card.title,
+          parentCategory: sectionCategory,
+          sourceUrl: card.url,
+        }));
+    }
+
+    // 3. 일반 단일 카드
+    return rawItems.map((it: any) => ({
+      ...it,
+      parentCardTitle: card.title,
+      parentCategory: sectionCategory,
+      sourceUrl: card.url,
+    }));
+  };
+
   // Preload metadata for all cards so thumbnails & sub-videos are ready immediately
   useEffect(() => {
     let cancelled = false;
@@ -172,12 +258,7 @@ export default function HerbalConsultingPage() {
           const res = await fetch(`/api/mybox-video?mode=meta&url=${encodeURIComponent(card.url)}`);
           const data = await res.json();
           if (!cancelled && data.ok && Array.isArray(data.items) && data.items.length > 0) {
-            const mapped: ResolvedPlayableItem[] = data.items.map((it: any) => ({
-              ...it,
-              parentCardTitle: card.title,
-              parentCategory: section.category,
-              sourceUrl: card.url,
-            }));
+            const mapped = mapCardItems(card, section.category, data.items);
             setResolvedMap((prev) => ({ ...prev, [card.id]: mapped }));
           }
         } catch (err) {
@@ -202,7 +283,11 @@ export default function HerbalConsultingPage() {
   }, [playbackSpeed, activeIndex, isModalOpen]);
 
   // Open player modal for a card or a specific resolved item
-  const handleOpenCardPlayer = async (card: VideoCardConfig, sectionCategory: string, startIndex = 0) => {
+  const handleOpenCardPlayer = async (
+    card: VideoCardConfig,
+    sectionCategory: string,
+    startIndex = 0
+  ) => {
     let items = resolvedMap[card.id];
 
     if (!items || items.length === 0) {
@@ -212,12 +297,7 @@ export default function HerbalConsultingPage() {
         const res = await fetch(`/api/mybox-video?mode=meta&url=${encodeURIComponent(card.url)}`);
         const data = await res.json();
         if (data.ok && Array.isArray(data.items) && data.items.length > 0) {
-          items = data.items.map((it: any) => ({
-            ...it,
-            parentCardTitle: card.title,
-            parentCategory: sectionCategory,
-            sourceUrl: card.url,
-          }));
+          items = mapCardItems(card, sectionCategory, data.items);
           setResolvedMap((prev) => ({ ...prev, [card.id]: items! }));
         }
       } catch (e) {
@@ -281,7 +361,9 @@ export default function HerbalConsultingPage() {
               </div>
             </div>
             <p className="text-white/60 text-sm">
-              모든 한약 상담 영상을 새 창 이동 없이 <span className="text-amber-300 font-bold">현재 화면 내 전용 플레이어</span>에서 즉시 재생하고 연속 시청할 수 있습니다.
+              모든 한약 상담 영상을 새 창 이동 없이{" "}
+              <span className="text-amber-300 font-bold">현재 화면 내 전용 플레이어</span>에서 즉시
+              재생하고 연속 시청할 수 있습니다.
             </p>
           </div>
 
@@ -305,7 +387,9 @@ export default function HerbalConsultingPage() {
                   <div>
                     <div className="flex items-center gap-2.5 mb-1.5">
                       <div className="w-1.5 h-6 bg-amber-400 rounded-full"></div>
-                      <h2 className="text-xl md:text-2xl font-black text-white">{section.category}</h2>
+                      <h2 className="text-xl md:text-2xl font-black text-white">
+                        {section.category}
+                      </h2>
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/15 text-amber-300 border border-amber-500/30">
                         {section.badge}
                       </span>
@@ -402,7 +486,7 @@ export default function HerbalConsultingPage() {
                     })}
                 </div>
 
-                {/* 상황별 상담 폴더 내 개별 영상 13편 직통 그리드 노출 */}
+                {/* 상황별 상담 폴더 내 개별 영상 직통 그리드 노출 */}
                 {section.items.some((it) => (resolvedMap[it.id]?.length || 0) > 1) && (
                   <div className="mt-8 pt-6 border-t border-white/10">
                     {section.items
@@ -472,7 +556,9 @@ export default function HerbalConsultingPage() {
                                             <p className="text-xs font-bold text-white group-hover:text-amber-300 truncate transition-colors">
                                               {sub.title}
                                             </p>
-                                            <p className="text-[10px] text-white/40 mt-0.5">클릭 시 즉시 재생</p>
+                                            <p className="text-[10px] text-white/40 mt-0.5">
+                                              클릭 시 즉시 재생
+                                            </p>
                                           </div>
                                         </div>
                                       );
