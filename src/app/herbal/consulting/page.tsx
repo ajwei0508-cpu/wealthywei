@@ -14,7 +14,6 @@ import {
   Sparkles,
   CheckCircle2,
   Loader2,
-  ExternalLink,
   ListVideo,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -579,18 +578,6 @@ export default function HerbalConsultingPage() {
                   >
                     <Maximize2 className="w-4 h-4" />
                   </button>
-
-                  {currentVideo?.sourceUrl && (
-                    <a
-                      href={currentVideo.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-white/60 hover:text-white border border-white/10 transition-colors"
-                      title="원본 링크 열기"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  )}
 
                   <button
                     type="button"

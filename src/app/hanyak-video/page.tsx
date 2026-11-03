@@ -5,7 +5,6 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
-  ExternalLink,
   Video,
   Activity,
   Stethoscope,
@@ -108,15 +107,6 @@ function DirectMyboxPlayer({
             <Maximize size={15} />
             전체 화면
           </button>
-          <a
-            href={shortUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-xs md:text-sm bg-white/10 text-white/70 font-bold hover:bg-white/20 hover:text-white px-4 py-2.5 rounded-xl transition-all"
-          >
-            <ExternalLink size={15} />
-            원본 링크
-          </a>
         </div>
       </div>
 
