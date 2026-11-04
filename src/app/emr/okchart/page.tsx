@@ -36,11 +36,9 @@ import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { parseExcelFile } from "@/lib/excelParser";
 import toast from "react-hot-toast";
-import { generateClinicInsightStream } from "@/lib/aiService";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import AnalysisTimer from "@/components/AnalysisTimer";
-import { PROVIDED_OKCHART_DATA } from "@/lib/providedData";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
 import { NoDataAlert } from "@/components/NoDataAlert";
 import { useAnalytics } from "@/components/AnalyticsProvider";
@@ -69,11 +67,8 @@ export default function OkchartPage() {
   } = useData();
   const { trackEvent } = useAnalytics();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [insight, setInsight] = useState<string>("");
-  const [loadingInsight, setLoadingInsight] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
   const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
-  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
 
   // State for Period Comparison
   const [viewMode, setViewMode] = useState<"single" | "period">("single");
@@ -223,67 +218,7 @@ export default function OkchartPage() {
     }
   };
 
-  // 제공 데이터가 비어있을 때 자동으로 기본 샘플 데이터를 입력해 주는 이펙트 (1초 딜레이로 초기 로딩 대기)
-  useEffect(() => {
-    if (hasAutoLoaded) return;
-    
-    const timer = setTimeout(async () => {
-      const okchartMonths = Object.keys(monthlyData).filter(m => monthlyData[m]?.okchartData);
-      if (okchartMonths.length === 0) {
-        try {
-          for (const [month, metrics] of Object.entries(PROVIDED_OKCHART_DATA)) {
-            await setMonthlyData(month, metrics as any);
-          }
-          setHasAutoLoaded(true);
-          console.log("오케이차트 제공 샘플 데이터를 자동으로 입력 완료했습니다.");
-        } catch (e) {
-          console.error("제공 데이터 자동입력 에러:", e);
-        }
-      } else {
-        setHasAutoLoaded(true);
-      }
-    }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [monthlyData, setMonthlyData, hasAutoLoaded]);
-
-  useEffect(() => {
-    async function getInsight() {
-      if (data.totalRevenue > 0) {
-        const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
-        const cached = localStorage.getItem(cacheKey);
-        
-        if (cached) {
-          setInsight(cached);
-          setLoadingInsight(false);
-          return;
-        }
-
-        setLoadingInsight(true);
-        setInsight(""); // 초기화
-        try {
-          await generateClinicInsightStream(currentData, (text) => {
-            setInsight(text);
-          });
-          // 스트리밍 완료 후 캐시 저장 (전체 텍스트가 완성되었을 때)
-          // useEffect 내에서 스트리밍이 끝나면 마지막 텍스트를 캐싱하도록 처리
-        } catch (e) {
-          setInsight("현재 데이터를 기반으로 원장님의 병원을 위한 경영 진단을 준비 중입니다.");
-        } finally {
-          setLoadingInsight(false);
-        }
-      }
-    }
-    getInsight();
-  }, [data.totalRevenue, currentData, selectedMonth]);
-
-  // 캐싱을 위한 별도 effect (텍스트가 완성되면 저장)
-  useEffect(() => {
-    if (insight && !loadingInsight && data.totalRevenue > 0) {
-      const cacheKey = `insight_${selectedMonth}_${data.totalRevenue}`;
-      localStorage.setItem(cacheKey, insight);
-    }
-  }, [insight, loadingInsight, selectedMonth, data.totalRevenue]);
 
   const formatMonth = (m: string) => {
     if (!m) return "선택 안됨";

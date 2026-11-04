@@ -270,74 +270,73 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setStateMonthlyData((prev) => {
       const existing = prev[month] || { ...initialDataMetrics, donguibogamData: undefined };
       
-      const mergeSubset = (target: any, source: any, isDonguibogam: boolean = false) => {
+      const mergeSubset = (target: any, source: any) => {
         if (!source) return target;
         const result = { ...(target || {}) };
         Object.keys(source).forEach(key => {
           const val = source[key];
-          const prevVal = result[key];
-
-          // 동의보감이고 둘 다 숫자인 경우 합산 (단, 비율이나 version 등은 제외)
-          if (isDonguibogam && typeof val === "number" && typeof prevVal === "number" && !["version"].includes(key)) {
-            result[key] = prevVal + val;
-          } 
-          // 그 외에는 값이 있을 때만 덮어쓰기 (Upsert)
-          else if (val !== undefined && val !== 0 && val !== "" && val !== false) {
+          if (val !== undefined && val !== 0 && val !== "" && val !== false) {
             result[key] = val;
-          } 
-          else if (result[key] === undefined) {
+          } else if (result[key] === undefined) {
             result[key] = val;
           }
         });
         return result;
       };
 
-      const isDonguibogam = !!newData.donguibogamData;
+      const nDongui = newData.donguibogamData;
+      const hasDonguiFin = !!nDongui?.hasFinancialData;
+      const hasDonguiTr = !!nDongui?.hasTreatmentData;
 
       const updatedMetrics: DataMetrics = {
         ...existing,
         ...newData,
-        patientMetrics: mergeSubset(existing.patientMetrics, newData.patientMetrics, isDonguibogam),
-        generatedRevenue: mergeSubset(existing.generatedRevenue, newData.generatedRevenue, isDonguibogam),
-        leakage: mergeSubset(existing.leakage, newData.leakage, isDonguibogam),
-        cashFlow: mergeSubset(existing.cashFlow, newData.cashFlow, isDonguibogam),
-        paymentMethods: mergeSubset(existing.paymentMethods, newData.paymentMethods, isDonguibogam),
-        okchartData: newData.okchartData ? mergeSubset(existing.okchartData, newData.okchartData, false) : existing.okchartData,
-        hanisarangData: newData.hanisarangData ? mergeSubset(existing.hanisarangData, newData.hanisarangData, false) : existing.hanisarangData,
+        patientMetrics: nDongui
+          ? (hasDonguiTr ? { ...existing.patientMetrics, ...newData.patientMetrics } : existing.patientMetrics)
+          : mergeSubset(existing.patientMetrics, newData.patientMetrics),
+        generatedRevenue: nDongui
+          ? (hasDonguiFin ? { ...existing.generatedRevenue, ...newData.generatedRevenue } : existing.generatedRevenue)
+          : mergeSubset(existing.generatedRevenue, newData.generatedRevenue),
+        leakage: nDongui
+          ? (hasDonguiFin ? { ...existing.leakage, ...newData.leakage } : existing.leakage)
+          : mergeSubset(existing.leakage, newData.leakage),
+        cashFlow: nDongui
+          ? (hasDonguiFin ? { ...existing.cashFlow, ...newData.cashFlow } : existing.cashFlow)
+          : mergeSubset(existing.cashFlow, newData.cashFlow),
+        paymentMethods: nDongui
+          ? (hasDonguiFin ? { ...existing.paymentMethods, ...newData.paymentMethods } : existing.paymentMethods)
+          : mergeSubset(existing.paymentMethods, newData.paymentMethods),
+        okchartData: newData.okchartData ? mergeSubset(existing.okchartData, newData.okchartData) : existing.okchartData,
+        hanisarangData: newData.hanisarangData ? mergeSubset(existing.hanisarangData, newData.hanisarangData) : existing.hanisarangData,
       };
 
-      if (newData.donguibogamData) {
+      if (nDongui) {
         const eD = existing.donguibogamData || {
           totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0, discount: 0, receivables: 0,
           totalReceived: 0, cashTotal: 0, cardTotal: 0, newPatients: 0, recurringPatients: 0, referralPatients: 0,
           totalPatients: 0, treatments: {}, hasFinancialData: false, hasTreatmentData: false
         };
-        const nD = newData.donguibogamData;
-        
-        // 동의보감 데이터 내부 필드 합산 병합
-        const mergedDongui = mergeSubset(eD, nD, true);
-        
+
+        // 재무 파일과 진료(환자수) 파일을 각각 멱등(Idempotent)하게 병합하여 동일 파일 재업로드 시 2배 중복 합산 방지
         updatedMetrics.donguibogamData = {
-          ...mergedDongui,
-          treatments: {
-            ...(eD.treatments || {}),
-            ...(nD.treatments || {})
-          },
-          // 플래그는 합집합(OR) 처리
-          hasFinancialData: eD.hasFinancialData || nD.hasFinancialData,
-          hasTreatmentData: eD.hasTreatmentData || nD.hasTreatmentData,
+          totalRevenue: hasDonguiFin ? nDongui.totalRevenue : eD.totalRevenue,
+          insuranceClaim: hasDonguiFin ? nDongui.insuranceClaim : eD.insuranceClaim,
+          copay: hasDonguiFin ? nDongui.copay : eD.copay,
+          fullCopay: hasDonguiFin ? nDongui.fullCopay : eD.fullCopay,
+          nonCovered: hasDonguiFin ? nDongui.nonCovered : eD.nonCovered,
+          discount: hasDonguiFin ? nDongui.discount : eD.discount,
+          receivables: hasDonguiFin ? nDongui.receivables : eD.receivables,
+          totalReceived: hasDonguiFin ? nDongui.totalReceived : eD.totalReceived,
+          cashTotal: hasDonguiFin ? nDongui.cashTotal : eD.cashTotal,
+          cardTotal: hasDonguiFin ? nDongui.cardTotal : eD.cardTotal,
+          newPatients: hasDonguiTr ? nDongui.newPatients : eD.newPatients,
+          recurringPatients: hasDonguiTr ? nDongui.recurringPatients : eD.recurringPatients,
+          referralPatients: hasDonguiTr ? nDongui.referralPatients : eD.referralPatients,
+          totalPatients: hasDonguiTr ? nDongui.totalPatients : eD.totalPatients,
+          treatments: hasDonguiTr ? { ...(nDongui.treatments || {}) } : { ...(eD.treatments || {}) },
+          hasFinancialData: eD.hasFinancialData || hasDonguiFin,
+          hasTreatmentData: eD.hasTreatmentData || hasDonguiTr,
         };
-        
-        // 진료 항목(treatments) 수치도 합산 처리
-        if (nD.treatments) {
-          const eTreatments = (eD.treatments || {}) as Record<string, number>;
-          const nTreatments = (nD.treatments || {}) as Record<string, number>;
-          Object.keys(nTreatments).forEach(k => {
-            const newVal = nTreatments[k] || 0;
-            const oldVal = eTreatments[k] || 0;
-            updatedMetrics.donguibogamData!.treatments[k] = oldVal + newVal;
-          });
-        }
       }
 
       finalMetrics = updatedMetrics;

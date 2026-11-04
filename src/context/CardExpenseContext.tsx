@@ -146,14 +146,24 @@ export function CardExpenseProvider({ children }: { children: React.ReactNode })
     // First load
     fetchServerTxs(true);
 
-    // Periodic live sync polling (every 3 seconds)
+    // Periodic live sync polling (every 30s only when tab is visible to prevent serverless cost drain)
     const interval = setInterval(() => {
-      fetchServerTxs(false);
-    }, 3000);
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchServerTxs(false);
+      }
+    }, 30000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchServerTxs(false);
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       isSubscribed = false;
       clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibility);
     };
   }, []);
 

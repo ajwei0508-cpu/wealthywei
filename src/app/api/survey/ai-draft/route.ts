@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { genAI, model } from "@/lib/gemini";
+import { genAI, isBillingOrAuthError, model } from "@/lib/gemini";
 
 async function generateWithFallback(prompt: string): Promise<string> {
-  const candidateModels = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-1.5-flash"];
+  const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
   let lastErr: any = null;
   for (const modelName of candidateModels) {
     try {
@@ -15,6 +15,9 @@ async function generateWithFallback(prompt: string): Promise<string> {
       return await result.response.text();
     } catch (e: any) {
       lastErr = e;
+      if (isBillingOrAuthError(e)) {
+        break;
+      }
       console.warn(`⚠️ [AI Draft] Model ${modelName} failed, trying fallback:`, e?.message);
     }
   }

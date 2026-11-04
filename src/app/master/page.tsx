@@ -83,9 +83,11 @@ const getFlatMetrics = (metrics: any) => {
   const ok = metrics.okchartData;
   const hs = metrics.hanisarangData;
   const dbg = metrics.donguibogamData;
+  const dbgCovSum = dbg ? (Number(dbg.insuranceClaim) || 0) + (Number(dbg.copay) || 0) + (Number(dbg.fullCopay) || 0) : 0;
+  const dbgTotal = dbg ? ((dbgCovSum > 0 && Math.abs((Number(dbg.totalRevenue) || 0) - dbgCovSum) <= 100) ? dbgCovSum + (Number(dbg.nonCovered) || 0) : (Number(dbg.totalRevenue) || 0)) : 0;
   
   return {
-    totalRevenue: ok?.totalRevenue || hs?.totalRevenue || dbg?.totalRevenue || genRev.total || metrics.totalRevenue || 0,
+    totalRevenue: ok?.totalRevenue || hs?.totalRevenue || dbgTotal || genRev.total || metrics.totalRevenue || 0,
     nonBenefit: ok?.nonCovered || hs?.nonCovered || dbg?.nonCovered || genRev.nonCovered || metrics.nonBenefit || 0,
     patientPay: ok?.copay || hs?.copay || dbg?.copay || genRev.copay || metrics.patientPay || 0,
     insuranceClaim: ok?.insuranceClaim || hs?.insuranceClaim || dbg?.insuranceClaim || genRev.insurance || metrics.insuranceClaim || 0,

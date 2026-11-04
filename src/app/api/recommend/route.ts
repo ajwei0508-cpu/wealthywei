@@ -1,10 +1,9 @@
-import { model } from "@/lib/gemini";
+import { getServerGeminiApiKey, model } from "@/lib/gemini";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
-// 서버 측 키(GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY)를 우선하고, 클라이언트 측 키(NEXT_PUBLIC_GEMINI_API_KEY)를 차선으로 사용합니다.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = getServerGeminiApiKey();
 
 // Rate limiting in-memory map
 const recommendRateLimitMap = new Map<string, { count: number; timestamp: number }>();
@@ -13,7 +12,7 @@ const MAX_RECOMMEND_REQUESTS_PER_MINUTE = 10;
 
 // In-memory cache for repeated monthly analysis
 const recommendCache = new Map<string, { data: any; expiry: number }>();
-const CACHE_TTL = 30 * 60 * 1000; // 30분 캐시 (중복 호출 시 API 비용 0원)
+const CACHE_TTL = 6 * 60 * 60 * 1000; // 6시간 캐시 (중복 호출 시 API 비용 0원)
 
 export async function POST(req: Request) {
   let rawResponseText = "";

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { model } from "@/lib/gemini";
+import { getNormalizedDonguibogamTotal } from "@/lib/aiFallback";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 
@@ -50,10 +51,13 @@ export async function POST(req: NextRequest) {
     let dataContext = "업로드된 데이터가 없습니다. 먼저 엑셀 데이터를 업로드해 주세요.";
 
     if (latestData) {
+      const normalizedTotal = latestData.donguibogamData
+        ? getNormalizedDonguibogamTotal(latestData.donguibogamData)
+        : (latestData.generatedRevenue?.total || 0);
       dataContext = `
       최근 월(${latestMonth}) 데이터 요약:
       - 환자 수: ${latestData.patientMetrics?.total || 0}명 (신환: ${latestData.patientMetrics?.new || 0}명)
-      - 총 매출: ${(latestData.generatedRevenue?.total || 0).toLocaleString()}원
+      - 총 매출: ${normalizedTotal.toLocaleString()}원
       - 비급여 매출: ${(latestData.generatedRevenue?.nonCovered || 0).toLocaleString()}원
       - 보험 매출: ${((latestData.generatedRevenue?.insurance || 0) + (latestData.generatedRevenue?.copay || 0)).toLocaleString()}원
       - 자동차보험 매출: ${(latestData.generatedRevenue?.auto || 0).toLocaleString()}원
@@ -91,9 +95,10 @@ export async function POST(req: NextRequest) {
           controller.close();
         } catch (error) {
           console.error("Stream Error:", error);
-          let errMsg = "\n\n[오류] 답변을 생성하는 중 문제가 발생했습니다.";
-          if (String(error).includes("429")) {
-            errMsg = "\n\n[오류] Google Gemini API 한도가 초과되었습니다. 결제 정보를 확인해 주세요.";
+          let errMsg = "\n\n[안내] 답변을 생성하는 중 일시적인 지연이 발생했습니다.";
+          const errStr = String(error);
+          if (errStr.includes("429") || errStr.includes("402") || errStr.includes("depleted")) {
+            errMsg = "\n\n[오류] Google Gemini API 결제 또는 요청 한도 설정 확인이 필요합니다.";
           }
           controller.enqueue(new TextEncoder().encode(errMsg));
           controller.close();

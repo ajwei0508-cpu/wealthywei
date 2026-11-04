@@ -28,6 +28,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { generateStrategicBriefing } from "@/lib/aiService";
+import { getNormalizedDonguibogamTotal, isCorruptedAiCache } from "@/lib/aiFallback";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { useSearchParams } from "next/navigation";
 import AnalysisTimer from "@/components/AnalysisTimer";
@@ -156,12 +157,12 @@ export default function AiIntelligencePage() {
         } else if (emrType === "donguibogam" && data.donguibogamData) {
           specificMetrics.generatedRevenue = {
             ...data.generatedRevenue,
-            total: data.donguibogamData.totalRevenue || 0,
+            total: getNormalizedDonguibogamTotal(data.donguibogamData),
             nonCovered: data.donguibogamData.nonCovered || 0
           };
           specificMetrics.patientMetrics = {
             ...data.patientMetrics,
-            total: (data.donguibogamData.newPatients || 0) + (data.donguibogamData.recurringPatients || 0),
+            total: (data.donguibogamData.newPatients || 0) + (data.donguibogamData.recurringPatients || 0) + (data.donguibogamData.referralPatients || 0),
             new: data.donguibogamData.newPatients || 0
           };
         }
@@ -189,18 +190,20 @@ export default function AiIntelligencePage() {
       const cacheKey = `strategic_briefing_${emrType || 'all'}_${historyKey}`;
       
       const cached = localStorage.getItem(cacheKey);
-      if (cached) {
+      if (cached && !isCorruptedAiCache(cached)) {
         setBriefing(cached);
         setLoading(false);
         setShouldAnalyze(false);
         return;
+      } else if (cached) {
+        localStorage.removeItem(cacheKey);
       }
 
       setLoading(true);
       try {
         const res = await generateStrategicBriefing(history, emrType || undefined);
         setBriefing(res);
-        if (res && !res.includes("Error")) {
+        if (res && !isCorruptedAiCache(res) && !res.includes('"isFallback":true')) {
           localStorage.setItem(cacheKey, res);
         }
       } catch (err) {

@@ -24,6 +24,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { generateStrategicBriefing } from "@/lib/aiService";
+import { isCorruptedAiCache } from "@/lib/aiFallback";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import { 
@@ -125,25 +126,31 @@ export default function HanchartAiIntelligencePage() {
     ];
   }, [aiData]);
 
+  const historySignature = useMemo(() => {
+    const validHistory = history.filter(h => h.metrics) as { month: string; metrics: any }[];
+    return validHistory.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
+  }, [history]);
+
   useEffect(() => {
     async function fetchBriefing() {
       const validHistory = history.filter(h => h.metrics) as { month: string, metrics: any }[];
-      if (validHistory.length > 0) {
-        const historyKey = validHistory.map(h => `${h.month}_${h.metrics.generatedRevenue.total}`).join("|");
-        const cacheKey = `hanchart_strategic_briefing_${historyKey}`;
+      if (validHistory.length > 0 && historySignature) {
+        const cacheKey = `hanchart_strategic_briefing_${historySignature}`;
         const cached = localStorage.getItem(cacheKey);
 
-        if (cached) {
+        if (cached && !isCorruptedAiCache(cached)) {
           setBriefing(cached);
           return;
+        } else if (cached) {
+          localStorage.removeItem(cacheKey);
         }
 
         setLoading(true);
         try {
           // Pass only the last 12 months for specialized analysis
-          const res = await generateStrategicBriefing(validHistory);
+          const res = await generateStrategicBriefing(validHistory, "hanchart");
           setBriefing(res);
-          if (res && !res.includes("Error")) {
+          if (res && !isCorruptedAiCache(res) && !res.includes('"isFallback":true')) {
             localStorage.setItem(cacheKey, res);
           }
         } catch (e) {
@@ -154,7 +161,8 @@ export default function HanchartAiIntelligencePage() {
       }
     }
     fetchBriefing();
-  }, [history]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historySignature]);
 
   if (history.length === 0) {
     return (

@@ -94,8 +94,10 @@ const getFlatMetrics = (dm: DataMetrics | null | undefined): FlatMetrics => {
   const ok = dm.okchartData;
   const hs = dm.hanisarangData;
   const dbg = dm.donguibogamData;
+  const dbgCovSum = dbg ? (Number(dbg.insuranceClaim) || 0) + (Number(dbg.copay) || 0) + (Number(dbg.fullCopay) || 0) : 0;
+  const dbgTotal = dbg ? ((dbgCovSum > 0 && Math.abs((Number(dbg.totalRevenue) || 0) - dbgCovSum) <= 100) ? dbgCovSum + (Number(dbg.nonCovered) || 0) : (Number(dbg.totalRevenue) || 0)) : 0;
 
-  const totalRevenue = ok?.totalRevenue || hs?.totalRevenue || dbg?.totalRevenue || rev.total || 0;
+  const totalRevenue = ok?.totalRevenue || hs?.totalRevenue || dbgTotal || rev.total || 0;
   const patientCount = ok?.totalPatients || hs?.totalPatients || dbg?.totalPatients || pat.total || 0;
   const newPatientCount = ok?.newPatients || hs?.newPatients || dbg?.newPatients || pat.new || 0;
   const patientPay = ok?.copay || hs?.copay || dbg?.copay || rev.copay || 0;

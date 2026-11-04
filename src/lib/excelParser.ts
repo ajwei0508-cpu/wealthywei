@@ -951,6 +951,7 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
   });
 
   let lastSeenMonthFi = baseMonth;
+  const rawDonguiTotalByMonth: Record<string, number> = {};
   if (isFinancial) {
     let headerIdx = jsonData.findIndex(row => row.some(cell => normalize(cell).includes("총진료비")));
     if (headerIdx !== -1) {
@@ -983,7 +984,7 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
           return idx !== -1 ? parseCleanNumber(row[idx]) : 0;
         };
 
-        d.totalRevenue += getVal(["총진료비"]);
+        rawDonguiTotalByMonth[rowMonth] = (rawDonguiTotalByMonth[rowMonth] || 0) + getVal(["총진료비"]);
         d.insuranceClaim += getVal(["청구금액"]);
         d.copay += getVal(["본인부담금"]);
         d.fullCopay += getVal(["전액본인부담금"]);
@@ -994,6 +995,13 @@ function parseDonguibogam(jsonData: string[][], defaultMonth: string): ParseExce
         d.cashTotal += getVal(["현금수납보험"]) + getVal(["현금수납비보험"]) + getVal(["현금영수증보험"]) + getVal(["현금영수증비보험"]);
         d.cardTotal += getVal(["카드수납보험"]) + getVal(["카드수납비보험"]);
         d.hasFinancialData = true;
+
+        // 동의보감 엑셀의 '총진료비'가 급여 합계(청구금액+본인부담금+전액본인부담금)만 의미하는 경우 비보험(비급여)을 합산하여 실제 총 발생 매출 산출
+        const coveredSum = d.insuranceClaim + d.copay + d.fullCopay;
+        const rawTotal = rawDonguiTotalByMonth[rowMonth] || 0;
+        d.totalRevenue = (coveredSum > 0 && Math.abs(rawTotal - coveredSum) <= 100)
+          ? coveredSum + d.nonCovered
+          : rawTotal;
 
         res.extractedData.generatedRevenue.total = d.totalRevenue;
         res.extractedData.generatedRevenue.insurance = d.insuranceClaim;

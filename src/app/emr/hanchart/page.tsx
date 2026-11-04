@@ -38,7 +38,6 @@ import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { parseExcelFile } from "@/lib/excelParser";
 import toast from "react-hot-toast";
-import { generateClinicInsightStream } from "@/lib/aiService";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import AnalysisTimer from "@/components/AnalysisTimer";
 import { DailyMissionCard } from "@/components/DailyMissionCard";
@@ -64,8 +63,6 @@ export default function HanchartPage() {
     deleteMonthlyData
   } = useData();
 
-  const [insight, setInsight] = useState<string>("");
-  const [loadingInsight, setLoadingInsight] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
   const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
 
@@ -154,33 +151,7 @@ export default function HanchartPage() {
     }
   };
 
-  useEffect(() => {
-    async function getInsight() {
-      if (summary.total > 0) {
-        const cacheKey = `insight_hanchart_${selectedMonth}_${summary.total}`;
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) { setInsight(cached); setLoadingInsight(false); return; }
 
-        setLoadingInsight(true);
-        setInsight("");
-        try {
-          await generateClinicInsightStream(currentEntry as any, (text) => setInsight(text));
-        } catch (e) {
-          setInsight("현재 데이터를 기반으로 한차트 경영 진단을 준비 중입니다.");
-        } finally {
-          setLoadingInsight(false);
-        }
-      }
-    }
-    getInsight();
-  }, [summary.total, currentEntry, selectedMonth]);
-
-  useEffect(() => {
-    if (insight && !loadingInsight && summary.total > 0) {
-      const cacheKey = `insight_hanchart_${selectedMonth}_${summary.total}`;
-      localStorage.setItem(cacheKey, insight);
-    }
-  }, [insight, loadingInsight, selectedMonth, summary.total]);
 
   const [displayYear, setDisplayYear] = useState<string>(() => selectedMonth.split("-")[0]);
   const uniqueYears = Array.from(new Set(availableMonths.map(m => m.split("-")[0]))).sort((a, b) => b.localeCompare(a));

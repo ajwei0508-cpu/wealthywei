@@ -37,7 +37,7 @@ import { useData } from "@/context/DataContext";
 import DashboardLayout from "@/components/DashboardLayout";
 import { parseExcelFile } from "@/lib/excelParser";
 import toast from "react-hot-toast";
-import { generateClinicInsightStream } from "@/lib/aiService";
+import { getNormalizedDonguibogamTotal } from "@/lib/aiFallback";
 import { useRouter } from "next/navigation";
 import { YoutubeVideoLink } from "@/components/YoutubeVideoLink";
 import AnalysisTimer from "@/components/AnalysisTimer";
@@ -69,8 +69,7 @@ export default function DonguibogamPage() {
     deleteMonthlyData 
   } = useData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [insight, setInsight] = useState<string>("");
-  const [loadingInsight, setLoadingInsight] = useState(false);
+
   const [isManageMode, setIsManageMode] = useState(false);
   const [selectedMonthsForDelete, setSelectedMonthsForDelete] = useState<string[]>([]);
   const router = useRouter();
@@ -107,18 +106,28 @@ export default function DonguibogamPage() {
   };
 
   // Mock data for demonstration when no real data is present
-  const displayData = !currentEntry.donguibogamData ? {
+  const rawDisplayData = !currentEntry.donguibogamData ? {
     totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0,
     discount: 0, receivables: 0, totalReceived: 0, cashTotal: 0, cardTotal: 0,
     newPatients: 0, recurringPatients: 0, referralPatients: 0, totalPatients: 0,
     treatments: {}, hasFinancialData: false, hasTreatmentData: false
   } : data;
 
-  const pData = prevEntry.donguibogamData || {
+  const displayData = {
+    ...rawDisplayData,
+    totalRevenue: getNormalizedDonguibogamTotal(rawDisplayData),
+  };
+
+  const rawPData = prevEntry.donguibogamData || {
     totalRevenue: 0, insuranceClaim: 0, copay: 0, fullCopay: 0, nonCovered: 0,
     discount: 0, receivables: 0, totalReceived: 0, cashTotal: 0, cardTotal: 0,
     newPatients: 0, recurringPatients: 0, referralPatients: 0, totalPatients: 0,
     treatments: {}, hasFinancialData: false, hasTreatmentData: false
+  };
+
+  const pData = {
+    ...rawPData,
+    totalRevenue: getNormalizedDonguibogamTotal(rawPData),
   };
 
   const isMock = !currentEntry.donguibogamData;
@@ -130,8 +139,8 @@ export default function DonguibogamPage() {
   const revenuePerPatient = displayData.totalPatients > 0 ? displayData.totalRevenue / displayData.totalPatients : 0;
   const pRevenuePerPatient = pData.totalPatients > 0 ? pData.totalRevenue / pData.totalPatients : 0;
   
-  const nonCoveredRatio = (insuranceRevenue + displayData.nonCovered) > 0 ? (displayData.nonCovered / (insuranceRevenue + displayData.nonCovered)) * 100 : 0;
-  const pNonCoveredRatio = (pInsuranceRevenue + pData.nonCovered) > 0 ? (pData.nonCovered / (pInsuranceRevenue + pData.nonCovered)) * 100 : 0;
+  const nonCoveredRatio = displayData.totalRevenue > 0 ? (displayData.nonCovered / displayData.totalRevenue) * 100 : 0;
+  const pNonCoveredRatio = pData.totalRevenue > 0 ? (pData.nonCovered / pData.totalRevenue) * 100 : 0;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -165,40 +174,7 @@ export default function DonguibogamPage() {
     }
   };
 
-  useEffect(() => {
-    async function getInsight() {
-      if (displayData.totalRevenue > 0) {
-        const cacheKey = `insight_dongui_${selectedMonth}_${displayData.totalRevenue}`;
-        const cached = localStorage.getItem(cacheKey);
-        
-        if (cached) {
-          setInsight(cached);
-          setLoadingInsight(false);
-          return;
-        }
 
-        setLoadingInsight(true);
-        setInsight("");
-        try {
-          await generateClinicInsightStream(currentEntry as any, (text) => {
-            setInsight(text);
-          });
-        } catch (e) {
-          setInsight("현재 데이터를 기반으로 원장님의 병원을 위한 경영 진단을 준비 중입니다.");
-        } finally {
-          setLoadingInsight(false);
-        }
-      }
-    }
-    getInsight();
-  }, [displayData.totalRevenue, currentEntry, selectedMonth]);
-
-  useEffect(() => {
-    if (insight && !loadingInsight && displayData.totalRevenue > 0) {
-      const cacheKey = `insight_dongui_${selectedMonth}_${displayData.totalRevenue}`;
-      localStorage.setItem(cacheKey, insight);
-    }
-  }, [insight, loadingInsight, selectedMonth, displayData.totalRevenue]);
 
   const formatMonth = (m: string) => {
     if (!m) return "선택 안됨";
@@ -508,8 +484,8 @@ export default function DonguibogamPage() {
 
                 return finalTrendMonths.map((m) => {
                   const mData = monthlyData[m]?.donguibogamData;
-                  const rev = mData?.totalRevenue || 0;
-                  const maxRev = Math.max(...finalTrendMonths.map(mm => monthlyData[mm]?.donguibogamData?.totalRevenue || 1));
+                  const rev = getNormalizedDonguibogamTotal(mData);
+                  const maxRev = Math.max(...finalTrendMonths.map(mm => getNormalizedDonguibogamTotal(monthlyData[mm]?.donguibogamData) || 1));
                   const height = Math.max(8, (rev / maxRev) * 100);
                   
                   return (

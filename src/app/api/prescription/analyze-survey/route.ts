@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { genAI, getServerGeminiApiKey, isBillingOrAuthError } from "@/lib/gemini";
 
 export const maxDuration = 60;
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
 interface ImagePayload {
   imageBase64: string;
@@ -15,8 +13,9 @@ interface ImagePayload {
 export async function POST(req: NextRequest) {
   try {
     // 세션 확인 (비로그인 상태나 세션 만료 시에도 한열허실 설문지 판독은 전면 허용)
-    const session = await getServerSession(authOptions).catch(() => null);
+    await getServerSession(authOptions).catch(() => null);
 
+    const GEMINI_API_KEY = getServerGeminiApiKey();
     if (!GEMINI_API_KEY) {
       return NextResponse.json({ 
         success: false, 
@@ -46,8 +45,6 @@ export async function POST(req: NextRequest) {
 
     // Limit to max 3 images
     const selectedImages = imageList.slice(0, 3);
-
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
     const prompt = `
 당신은 한의학 전문 "한열허실(寒熱虛實)" 설문지/차트 판독 수석 AI입니다.
@@ -101,10 +98,10 @@ export async function POST(req: NextRequest) {
       }
     };
 
-    // Candidate models to try in sequence
+    // Candidate models to try in sequence (v1beta valid models only)
     const candidateModels = [
       "gemini-2.5-flash",
-      "gemini-1.5-flash"
+      "gemini-2.5-flash-lite"
     ];
 
     let text = "";
@@ -112,10 +109,10 @@ export async function POST(req: NextRequest) {
 
     for (const modelName of candidateModels) {
       try {
-        const model = genAI.getGenerativeModel(
+        const visionModel = genAI.getGenerativeModel(
           { 
             model: modelName,
-            generationConfig: modelName.includes("2.5") ? generationConfig : {
+            generationConfig: modelName === "gemini-2.5-flash" ? generationConfig : {
               temperature: 0.1,
               maxOutputTokens: 4000,
               responseMimeType: "application/json"
@@ -123,13 +120,16 @@ export async function POST(req: NextRequest) {
           }, 
           { apiVersion: "v1beta" }
         );
-        const result = await model.generateContent([prompt, ...imageParts]);
+        const result = await visionModel.generateContent([prompt, ...imageParts]);
         text = result.response.text();
         if (text && text.trim().length > 0) {
           break; // 성공 시 루프 종료
         }
       } catch (err: any) {
         lastError = err;
+        if (isBillingOrAuthError(err)) {
+          break; // 결제/인증 에러(402/401/403) 시 무의미한 중복 재시도 즉시 중단
+        }
         console.warn(`[AI Vision] ${modelName} 호출 실패, 다음 모델로 대체 시도:`, err?.message);
       }
     }
