@@ -27,10 +27,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const clinicName = (session?.user as any)?.clinicName;
   const phone = (session?.user as any)?.phone;
 
-  // Protect routes for staff
+  // Protect routes for staff (초진 시스템 /first-visit 포함 허용)
   React.useEffect(() => {
     if (userRole === 'staff') {
-      const allowedPaths = ['/employee', '/notice', '/requests', '/happycall'];
+      const allowedPaths = ['/employee', '/notice', '/requests', '/happycall', '/first-visit'];
       if (!allowedPaths.some(p => pathname.startsWith(p))) {
         router.push('/employee/reception');
       }

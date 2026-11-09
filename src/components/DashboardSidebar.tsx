@@ -307,17 +307,15 @@ export default function DashboardSidebar() {
             hasNew={hasNewRequest}
           />
 
-          {/* 초진 시스템 (바른컨설팅 승인 회원 + 마스터 전용) */}
-          {userRole !== 'staff' && (
-            <NavItem 
-              icon={UserPlus} 
-              label="초진 시스템" 
-              isLocked={!isConsultingApproved && !isMaster}
-              isActive={pathname.startsWith("/first-visit")}
-              onClick={() => router.push("/first-visit")}
-              hasNew={true}
-            />
-          )}
+          {/* 초진 시스템 (바른컨설팅 승인 회원 + 소속 한의원 직원 + 마스터 전용) */}
+          <NavItem 
+            icon={UserPlus} 
+            label="초진 시스템" 
+            isLocked={userRole !== 'staff' && !isConsultingApproved && !isMaster}
+            isActive={pathname.startsWith("/first-visit")}
+            onClick={() => router.push("/first-visit")}
+            hasNew={true}
+          />
 
           {/* 재내원 해피콜 (Moved to top) */}
           <NavItem 
@@ -442,8 +440,6 @@ export default function DashboardSidebar() {
             />
           )}
 
-
-
           {/* 2. 바른개원법 - Not for staff */}
           {userRole !== 'staff' && (
             <NavItem 
@@ -465,6 +461,14 @@ export default function DashboardSidebar() {
             >
               <div className="mb-1 space-y-1 pl-4 pt-1">
                  <Link 
+                   href="/first-visit" 
+                   className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/first-visit') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
+                 >
+                    <div className="w-1 h-[1px] bg-white/20"></div>
+                    초진 시스템
+                    <Sparkles size={10} className="text-amber-400 opacity-50" />
+                 </Link>
+                 <Link 
                    href="/employee/reception" 
                    className={`flex items-center gap-2 py-2 text-[12px] transition-colors ${pathname.startsWith('/employee/reception') ? 'text-amber-300 font-bold' : 'text-white/50 hover:text-amber-300'}`}
                  >
@@ -478,9 +482,7 @@ export default function DashboardSidebar() {
                  >
                     <div className="w-1 h-[1px] bg-white/20"></div>
                     치료실교육
-
                     <Sparkles size={10} className="text-amber-400 opacity-50" />
-
                  </Link>
               </div>
             </NavItem>

@@ -22,6 +22,7 @@ import {
   exportFirstVisitWorkbookXlsx,
   parseAnyDateToISO,
   formatISOToKoreanMD,
+  getTodayKSTISO,
   AiColumnMappingHint,
 } from "@/lib/firstVisitEngine";
 import {
@@ -45,8 +46,69 @@ import {
   Building2,
   Calendar,
   X,
+  UserPlus,
+  Check,
+  Users,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
+interface ManualEntryDraft {
+  visitDate: string;
+  patientName: string;
+  age: string;
+  visitType: string;
+  insuranceType: string;
+  treatmentDetail: string;
+  nextReservation: string;
+  firstVisitDate: string;
+  secondVisitDate: string;
+  thirdVisitDate: string;
+  visitRoute: string;
+  nonCoveredList: string;
+  nonCoveredCount: string;
+  immediatePaymentCount: string;
+  herbalMonthlySummary: string;
+  packageCount: string;
+  herbalFollowupPayment: string;
+  packageRenewal: string;
+  delayedPaymentWithinMonth: string;
+}
+
+function createInitialDraft(dateISO: string): ManualEntryDraft {
+  const label = formatISOToKoreanMD(dateISO);
+  return {
+    visitDate: label,
+    patientName: "",
+    age: "",
+    visitType: "초진",
+    insuranceType: "건보",
+    treatmentDetail: "",
+    nextReservation: "유",
+    firstVisitDate: label,
+    secondVisitDate: "",
+    thirdVisitDate: "",
+    visitRoute: "",
+    nonCoveredList: "",
+    nonCoveredCount: "",
+    immediatePaymentCount: "",
+    herbalMonthlySummary: "",
+    packageCount: "",
+    herbalFollowupPayment: "",
+    packageRenewal: "",
+    delayedPaymentWithinMonth: "",
+  };
+}
+
+function shiftDateISO(iso: string, deltaDays: number): string {
+  const base = iso || getTodayKSTISO();
+  const [y, m, d] = base.split("-").map(Number);
+  if (!y || !m || !d) return getTodayKSTISO();
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
 
 function FirstVisitSystemContent() {
   const { data: session, status } = useSession();
@@ -55,12 +117,13 @@ function FirstVisitSystemContent() {
 
   const masterEmail = (process.env.NEXT_PUBLIC_MASTER_EMAIL || "wei0508@naver.com").toLowerCase();
   const loggedInEmail = session?.user?.email?.toLowerCase() || "";
-  const isMaster = loggedInEmail === masterEmail;
+  const userRole = (session?.user as any)?.role || "director";
+  const isStaff = userRole === "staff";
+  const isMaster = loggedInEmail === masterEmail && !isStaff;
 
   const userStatus = (session?.user as any)?.approvalStatus || "pending";
   const approvedCategories: string[] = (session?.user as any)?.approvedCategories || [];
   const userCategory = (session?.user as any)?.approvedCategory || "";
-  const userRole = (session?.user as any)?.role || "director";
 
   const isConsultingApproved =
     userStatus === "approved" &&
@@ -69,6 +132,10 @@ function FirstVisitSystemContent() {
       userCategory === "consulting" ||
       userCategory === "바른컨설팅");
 
+  // 바른컨설팅 승인 원장님 + 해당 한의원 소속 직원 + 마스터 모두 허용
+  const hasMenuAccess = isMaster || isConsultingApproved || isStaff;
+
+  // 오직 마스터만 타 계정(viewAs) 열람 가능
   const viewAsParam = searchParams.get("viewAs")?.toLowerCase().trim() || "";
   const activeTargetEmail = isMaster && viewAsParam ? viewAsParam : loggedInEmail;
 
@@ -86,9 +153,18 @@ function FirstVisitSystemContent() {
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // 1번 요구사항: 해당일에 맞춰 자동으로 날짜 기입 (당일 KST 날짜 기본 세팅)
+  const [fallbackDateInput, setFallbackDateInput] = useState<string>(() => getTodayKSTISO());
+
+  // 2번 요구사항: 개별 수동 기입 폼 상태
+  const [isManualPanelOpen, setIsManualPanelOpen] = useState<boolean>(true);
+  const [isManualDetailExpanded, setIsManualDetailExpanded] = useState<boolean>(true);
+  const [manualDraft, setManualDraft] = useState<ManualEntryDraft>(() =>
+    createInitialDraft(getTodayKSTISO())
+  );
+
   // UI & Filter States
   const [activeTab, setActiveTab] = useState<"sheet" | "report" | "history">("sheet");
-  const [fallbackDateInput, setFallbackDateInput] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [visitTypeFilter, setVisitTypeFilter] = useState<string>("all");
@@ -97,6 +173,18 @@ function FirstVisitSystemContent() {
   const [isMasterPanelOpen, setIsMasterPanelOpen] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 해당일(fallbackDateInput)이 변경될 때 수동 입력 폼의 일자 및 1회(초진일) 자동 기입 동기화
+  const handleSelectedDateChange = (newDateISO: string) => {
+    const validISO = newDateISO || getTodayKSTISO();
+    setFallbackDateInput(validISO);
+    const label = formatISOToKoreanMD(validISO);
+    setManualDraft((prev) => ({
+      ...prev,
+      visitDate: label,
+      firstVisitDate: label,
+    }));
+  };
 
   // Load Workspace
   const fetchWorkspace = async (targetEmail?: string) => {
@@ -132,14 +220,14 @@ function FirstVisitSystemContent() {
       return;
     }
     if (status === "authenticated") {
-      if (userRole === "staff" || (!isConsultingApproved && !isMaster)) {
+      if (!hasMenuAccess) {
         setLoading(false);
         return;
       }
       fetchWorkspace(activeTargetEmail);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, activeTargetEmail, isMaster, isConsultingApproved, userRole]);
+  }, [status, activeTargetEmail, hasMenuAccess]);
 
   // Derived Analytics & Missing Data Report
   const missingReport = useMemo(() => computeMissingDataReport(rows), [rows]);
@@ -153,6 +241,12 @@ function FirstVisitSystemContent() {
     });
     return Array.from(s).sort();
   }, [rows]);
+
+  // 일자 또는 1회 초진일이 비어있는 행 수
+  const blankDateRowCount = useMemo(
+    () => rows.filter((r) => !r.visitDate?.trim() || !r.firstVisitDate?.trim()).length,
+    [rows]
+  );
 
   // Filtered Rows
   const filteredRows = useMemo(() => {
@@ -202,11 +296,35 @@ function FirstVisitSystemContent() {
     customRows?: FirstVisitRow[],
     customLogs?: UploadHistoryLog[],
     customEmr?: string,
-    silent?: boolean
+    silent?: boolean,
+    customSuccessMsg?: string
   ) => {
     setIsSaving(true);
     try {
-      const payloadRows = customRows ?? rows;
+      const targetDateISO = fallbackDateInput || getTodayKSTISO();
+      const targetDateLabel = formatISOToKoreanMD(targetDateISO);
+
+      // 저장 시 일자(visitDate)나 1회(firstVisitDate)가 비어있는 행은 해당일로 자동 보정
+      const rawRows = customRows ?? rows;
+      const payloadRows = rawRows.map((r) => {
+        const next = { ...r };
+        if (!next.visitDate?.trim()) {
+          const iso = next.firstVisitISO || targetDateISO;
+          next.visitDateISO = iso;
+          next.visitDate = formatISOToKoreanMD(iso) || targetDateLabel;
+        }
+        if (!next.firstVisitDate?.trim()) {
+          const iso = next.visitDateISO || targetDateISO;
+          next.firstVisitISO = iso;
+          next.firstVisitDate = next.visitDate || formatISOToKoreanMD(iso) || targetDateLabel;
+        }
+        return next;
+      });
+
+      if (!customRows) {
+        setRows(payloadRows);
+      }
+
       const payloadLogs = customLogs ?? uploadLogs;
       const res = await fetch(`/api/first-visit${buildQuerySuffix()}`, {
         method: "POST",
@@ -226,10 +344,12 @@ function FirstVisitSystemContent() {
       setWorkspace(saved.workspace);
       setHasUnsavedChanges(false);
       if (!silent) {
-        toast.success("개인 전용 공간에 안전하게 저장되었습니다.");
+        toast.success(
+          customSuccessMsg ||
+            "소속 한의원 전용 보안 공간에 안전하게 저장되었습니다. (마스터 외 타 계정 열람 불가)"
+        );
       }
       if (isMaster) {
-        // 마스터 요약 목록 새로고침
         const refreshRes = await fetch(`/api/first-visit${buildQuerySuffix()}`);
         if (refreshRes.ok) {
           const refreshJson = await refreshRes.json();
@@ -292,7 +412,6 @@ function FirstVisitSystemContent() {
     );
 
     try {
-      // 파일명 기준 날짜순 정렬 (연속 일자 업로드 시 1회 -> 2회 -> 3회 자동 연결 정확도 극대화)
       const sortedFiles = [...files].sort((a, b) => a.name.localeCompare(b.name));
 
       let workingRows = [...rows];
@@ -301,6 +420,8 @@ function FirstVisitSystemContent() {
       let totalRevisits = 0;
       let totalPureSkipped = 0;
       let lastEmr = workspace?.lastDetectedEmr || "";
+
+      const activeDateISO = fallbackDateInput || getTodayKSTISO();
 
       for (const file of sortedFiles) {
         const buf = await file.arrayBuffer();
@@ -333,7 +454,7 @@ function FirstVisitSystemContent() {
 
         const converted = convertRawTableToEvents(
           extraction,
-          fallbackDateInput || undefined,
+          activeDateISO,
           aiHint
         );
 
@@ -376,7 +497,6 @@ function FirstVisitSystemContent() {
         { id: toastId, duration: 5000 }
       );
 
-      // 업로드 직후 AI 리포트도 자동 생성/최신화
       if (workingRows.length > 0) {
         await handleGenerateAiReport(workingRows);
       }
@@ -389,8 +509,11 @@ function FirstVisitSystemContent() {
     }
   };
 
-  // Inline Cell Edit
+  // Inline Cell Edit (해당일 자동 날짜 동기화 포함)
   const handleCellChange = (rowId: string, key: SheetColumnKey, value: string) => {
+    const defaultDateISO = fallbackDateInput || getTodayKSTISO();
+    const defaultDateLabel = formatISOToKoreanMD(defaultDateISO);
+
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
@@ -402,12 +525,20 @@ function FirstVisitSystemContent() {
 
         const refYear = r.visitDateISO
           ? Number(r.visitDateISO.slice(0, 4))
-          : new Date().getFullYear();
+          : Number(defaultDateISO.slice(0, 4));
 
         if (key === "visitDate") {
           const iso = parseAnyDateToISO(value, refYear);
-          if (iso) next.visitDateISO = iso;
-          else if (!value.trim()) next.visitDateISO = "";
+          if (iso) {
+            next.visitDateISO = iso;
+            // 1회 초진일이 비어있거나 기존 일자와 같았다면 함께 자동 동기화
+            if (!r.firstVisitDate?.trim() || r.firstVisitDate === r.visitDate) {
+              next.firstVisitISO = iso;
+              next.firstVisitDate = formatISOToKoreanMD(iso);
+            }
+          } else if (!value.trim()) {
+            next.visitDateISO = "";
+          }
         } else if (key === "firstVisitDate") {
           const iso = parseAnyDateToISO(value, refYear);
           if (iso) next.firstVisitISO = iso;
@@ -420,6 +551,16 @@ function FirstVisitSystemContent() {
           const iso = parseAnyDateToISO(value, refYear);
           if (iso) next.thirdVisitISO = iso;
           else if (!value.trim()) next.thirdVisitISO = "";
+        } else {
+          // 다른 셀을 수동 입력할 때 일자(visitDate)가 비어있다면 해당일에 맞춰 자동 기입
+          if (!next.visitDate?.trim()) {
+            next.visitDate = defaultDateLabel;
+            next.visitDateISO = defaultDateISO;
+          }
+          if (!next.firstVisitDate?.trim()) {
+            next.firstVisitDate = next.visitDate || defaultDateLabel;
+            next.firstVisitISO = next.visitDateISO || defaultDateISO;
+          }
         }
 
         return next;
@@ -428,9 +569,118 @@ function FirstVisitSystemContent() {
     setHasUnsavedChanges(true);
   };
 
-  // Add Manual Row
+  // 특정 행의 날짜 컬럼에 해당일(fallbackDateInput) 원클릭 자동 기입
+  const handleFillRowDateWithSelected = (
+    rowId: string,
+    targetKey: "visitDate" | "firstVisitDate" | "secondVisitDate" | "thirdVisitDate"
+  ) => {
+    const activeISO = fallbackDateInput || getTodayKSTISO();
+    const activeLabel = formatISOToKoreanMD(activeISO);
+    handleCellChange(rowId, targetKey, activeLabel);
+    toast.success(`${activeLabel} 날짜가 자동 기입되었습니다.`);
+  };
+
+  // 공란인 일자/1회 초진일 전체를 해당일로 일괄 자동 기입 후 즉시 저장
+  const handleFillAllBlankDates = async () => {
+    const activeISO = fallbackDateInput || getTodayKSTISO();
+    const activeLabel = formatISOToKoreanMD(activeISO);
+    const updated = rows.map((r) => {
+      const next = { ...r };
+      if (!next.visitDate?.trim()) {
+        next.visitDate = activeLabel;
+        next.visitDateISO = activeISO;
+      }
+      if (!next.firstVisitDate?.trim()) {
+        next.firstVisitDate = next.visitDate || activeLabel;
+        next.firstVisitISO = next.visitDateISO || activeISO;
+      }
+      return next;
+    });
+    setRows(updated);
+    await handleSaveWorkspace(
+      updated,
+      undefined,
+      undefined,
+      false,
+      `공란 날짜가 해당일(${activeLabel})로 자동 기입 및 저장되었습니다.`
+    );
+  };
+
+  // 2번 요구사항: 개별 환자 수동 기입 폼 등록 및 즉시 저장
+  const handleRegisterManualPatientAndSave = async () => {
+    if (!manualDraft.patientName.trim()) {
+      toast.error("환자 이름을 입력해 주세요.");
+      return;
+    }
+
+    const activeISO = fallbackDateInput || getTodayKSTISO();
+    const activeLabel = formatISOToKoreanMD(activeISO);
+    const refYear = Number(activeISO.slice(0, 4));
+
+    const visitISO = parseAnyDateToISO(manualDraft.visitDate, refYear) || activeISO;
+    const visitLabel = manualDraft.visitDate.trim() || formatISOToKoreanMD(visitISO) || activeLabel;
+
+    const firstISO = parseAnyDateToISO(manualDraft.firstVisitDate, refYear) || visitISO;
+    const firstLabel =
+      manualDraft.firstVisitDate.trim() || formatISOToKoreanMD(firstISO) || visitLabel;
+
+    const secondISO = parseAnyDateToISO(manualDraft.secondVisitDate, refYear);
+    const thirdISO = parseAnyDateToISO(manualDraft.thirdVisitDate, refYear);
+
+    const newRow: FirstVisitRow = {
+      id: `fv_manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      visitDate: visitLabel,
+      visitDateISO: visitISO,
+      patientName: manualDraft.patientName.trim(),
+      age: manualDraft.age.trim(),
+      visitType: manualDraft.visitType,
+      insuranceType: manualDraft.insuranceType,
+      treatmentDetail: manualDraft.treatmentDetail.trim(),
+      nextReservation: manualDraft.nextReservation,
+      firstVisitDate: firstLabel,
+      firstVisitISO: firstISO,
+      secondVisitDate: secondISO
+        ? formatISOToKoreanMD(secondISO)
+        : manualDraft.secondVisitDate.trim(),
+      secondVisitISO: secondISO,
+      thirdVisitDate: thirdISO
+        ? formatISOToKoreanMD(thirdISO)
+        : manualDraft.thirdVisitDate.trim(),
+      thirdVisitISO: thirdISO,
+      visitRoute: manualDraft.visitRoute.trim(),
+      nonCoveredList: manualDraft.nonCoveredList.trim(),
+      nonCoveredCount: manualDraft.nonCoveredCount.trim(),
+      immediatePaymentCount: manualDraft.immediatePaymentCount.trim(),
+      herbalMonthlySummary: manualDraft.herbalMonthlySummary.trim(),
+      packageCount: manualDraft.packageCount.trim(),
+      herbalFollowupPayment: manualDraft.herbalFollowupPayment.trim(),
+      packageRenewal: manualDraft.packageRenewal.trim(),
+      delayedPaymentWithinMonth: manualDraft.delayedPaymentWithinMonth.trim(),
+      sourceFile: isStaff
+        ? `직원 수동 기입 (${session?.user?.name || "직원"})`
+        : "개별 수동 기입",
+      updatedAt: new Date().toISOString(),
+    };
+
+    const updatedRows = [newRow, ...rows];
+    setRows(updatedRows);
+    setActiveTab("sheet");
+
+    // 입력 폼 초기화 (해당일 날짜는 그대로 자동 유지)
+    setManualDraft(createInitialDraft(activeISO));
+
+    await handleSaveWorkspace(
+      updatedRows,
+      undefined,
+      undefined,
+      false,
+      `'${newRow.patientName}' 환자(${visitLabel}) 데이터가 개별 기입 및 저장되었습니다. (마스터 외 타 계정 비공개)`
+    );
+  };
+
+  // Add Manual Row in Table (해당일 날짜 자동 기입)
   const handleAddEmptyRow = () => {
-    const todayISO = fallbackDateInput || new Date().toISOString().slice(0, 10);
+    const todayISO = fallbackDateInput || getTodayKSTISO();
     const todayLabel = formatISOToKoreanMD(todayISO);
     const newRow: FirstVisitRow = {
       id: `fv_manual_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -457,19 +707,29 @@ function FirstVisitSystemContent() {
       herbalFollowupPayment: "",
       packageRenewal: "",
       delayedPaymentWithinMonth: "",
-      sourceFile: "직접 입력",
+      sourceFile: isStaff
+        ? `직원 수동 기입 (${session?.user?.name || "직원"})`
+        : "직접 입력",
       updatedAt: new Date().toISOString(),
     };
     setRows((prev) => [newRow, ...prev]);
     setHasUnsavedChanges(true);
-    toast.success("새 환자 입력 행이 상단에 추가되었습니다.");
+    toast.success(
+      `해당일(${todayLabel}) 날짜가 자동 기입된 새 환자 입력 행이 상단에 추가되었습니다.`
+    );
   };
 
-  const handleDeleteRow = (rowId: string, name: string) => {
+  const handleDeleteRow = async (rowId: string, name: string) => {
     if (!window.confirm(`'${name || "이름 미입력"}' 환자 행을 삭제하시겠습니까?`)) return;
     const updated = rows.filter((r) => r.id !== rowId);
     setRows(updated);
-    setHasUnsavedChanges(true);
+    await handleSaveWorkspace(
+      updated,
+      undefined,
+      undefined,
+      false,
+      `'${name || "선택"}' 환자 행이 삭제되고 저장되었습니다.`
+    );
   };
 
   const handleResetAll = async () => {
@@ -496,7 +756,7 @@ function FirstVisitSystemContent() {
   };
 
   // Unauthorized View
-  if (status === "authenticated" && !isMaster && (!isConsultingApproved || userRole === "staff")) {
+  if (status === "authenticated" && !hasMenuAccess) {
     return (
       <DashboardLayout>
         <div className="min-h-[80vh] flex items-center justify-center p-8">
@@ -504,15 +764,17 @@ function FirstVisitSystemContent() {
             <div className="w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center mx-auto">
               <Lock size={30} />
             </div>
-            <h2 className="text-2xl font-black text-white">바른컨설팅 회원 전용 시스템</h2>
+            <h2 className="text-2xl font-black text-white">바른컨설팅 회원 및 소속 직원 전용</h2>
             <p className="text-sm text-white/60 leading-relaxed">
-              <strong>초진 시스템</strong>은 바른컨설팅 승인 원장님과 마스터만 이용하실 수 있습니다. 권한 문의는 마스터에게 요청해 주세요.
+              <strong>초진 시스템</strong>은 바른컨설팅 승인 원장님, 소속 한의원 직원 및 마스터만 이용하실 수 있습니다. 권한 문의는 마스터에게 요청해 주세요.
             </p>
           </div>
         </div>
       </DashboardLayout>
     );
   }
+
+  const activeDateLabel = formatISOToKoreanMD(fallbackDateInput || getTodayKSTISO());
 
   return (
     <DashboardLayout>
@@ -531,7 +793,7 @@ function FirstVisitSystemContent() {
                       MASTER EXCLUSIVE CONTROL
                     </span>
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      개인간 비공유 · 마스터 단독 전체 열람
+                      개인간 비공유 · 마스터만 본인 외 전체 열람 가능
                     </span>
                   </div>
                   <h2 className="text-base font-black text-white">
@@ -641,8 +903,14 @@ function FirstVisitSystemContent() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold">
                 <ShieldCheck size={14} />
-                개인별 독립 암호화 저장 · 타 회원 비공개 (마스터만 열람 가능)
+                한의원별 독립 암호화 저장 · 본인 외 열람 불가 (단, 마스터만 열람 가능)
               </span>
+              {isStaff && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/35 text-amber-300 text-xs font-extrabold">
+                  <Users size={13} />
+                  소속 한의원 직원 권한 접속 ({session?.user?.name || "직원"}님)
+                </span>
+              )}
               {workspace?.lastDetectedEmr && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-200 text-xs font-bold">
                   최근 인식 양식: {workspace.lastDetectedEmr}
@@ -656,13 +924,26 @@ function FirstVisitSystemContent() {
               </span>
             </h1>
             <p className="text-sm text-white/55">
-              어떤 차트 프로그램(한차트·오케이차트·한의사랑·동의보감·엑셀)이든 일일 환자 리스트를 올리시면{" "}
-              <strong className="text-white/90">표준 19개 초진 시트</strong>로 자동 정리하고, 이후 내원 명부 업로드 시{" "}
-              <strong className="text-amber-300">2회·3회 재내원일</strong>까지 자동 추적합니다.
+              해당일(<strong className="text-amber-300">{activeDateLabel}</strong>)에 맞춰 날짜가 자동 기입되며,{" "}
+              <strong className="text-white/90">개별 수동 기입 및 즉시 저장</strong>과{" "}
+              <strong className="text-white/90">전 차트 엑셀 자동 정리(19개 표준 열)</strong>를 모두 지원합니다.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {blankDateRowCount > 0 && (
+              <button
+                type="button"
+                onClick={handleFillAllBlankDates}
+                className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 text-xs font-extrabold transition cursor-pointer"
+              >
+                <Calendar size={14} />
+                <span>
+                  공란 날짜({blankDateRowCount}건) 해당일({activeDateLabel}) 자동기입·저장
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => handleSaveWorkspace()}
@@ -678,8 +959,8 @@ function FirstVisitSystemContent() {
                 {isSaving
                   ? "저장 중..."
                   : hasUnsavedChanges
-                  ? "수정사항 내 계정에 저장 *"
-                  : "내 계정에 저장됨"}
+                  ? "수정사항 저장하기 *"
+                  : "안전하게 저장됨"}
               </span>
             </button>
 
@@ -712,7 +993,507 @@ function FirstVisitSystemContent() {
           </div>
         </div>
 
-        {/* 3. 전 차트 자동 분석 업로드 드롭존 */}
+        {/* 3. 해당일 기준 날짜 자동 설정 & 개별 수동 기입·즉시 저장 패널 (요구사항 1번 & 2번 핵심) */}
+        <div className="bg-gradient-to-br from-[#072B1E] via-[#052319] to-[#041B13] border border-emerald-500/35 rounded-3xl p-6 shadow-2xl space-y-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                <UserPlus size={22} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-black text-white">
+                    개별 초진 환자 수동 기입 & 즉시 저장
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-black">
+                    해당일({activeDateLabel}) 날짜 자동 기입됨
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[11px] font-bold">
+                    본인 한의원 및 마스터만 열람 가능
+                  </span>
+                </div>
+                <p className="text-xs text-white/60 mt-1">
+                  우측에서 <strong className="text-amber-300">해당일(진료 기준일)</strong>을 선택하면 일자와 1회(초진일)가 자동으로 맞춰지며, 원장님과 소속 한의원 직원이 개별로 수동 기입하고 즉시 저장할 수 있습니다.
+                </p>
+              </div>
+            </div>
+
+            {/* 해당일(기준 날짜) 컨트롤 바 */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 bg-black/40 border border-amber-400/40 rounded-2xl px-3.5 py-2">
+                <Calendar size={15} className="text-amber-400 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-amber-300/90 font-extrabold">
+                    해당일 설정 (자동 날짜 기입 기준)
+                  </span>
+                  <input
+                    type="date"
+                    value={fallbackDateInput}
+                    onChange={(e) => handleSelectedDateChange(e.target.value)}
+                    className="bg-transparent text-xs font-black text-white focus:outline-none [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleSelectedDateChange(shiftDateISO(fallbackDateInput, -1))}
+                  className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-xs font-bold transition cursor-pointer"
+                  title="하루 전 날짜로 변경"
+                >
+                  -1일
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectedDateChange(getTodayKSTISO())}
+                  className="px-3 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/35 text-amber-200 text-xs font-black transition cursor-pointer"
+                >
+                  오늘({formatISOToKoreanMD(getTodayKSTISO())})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectedDateChange(shiftDateISO(fallbackDateInput, 1))}
+                  className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-xs font-bold transition cursor-pointer"
+                  title="다음 날로 변경"
+                >
+                  +1일
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsManualPanelOpen((p) => !p)}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/75 transition cursor-pointer"
+              >
+                <span>{isManualPanelOpen ? "입력창 접기" : "입력창 펼치기"}</span>
+                {isManualPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
+          </div>
+
+          {isManualPanelOpen && (
+            <div className="space-y-4">
+              {/* 1단: 핵심 기본 초진 정보 (1~8, 11번 항목) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                {/* 1. 일자 (자동 기입) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-emerald-300 flex items-center justify-between">
+                    <span>1. 일자 (해당일 자동)</span>
+                    <span className="text-[10px] text-amber-300">자동기입</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={manualDraft.visitDate}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({
+                        ...prev,
+                        visitDate: e.target.value,
+                        firstVisitDate:
+                          !prev.firstVisitDate || prev.firstVisitDate === prev.visitDate
+                            ? e.target.value
+                            : prev.firstVisitDate,
+                      }))
+                    }
+                    placeholder="예: 11월 9일"
+                    className="w-full px-3 py-2.5 rounded-xl bg-emerald-950/60 border border-emerald-400/35 text-xs font-black text-emerald-200 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* 2. 환자 이름 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-white/85">
+                    2. 환자 이름 <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={manualDraft.patientName}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, patientName: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleRegisterManualPatientAndSave();
+                      }
+                    }}
+                    placeholder="성명 입력 (예: 홍길동)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-extrabold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                {/* 3. 나이 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-white/85">3. 나이</label>
+                  <input
+                    type="text"
+                    value={manualDraft.age}
+                    onChange={(e) => setManualDraft((prev) => ({ ...prev, age: e.target.value }))}
+                    placeholder="예: 45"
+                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                {/* 4. 초진/재초진 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-white/85">
+                    4. 초진/재초진
+                  </label>
+                  <select
+                    value={manualDraft.visitType}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, visitType: e.target.value }))
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="초진">초진</option>
+                    <option value="재초진">재초진</option>
+                    <option value="">(공란)</option>
+                  </select>
+                </div>
+
+                {/* 5. 환자구분 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-white/85">
+                    5. 환자구분 (건보/자보/비급여)
+                  </label>
+                  <select
+                    value={manualDraft.insuranceType}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, insuranceType: e.target.value }))
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="건보">건보</option>
+                    <option value="자보">자보</option>
+                    <option value="비급여">비급여</option>
+                    <option value="">(공란)</option>
+                  </select>
+                </div>
+
+                {/* 7. 다음 진료 예약 안내 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-extrabold text-white/85">
+                    7. 다음 진료 예약 안내
+                  </label>
+                  <select
+                    value={manualDraft.nextReservation}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, nextReservation: e.target.value }))
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="유">유 (예약 완료)</option>
+                    <option value="무">무 (미예약)</option>
+                    <option value="">(공란)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 2단: 진료 내역 & 내원 경로 & 재내원일 */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                {/* 6. 환자 진료 내역 */}
+                <div className="lg:col-span-5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-extrabold text-white/85">
+                      6. 환자 진료 내역 (약침 / 추나 / 한약 / 비급여 유무)
+                    </label>
+                    <div className="flex items-center gap-1">
+                      {["약침", "추나", "한약", "비급여"].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() =>
+                            setManualDraft((prev) => {
+                              const cur = prev.treatmentDetail.trim();
+                              if (cur.includes(tag)) return prev;
+                              return {
+                                ...prev,
+                                treatmentDetail: cur ? `${cur} / ${tag}` : tag,
+                              };
+                            })
+                          }
+                          className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-emerald-500/25 text-[10px] font-bold text-emerald-200 transition cursor-pointer"
+                        >
+                          +{tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={manualDraft.treatmentDetail}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, treatmentDetail: e.target.value }))
+                    }
+                    placeholder="예: 허리·골반 통증 (약침 / 추나)"
+                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                {/* 11. 내원경로 */}
+                <div className="lg:col-span-4 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-extrabold text-white/85">
+                      11. 내원경로
+                    </label>
+                    <div className="flex items-center gap-1">
+                      {["소개", "네이버", "간판", "당근", "집근처"].map((rt) => (
+                        <button
+                          key={rt}
+                          type="button"
+                          onClick={() =>
+                            setManualDraft((prev) => ({ ...prev, visitRoute: rt }))
+                          }
+                          className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-amber-400/25 text-[10px] font-bold text-amber-200 transition cursor-pointer"
+                        >
+                          {rt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={manualDraft.visitRoute}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, visitRoute: e.target.value }))
+                    }
+                    placeholder="예: 소개 / 네이버 검색 / 간판"
+                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                {/* 8, 9, 10. 1회 초진일(자동) & 2·3회 재내원일 */}
+                <div className="lg:col-span-3 grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-emerald-300 block truncate">
+                      8. 1회(초진일)
+                    </label>
+                    <input
+                      type="text"
+                      value={manualDraft.firstVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, firstVisitDate: e.target.value }))
+                      }
+                      placeholder={activeDateLabel}
+                      className="w-full px-2.5 py-2.5 rounded-xl bg-emerald-950/60 border border-emerald-400/35 text-xs font-bold text-emerald-200 text-center focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-amber-300 block truncate">
+                      9. 2회(재내원)
+                    </label>
+                    <input
+                      type="text"
+                      value={manualDraft.secondVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, secondVisitDate: e.target.value }))
+                      }
+                      placeholder="미방문/공란"
+                      className="w-full px-2.5 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-amber-200 text-center placeholder:text-white/25 focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-extrabold text-amber-300 block truncate">
+                      10. 3회(재내원)
+                    </label>
+                    <input
+                      type="text"
+                      value={manualDraft.thirdVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, thirdVisitDate: e.target.value }))
+                      }
+                      placeholder="미방문/공란"
+                      className="w-full px-2.5 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-amber-200 text-center placeholder:text-white/25 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3단: 비급여 · 한약 · 패키지 상세 수동 기입 (12~19번 항목) */}
+              <div className="pt-2 border-t border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setIsManualDetailExpanded((p) => !p)}
+                    className="flex items-center gap-1.5 text-xs font-extrabold text-amber-300 hover:text-amber-200 cursor-pointer"
+                  >
+                    <span>
+                      비급여 · 한약 · 패키지 결제 추적 항목 수동 기입 (12~19번 표준 항목)
+                    </span>
+                    {isManualDetailExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+                  <span className="text-[11px] text-white/45">
+                    비워두신 항목은 공란으로 유지되며 시트에서도 언제든 개별 수정 가능합니다.
+                  </span>
+                </div>
+
+                {isManualDetailExpanded && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        12. 비급여 목록 (한의원별 품목)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.nonCoveredList}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({ ...prev, nonCoveredList: e.target.value }))
+                        }
+                        placeholder="예: 녹용, 공진단, 다이어트"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        13. 비급여 목록별 판매 건수
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.nonCoveredCount}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({ ...prev, nonCoveredCount: e.target.value }))
+                        }
+                        placeholder="예: 공진단 1, 약침 1"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        14. 상담후 즉시 결제 건수
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.immediatePaymentCount}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            immediatePaymentCount: e.target.value,
+                          }))
+                        }
+                        placeholder="예: 1건"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        15. 한약 월총 건수 (처방 목적 기입)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.herbalMonthlySummary}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            herbalMonthlySummary: e.target.value,
+                          }))
+                        }
+                        placeholder="예: 다이어트2 보약1"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        16. 패키지 건수
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.packageCount}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({ ...prev, packageCount: e.target.value }))
+                        }
+                        placeholder="예: 약침 패키지 1"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        17. 1제 복용후 추가결제 (연복유무)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.herbalFollowupPayment}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            herbalFollowupPayment: e.target.value,
+                          }))
+                        }
+                        placeholder="예: 유 / 연복 결제"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        18. 패키지 종료후 연장 (결제유무)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.packageRenewal}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({ ...prev, packageRenewal: e.target.value }))
+                        }
+                        placeholder="예: 연장 유 / 무"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/75">
+                        19. 상담후 1달이내 결제 건수
+                      </label>
+                      <input
+                        type="text"
+                        value={manualDraft.delayedPaymentWithinMonth}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            delayedPaymentWithinMonth: e.target.value,
+                          }))
+                        }
+                        placeholder="예: 홍길동 다이어트 3제 결제"
+                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 하단 액션 버튼 */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <p className="text-[11px] text-white/50">
+                  * 등록 즉시 <strong className="text-emerald-300">{workspace?.clinicName || "소속 한의원"}</strong> 전용 시트에 추가 및 암호화 저장되며, 마스터 외 타 한의원에서는 절대 열람할 수 없습니다.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManualDraft(createInitialDraft(fallbackDateInput || getTodayKSTISO()))}
+                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/70 transition cursor-pointer"
+                  >
+                    입력칸 비우기
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={handleRegisterManualPatientAndSave}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-[#031C13] text-xs font-black shadow-lg shadow-amber-400/20 transition cursor-pointer active:scale-95"
+                  >
+                    <Plus size={15} />
+                    <span>개별 환자 등록 및 즉시 저장 ({manualDraft.visitDate || activeDateLabel})</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 4. 전 차트 자동 분석 업로드 드롭존 */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -726,7 +1507,7 @@ function FirstVisitSystemContent() {
               processFiles(e.dataTransfer.files);
             }
           }}
-          className={`rounded-3xl border-2 border-dashed p-6 lg:p-7 transition-all ${
+          className={`rounded-3xl border-2 border-dashed p-5 lg:p-6 transition-all ${
             isDragging
               ? "border-amber-400 bg-amber-400/10 scale-[1.005]"
               : "border-emerald-500/30 bg-gradient-to-br from-white/[0.06] to-white/[0.02] hover:border-emerald-400/50"
@@ -743,67 +1524,41 @@ function FirstVisitSystemContent() {
             className="hidden"
           />
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
             <div className="flex items-start sm:items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
-                <Upload size={26} className={isUploading ? "animate-bounce" : ""} />
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+                <Upload size={22} className={isUploading ? "animate-bounce" : ""} />
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-black text-white">
-                    일일 환자 리스트 업로드 (전 차트 자동 단어·구조 인식)
+                  <h3 className="text-sm font-black text-white">
+                    일일 환자 리스트 엑셀/CSV 업로드 (날짜 누락 시 해당일 [{activeDateLabel}] 자동 기입)
                   </h3>
                   <span className="px-2 py-0.5 rounded-md bg-amber-400/20 text-amber-300 text-[11px] font-black">
                     다중 파일 동시 업로드 가능
                   </span>
                 </div>
                 <p className="text-xs text-white/60 leading-relaxed">
-                  한차트 · 오케이차트 · 한의사랑 · 동의보감 · 자체 엑셀(.xlsx, .xls, .csv) 모두 지원합니다.
-                  차트에 없는 시트 항목은 <strong className="text-amber-300">자동 공란 처리</strong> 후 아래에서 원장님께 안내해 드립니다.
+                  한차트 · 오케이차트 · 한의사랑 · 동의보감 · 자체 엑셀(.xlsx, .xls, .csv) 모두 지원하며, 업로드 즉시 자동 저장됩니다.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 shrink-0">
-              <div className="flex items-center gap-2 bg-black/30 border border-white/10 rounded-xl px-3 py-2">
-                <Calendar size={14} className="text-amber-400" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-white/45 font-bold">
-                    날짜 열 없는 단일 파일 기준일(선택)
-                  </span>
-                  <input
-                    type="date"
-                    value={fallbackDateInput}
-                    onChange={(e) => setFallbackDateInput(e.target.value)}
-                    className="bg-transparent text-xs font-bold text-white focus:outline-none [color-scheme:dark]"
-                  />
-                </div>
-                {fallbackDateInput && (
-                  <button
-                    type="button"
-                    onClick={() => setFallbackDateInput("")}
-                    className="text-white/40 hover:text-white cursor-pointer"
-                    title="기준일 초기화"
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
-
               <button
                 type="button"
                 disabled={isUploading}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#031C13] font-black text-sm shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-60 active:scale-95"
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-[#031C13] font-black text-xs shadow-lg shadow-emerald-500/20 transition cursor-pointer disabled:opacity-60 active:scale-95"
               >
-                <FileSpreadsheet size={17} />
+                <FileSpreadsheet size={16} />
                 <span>{isUploading ? "자동 분석 및 정리 중..." : "환자 리스트 파일 선택"}</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* 4. 원장님 전용 공란(미기재) 항목 안내 패널 (요구사항 4번 핵심) */}
+        {/* 5. 원장님 전용 공란(미기재) 항목 안내 패널 */}
         {rows.length > 0 && (
           <div className="bg-amber-500/[0.08] border border-amber-400/30 rounded-3xl p-5 lg:p-6 space-y-4">
             <div className="flex items-center justify-between gap-4">
@@ -816,7 +1571,7 @@ function FirstVisitSystemContent() {
                     {missingReport.directorHeadline}
                   </h3>
                   <p className="text-xs text-white/55">
-                    차트 원본에 없는 항목은 임의로 채우지 않고 공란으로 비워두었습니다. 배지를 클릭하면 해당 항목이 비어 있는 환자만 바로 필터링됩니다.
+                    차트 원본에 없는 항목은 임의로 채우지 않고 공란으로 비워두었습니다. 시트에서 개별로 수동 기입 후 [저장] 버튼을 누르시면 즉시 반영됩니다.
                   </p>
                 </div>
               </div>
@@ -874,7 +1629,7 @@ function FirstVisitSystemContent() {
                       title={col.guide}
                       className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 text-white/45 border border-white/10"
                     >
-                      차트 미포함(전체 공란) · {col.shortLabel}
+                      차트 미포함(수동 기입 가능) · {col.shortLabel}
                     </span>
                   ))}
                 </div>
@@ -883,7 +1638,7 @@ function FirstVisitSystemContent() {
           </div>
         )}
 
-        {/* 5. 메인 탭 전환기 (19열 표준 시트 vs AI 분석 리포트 vs 업로드 이력) */}
+        {/* 6. 메인 탭 전환기 (19열 표준 시트 vs AI 분석 리포트 vs 업로드 이력) */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
             <button
@@ -992,13 +1747,27 @@ function FirstVisitSystemContent() {
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/35 text-emerald-200 text-xs font-extrabold transition cursor-pointer"
               >
                 <Plus size={14} />
-                <span>수동 행 추가</span>
+                <span>수동 행 추가 ({activeDateLabel})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveWorkspace()}
+                disabled={isSaving}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
+                  hasUnsavedChanges
+                    ? "bg-amber-400 text-[#031C13] shadow-md"
+                    : "bg-emerald-600/80 hover:bg-emerald-500 text-white"
+                }`}
+              >
+                <Save size={13} />
+                <span>{isSaving ? "저장 중..." : "시트 저장"}</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* 6. 탭 컨텐츠 영역 */}
+        {/* 7. 탭 컨텐츠 영역 */}
         {loading ? (
           <div className="py-24 flex flex-col items-center justify-center gap-4">
             <div className="w-11 h-11 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin" />
@@ -1007,31 +1776,30 @@ function FirstVisitSystemContent() {
         ) : activeTab === "sheet" ? (
           <div className="bg-[#052319] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden">
             {rows.length === 0 ? (
-              <div className="py-24 px-6 text-center space-y-4">
+              <div className="py-20 px-6 text-center space-y-4">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center mx-auto text-emerald-300">
                   <FileSpreadsheet size={30} />
                 </div>
                 <h3 className="text-lg font-black text-white">
-                  일일 환자 리스트를 업로드하여 초진 시트를 시작하세요
+                  상단 [개별 초진 환자 수동 기입] 또는 [일일 환자 리스트 업로드]로 시트를 시작하세요
                 </h3>
                 <p className="text-xs text-white/55 max-w-xl mx-auto leading-relaxed">
-                  위 업로드 영역에 차트 프로그램에서 내려받은 일일 수진자 명부(.xlsx, .xls, .csv)를 올리시면
-                  19개 표준 열에 맞춰 자동 정리되며, 없는 항목은 공란 처리 후 원장님께 안내해 드립니다.
+                  해당일(<strong className="text-amber-300">{activeDateLabel}</strong>)에 맞춰 날짜가 자동으로 기입됩니다. 위 개별 수동 기입 창에서 환자를 바로 등록·저장하거나, 차트 프로그램의 환자 명부 파일을 업로드해 보세요.
                 </p>
                 <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleAddEmptyRow}
+                    className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#031C13] text-xs font-black transition cursor-pointer"
+                  >
+                    + 해당일({activeDateLabel}) 수동 행 바로 추가하기
+                  </button>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#031C13] text-xs font-black transition cursor-pointer"
                   >
-                    첫 일일 환자 리스트 업로드
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddEmptyRow}
-                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition cursor-pointer"
-                  >
-                    직접 행 추가하기
+                    일일 환자 리스트 파일 업로드
                   </button>
                 </div>
               </div>
@@ -1044,7 +1812,7 @@ function FirstVisitSystemContent() {
                       <tr className="bg-[#02140E] border-b border-white/10 text-[11px] font-black">
                         <th className="py-2 px-2 bg-[#02140E] sticky left-0 z-30 border-r border-white/10" />
                         <th colSpan={7} className="py-2 px-3 text-left text-white/40 border-r border-white/10">
-                          기본 초진·진료 정보 (클릭하여 직접 수정 가능)
+                          기본 초진·진료 정보 (클릭하여 개별 수동 기입 가능 · 해당일 [{activeDateLabel}] 자동 적용)
                         </th>
                         <th className="py-2 px-3 text-center bg-emerald-900/60 text-emerald-300 border-r border-white/15">
                           초진일
@@ -1053,10 +1821,10 @@ function FirstVisitSystemContent() {
                           colSpan={2}
                           className="py-2 px-3 text-center bg-amber-900/50 text-amber-300 border-r border-white/15"
                         >
-                          재내원일 (후속 명부 업로드 시 자동 기입)
+                          재내원일 (수동 기입 또는 후속 명부 업로드 시 자동 기입)
                         </th>
                         <th colSpan={9} className="py-2 px-3 text-left text-white/45">
-                          유입 경로 · 비급여 · 한약 · 패키지 결제 추적 (차트 미포함 항목은 공란 유지)
+                          유입 경로 · 비급여 · 한약 · 패키지 결제 추적 (개별 수동 기입 및 저장 가능)
                         </th>
                         <th className="py-2 px-2 bg-[#02140E]" />
                       </tr>
@@ -1089,8 +1857,8 @@ function FirstVisitSystemContent() {
                             </th>
                           );
                         })}
-                        <th className="py-3 px-2.5 text-center font-bold text-white/45 min-w-[52px]">
-                          삭제
+                        <th className="py-3 px-2.5 text-center font-bold text-white/60 min-w-[92px]">
+                          개별저장/삭제
                         </th>
                       </tr>
                     </thead>
@@ -1110,6 +1878,11 @@ function FirstVisitSystemContent() {
                             const isBlank = !val.trim();
                             const isStickyDate = col.key === "visitDate";
                             const isStickyName = col.key === "patientName";
+                            const isDateCol =
+                              col.key === "visitDate" ||
+                              col.key === "firstVisitDate" ||
+                              col.key === "secondVisitDate" ||
+                              col.key === "thirdVisitDate";
 
                             return (
                               <td
@@ -1160,43 +1933,88 @@ function FirstVisitSystemContent() {
                                     )}
                                   </select>
                                 ) : (
-                                  <input
-                                    type="text"
-                                    value={val}
-                                    placeholder={col.placeholder || ""}
-                                    onChange={(e) =>
-                                      handleCellChange(row.id, col.key, e.target.value)
-                                    }
-                                    className={`w-full px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-emerald-400 transition ${
-                                      isStickyName
-                                        ? "font-extrabold text-white"
-                                        : col.key === "secondVisitDate" ||
-                                          col.key === "thirdVisitDate"
-                                        ? "text-center font-bold text-amber-200 placeholder:text-white/15"
-                                        : col.key === "firstVisitDate" || col.key === "visitDate"
-                                        ? "text-center font-semibold text-emerald-100 placeholder:text-white/20"
-                                        : "text-white/90 placeholder:text-white/15"
-                                    } ${
-                                      isBlank &&
-                                      (col.category === "core" || col.category === "marketing")
-                                        ? "bg-amber-500/[0.04]"
-                                        : "bg-transparent"
-                                    }`}
-                                  />
+                                  <div className="relative flex items-center">
+                                    <input
+                                      type="text"
+                                      value={val}
+                                      placeholder={col.placeholder || ""}
+                                      onChange={(e) =>
+                                        handleCellChange(row.id, col.key, e.target.value)
+                                      }
+                                      className={`w-full px-2 py-1.5 rounded-lg text-xs focus:outline-none focus:bg-white/10 focus:ring-1 focus:ring-emerald-400 transition ${
+                                        isStickyName
+                                          ? "font-extrabold text-white"
+                                          : col.key === "secondVisitDate" ||
+                                            col.key === "thirdVisitDate"
+                                          ? "text-center font-bold text-amber-200 placeholder:text-white/15"
+                                          : col.key === "firstVisitDate" || col.key === "visitDate"
+                                          ? "text-center font-semibold text-emerald-100 placeholder:text-white/20"
+                                          : "text-white/90 placeholder:text-white/15"
+                                      } ${
+                                        isBlank &&
+                                        (col.category === "core" || col.category === "marketing")
+                                          ? "bg-amber-500/[0.04]"
+                                          : "bg-transparent"
+                                      }`}
+                                    />
+                                    {isDateCol && isBlank && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleFillRowDateWithSelected(
+                                            row.id,
+                                            col.key as
+                                              | "visitDate"
+                                              | "firstVisitDate"
+                                              | "secondVisitDate"
+                                              | "thirdVisitDate"
+                                          )
+                                        }
+                                        title={`해당일(${activeDateLabel}) 자동 기입`}
+                                        className="opacity-0 group-hover:opacity-100 absolute right-1 px-1.5 py-0.5 rounded bg-emerald-500/80 hover:bg-emerald-400 text-[#031C13] text-[9px] font-black transition cursor-pointer shrink-0"
+                                      >
+                                        +{activeDateLabel}
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                             );
                           })}
 
                           <td className="p-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteRow(row.id, row.patientName)}
-                              className="p-1.5 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                              title="행 삭제"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleSaveWorkspace(
+                                    undefined,
+                                    undefined,
+                                    undefined,
+                                    false,
+                                    `'${row.patientName || "해당"}' 환자 행을 포함한 시트가 안전하게 저장되었습니다.`
+                                  )
+                                }
+                                disabled={isSaving}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-black flex items-center gap-0.5 transition cursor-pointer ${
+                                  hasUnsavedChanges
+                                    ? "bg-amber-400 hover:bg-amber-300 text-[#031C13]"
+                                    : "bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-300"
+                                }`}
+                                title="개별 저장"
+                              >
+                                <Check size={11} />
+                                <span>저장</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRow(row.id, row.patientName)}
+                                className="p-1.5 rounded-lg text-white/30 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                title="행 삭제"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1220,12 +2038,20 @@ function FirstVisitSystemContent() {
                       <strong className="text-emerald-300">{analytics.overallThirdVisitRate}%</strong>
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     {workspace?.updatedAt && (
                       <span>
                         마지막 저장: {new Date(workspace.updatedAt).toLocaleString("ko-KR")}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleSaveWorkspace()}
+                      disabled={isSaving}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#031C13] font-black text-xs transition cursor-pointer"
+                    >
+                      {isSaving ? "저장 중..." : "전체 변경사항 저장"}
+                    </button>
                   </div>
                 </div>
               </>

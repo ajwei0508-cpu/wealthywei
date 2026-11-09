@@ -50,12 +50,15 @@ export interface AuthVerificationResult {
   loggedInEmail: string;
   targetEmail: string;
   isMaster: boolean;
+  isStaff?: boolean;
+  staffName?: string;
   clinicName: string;
   directorName: string;
 }
 
 /**
- * 바른컨설팅 승인 회원 + 마스터 전용 권한 검증 & 개인간 공유 완전 차단 검증
+ * 바른컨설팅 승인 회원 + 해당 한의원 소속 직원 + 마스터 전용 권한 검증
+ * & 본인(소속 한의원) 외 타 계정 열람 완전 차단 (단, 마스터만 전체 열람 가능)
  */
 export async function verifyFirstVisitAccess(
   requestedEmailParam?: string | null
@@ -76,28 +79,113 @@ export async function verifyFirstVisitAccess(
 
   const loggedInEmail = session.user.email.toLowerCase().trim();
   const role = (session.user as any)?.role || "director";
-  const isMaster = loggedInEmail === MASTER_EMAIL;
+  const isStaff = role === "staff";
+  const isMaster = loggedInEmail === MASTER_EMAIL && !isStaff;
+  const cleanRequested = requestedEmailParam?.toLowerCase().trim() || "";
 
-  if (role === "staff" && !isMaster) {
+  // 1. 소속 한의원 직원(staff) 접속 처리: 소속 원장님(parent_email) 워크스페이스 연동
+  if (isStaff) {
+    let parentEmail = String((session.user as any)?.parent_email || "")
+      .toLowerCase()
+      .trim();
+    let staffClinicName = String((session.user as any)?.clinicName || "").trim();
+    let staffName = String((session.user as any)?.realName || session.user.name || "직원").trim();
+
+    const phoneMatch = loggedInEmail.match(/^staff_(\d+)@/);
+    if (phoneMatch) {
+      const { data: staffRow } = await supabaseAdmin
+        .from("staff_accounts")
+        .select("parent_email, clinic_name, name, is_blocked")
+        .eq("phone", phoneMatch[1])
+        .single();
+
+      if (staffRow?.is_blocked) {
+        return {
+          ok: false,
+          status: 403,
+          error: "보안 정책에 의해 접속이 제한된 직원 계정입니다.",
+          loggedInEmail,
+          targetEmail: loggedInEmail,
+          isMaster: false,
+          isStaff: true,
+          clinicName: "",
+          directorName: "",
+        };
+      }
+      if (staffRow) {
+        if (!parentEmail && staffRow.parent_email) {
+          parentEmail = String(staffRow.parent_email).toLowerCase().trim();
+        }
+        if (!staffClinicName && staffRow.clinic_name) {
+          staffClinicName = String(staffRow.clinic_name).trim();
+        }
+        if (staffRow.name) {
+          staffName = String(staffRow.name).trim();
+        }
+      }
+    }
+
+    const clinicOwnerEmail = parentEmail || loggedInEmail;
+
+    // 직원이 타 한의원/타 계정 열람 시도 시 차단 (오직 마스터만 본인 이외 열람 가능)
+    if (
+      cleanRequested &&
+      cleanRequested !== loggedInEmail &&
+      cleanRequested !== clinicOwnerEmail
+    ) {
+      return {
+        ok: false,
+        status: 403,
+        error:
+          "개인별 보안 정책에 의해 본인 소속 한의원 외 타 계정의 데이터는 열람할 수 없습니다. (마스터만 열람 가능)",
+        loggedInEmail,
+        targetEmail: clinicOwnerEmail,
+        isMaster: false,
+        isStaff: true,
+        clinicName: "",
+        directorName: "",
+      };
+    }
+
+    let clinicName = staffClinicName || "소속 한의원";
+    let directorName = "원장님";
+
+    if (parentEmail === MASTER_EMAIL) {
+      clinicName = staffClinicName || "마스터 본원";
+      directorName = "최고 관리자";
+    } else if (parentEmail) {
+      const { data: parentPerm } = await supabaseAdmin
+        .from("user_permissions")
+        .select("real_name, clinic_name")
+        .eq("user_email", parentEmail)
+        .single();
+
+      if (parentPerm) {
+        clinicName = parentPerm.clinic_name || clinicName;
+        directorName = parentPerm.real_name || directorName;
+      }
+    }
+
     return {
-      ok: false,
-      status: 403,
-      error: "초진 시스템은 바른컨설팅 승인 원장님 및 마스터 전용 메뉴입니다.",
+      ok: true,
+      status: 200,
       loggedInEmail,
-      targetEmail: loggedInEmail,
+      targetEmail: clinicOwnerEmail,
       isMaster: false,
-      clinicName: "",
-      directorName: "",
+      isStaff: true,
+      staffName,
+      clinicName,
+      directorName,
     };
   }
 
-  // 타 사용자 열람 요청 검증: 오직 마스터만 타 계정 열람/선택 가능
-  const cleanRequested = requestedEmailParam?.toLowerCase().trim() || "";
+  // 2. 타 사용자 열람 요청 검증: 오직 마스터만 본인 이외 계정 열람/선택 가능
   if (cleanRequested && cleanRequested !== loggedInEmail && !isMaster) {
     return {
       ok: false,
       status: 403,
-      error: "개인별 보안 정책에 의해 타 원장님의 데이터는 열람하거나 공유할 수 없습니다.",
+      error:
+        "개인별 보안 정책에 의해 본인 이외 타 원장님의 데이터는 열람하거나 공유할 수 없습니다. (마스터만 열람 가능)",
       loggedInEmail,
       targetEmail: loggedInEmail,
       isMaster: false,
@@ -108,7 +196,7 @@ export async function verifyFirstVisitAccess(
 
   const targetEmail = isMaster && cleanRequested.includes("@") ? cleanRequested : loggedInEmail;
 
-  // 권한 DB 조회 (본인 승인 여부 + 대상 계정 프로필명)
+  // 3. 일반 원장님 권한 DB 조회 (본인 승인 여부 + 대상 계정 프로필명)
   if (!isMaster) {
     const { data: perm } = await supabaseAdmin
       .from("user_permissions")
@@ -133,7 +221,7 @@ export async function verifyFirstVisitAccess(
       return {
         ok: false,
         status: 403,
-        error: "바른컨설팅 승인 회원 및 마스터만 이용 가능한 서비스입니다.",
+        error: "바른컨설팅 승인 원장님, 소속 한의원 직원 및 마스터만 이용 가능한 서비스입니다.",
         loggedInEmail,
         targetEmail,
         isMaster: false,
@@ -153,7 +241,7 @@ export async function verifyFirstVisitAccess(
     };
   }
 
-  // 마스터인 경우 대상 이메일의 프로필 정보 조회
+  // 4. 마스터인 경우 대상 이메일의 프로필 정보 조회
   let clinicName = targetEmail === MASTER_EMAIL ? "마스터 본원" : "미지정 한의원";
   let directorName = targetEmail === MASTER_EMAIL ? "최고 관리자" : targetEmail.split("@")[0];
 

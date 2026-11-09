@@ -72,11 +72,20 @@ function normHeader(val: any): string {
 }
 
 /**
+ * 한국 표준시(KST, UTC+9) 기준 오늘 날짜 YYYY-MM-DD 반환
+ */
+export function getTodayKSTISO(): string {
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+
+/**
  * 날짜 파싱: Excel 시리얼 넘버(UTC 정확 계산), YYYY-MM-DD, YYYYMMDD, YYMMDD, M월 D일 등
  */
 export function parseAnyDateToISO(val: any, referenceYear?: number): string {
   if (val === null || val === undefined || val === "") return "";
-  const refYear = referenceYear || new Date().getFullYear();
+  const refYear = referenceYear || Number(getTodayKSTISO().slice(0, 4));
 
   if (typeof val === "number") {
     if (val > 35000 && val < 65000) {
@@ -189,7 +198,7 @@ export function extractFallbackDateISO(fileName: string, topRows: any[][]): stri
   }
   const fnKor = fileName.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
   if (fnKor) {
-    const y = new Date().getFullYear();
+    const y = Number(getTodayKSTISO().slice(0, 4));
     return `${y}-${String(Number(fnKor[1])).padStart(2, "0")}-${String(Number(fnKor[2])).padStart(2, "0")}`;
   }
   return "";
@@ -368,7 +377,7 @@ function parsePatientNameAndInlineAge(rawName: any): { name: string; inlineAge: 
  * 나이 추출: 숫자, "64세", "남/64", 주민번호 앞자리/생년월일 지원 (없으면 공란 "")
  */
 export function parseAgeValue(rawAge: any, rawBirthOrRrn?: any, referenceYear?: number): string {
-  const refYear = referenceYear || new Date().getFullYear();
+  const refYear = referenceYear || Number(getTodayKSTISO().slice(0, 4));
 
   if (rawAge !== null && rawAge !== undefined && String(rawAge).trim() !== "") {
     const s = String(rawAge).trim();
@@ -531,6 +540,7 @@ export function detectEmrTypeFromHeaders(rawHeaders: string[], isTemplate: boole
 
 /**
  * 추출된 원시 테이블을 ParsedPatientEvent 배열 및 미매핑 컬럼 목록으로 변환
+ * - 해당일(userFallbackDateISO / 파일 내 날짜 / 당일 날짜)에 맞춰 자동으로 날짜 기입
  */
 export function convertRawTableToEvents(
   extraction: RawTableExtraction,
@@ -542,10 +552,11 @@ export function convertRawTableToEvents(
   unmappedColumns: SheetColumnKey[];
 } {
   const { rawHeadersRow, superHeadersRow, dataRows, isGoogleSheetTemplate } = extraction;
-  const effectiveFallbackDate = userFallbackDateISO || extraction.fallbackDateISO || "";
+  const effectiveFallbackDate =
+    extraction.fallbackDateISO || userFallbackDateISO || getTodayKSTISO();
   const refYear = effectiveFallbackDate
     ? Number(effectiveFallbackDate.slice(0, 4))
-    : new Date().getFullYear();
+    : Number(getTodayKSTISO().slice(0, 4));
 
   // 1) 2번 구글 시트 표준 템플릿(19컬럼) 직접 매핑
   if (isGoogleSheetTemplate) {
@@ -567,7 +578,8 @@ export function convertRawTableToEvents(
       const { name, inlineAge } = parsePatientNameAndInlineAge(r[1]);
       if (!name) return;
 
-      const firstISO = parseAnyDateToISO(r[7], refYear) || lastForwardFillDateISO;
+      const finalDateISO = parsedDateISO || lastForwardFillDateISO || effectiveFallbackDate;
+      const firstISO = parseAnyDateToISO(r[7], refYear) || finalDateISO;
       const secondISO = parseAnyDateToISO(r[8], refYear);
       const thirdISO = parseAnyDateToISO(r[9], refYear);
 
@@ -576,10 +588,10 @@ export function convertRawTableToEvents(
 
       const row: FirstVisitRow = {
         id: `fv_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
-        visitDate: parsedDateISO
-          ? formatISOToKoreanMD(parsedDateISO)
+        visitDate: finalDateISO
+          ? formatISOToKoreanMD(finalDateISO)
           : lastForwardFillLabel || cleanStr(rawDate),
-        visitDateISO: parsedDateISO || lastForwardFillDateISO,
+        visitDateISO: finalDateISO,
         patientName: name,
         age: parseAgeValue(r[2], undefined, refYear) || inlineAge,
         visitType: visitTypeVal,
@@ -759,7 +771,7 @@ export function convertRawTableToEvents(
     }
   );
 
-  // 일자 전진 채움(Forward-fill)은 날짜 컬럼이 존재하고 일부 행만 비어있는 시트형 데이터일 때만 적용
+  // 일자 전진 채움(Forward-fill) 및 해당일 자동 기입
   let runningDateISO = effectiveFallbackDate;
   const events: ParsedPatientEvent[] = [];
 
@@ -776,10 +788,11 @@ export function convertRawTableToEvents(
       rowDateISO = parseAnyDateToISO(r[dateCols[0]], refYear);
       if (rowDateISO) {
         runningDateISO = rowDateISO;
-      } else if (!cleanStr(r[dateCols[0]]) && runningDateISO) {
+      } else if (runningDateISO) {
         rowDateISO = runningDateISO;
       }
-    } else if (effectiveFallbackDate) {
+    }
+    if (!rowDateISO && effectiveFallbackDate) {
       rowDateISO = effectiveFallbackDate;
     }
 
@@ -1736,7 +1749,7 @@ export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?:
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "초진시스템_시트1");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayKSTISO();
   const safeClinic = (clinicName || "한의원").replace(/[\\/:*?"<>|]/g, "_");
   XLSX.writeFile(wb, `${safeClinic}_초진시스템_${today}.xlsx`);
 }

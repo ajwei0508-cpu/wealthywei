@@ -30,7 +30,10 @@ export async function GET(req: NextRequest) {
       workspace,
       memberWorkspaces,
       isMaster: auth.isMaster,
+      isStaff: Boolean(auth.isStaff),
+      staffName: auth.staffName || "",
       loggedInEmail: auth.loggedInEmail,
+      targetEmail: auth.targetEmail,
     });
   } catch (err: any) {
     console.error("FirstVisit GET Error:", err);
