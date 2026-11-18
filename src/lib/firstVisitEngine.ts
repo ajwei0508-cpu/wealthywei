@@ -335,8 +335,12 @@ export function extractRawTableFromArrayBuffer(
     const nonEmpty = r.map(cleanStr).filter(Boolean);
     if (nonEmpty.length === 0) return false;
     // 합계/총계 요약 행 제외
+    const rowJoined = r.map(cleanStr).join(" ");
+    if (/\[합계\]|\[총계\]|\[소계\]/.test(rowJoined) || /^(합계|총계|소계|평균|총\s*\d+명|합\s*계)/.test(rowJoined.trim())) {
+      return false;
+    }
     const firstTwo = `${cleanStr(r[0])} ${cleanStr(r[1])}`;
-    if (/^(합계|총계|소계|평균|총\s*\d+명|합\s*계)$/.test(firstTwo.trim())) {
+    if (/^(합계|총계|소계|평균|총\s*\d+명|합\s*계)$/.test(firstTwo.trim()) || /\d+건$/.test(cleanStr(r[1])) || /\d+명$/.test(cleanStr(r[1]))) {
       return false;
     }
     return true;
