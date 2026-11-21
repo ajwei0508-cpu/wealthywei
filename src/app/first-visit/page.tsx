@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import FirstVisitAiReportView from "@/components/first-visit/FirstVisitAiReportView";
+import FirstVisitAnalyticsView from "@/components/first-visit/FirstVisitAnalyticsView";
 import {
   FirstVisitRow,
   FirstVisitWorkspace,
@@ -49,6 +50,7 @@ import {
   UserPlus,
   Check,
   Users,
+  BarChart3,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -110,6 +112,28 @@ function shiftDateISO(iso: string, deltaDays: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
+const SINGLE_WORD_COLUMN_LABEL: Record<SheetColumnKey, string> = {
+  visitDate: "일자",
+  patientName: "이름",
+  age: "나이",
+  visitType: "구분",
+  insuranceType: "보험",
+  treatmentDetail: "진료",
+  nextReservation: "예약",
+  firstVisitDate: "초진일",
+  secondVisitDate: "2회",
+  thirdVisitDate: "3회",
+  visitRoute: "경로",
+  nonCoveredList: "비급여",
+  nonCoveredCount: "판매수",
+  immediatePaymentCount: "즉시결제",
+  herbalMonthlySummary: "한약",
+  packageCount: "패키지",
+  herbalFollowupPayment: "연복",
+  packageRenewal: "연장",
+  delayedPaymentWithinMonth: "추후결제",
+};
+
 function FirstVisitSystemContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -156,20 +180,20 @@ function FirstVisitSystemContent() {
   // 1번 요구사항: 해당일에 맞춰 자동으로 날짜 기입 (당일 KST 날짜 기본 세팅)
   const [fallbackDateInput, setFallbackDateInput] = useState<string>(() => getTodayKSTISO());
 
-  // 2번 요구사항: 개별 수동 기입 폼 상태
-  const [isManualPanelOpen, setIsManualPanelOpen] = useState<boolean>(true);
-  const [isManualDetailExpanded, setIsManualDetailExpanded] = useState<boolean>(true);
+  // 2번 요구사항: 개별 수동 기입 폼 상태 (기본값: 접기)
+  const [isManualPanelOpen, setIsManualPanelOpen] = useState<boolean>(false);
+  const [isManualDetailExpanded, setIsManualDetailExpanded] = useState<boolean>(false);
   const [manualDraft, setManualDraft] = useState<ManualEntryDraft>(() =>
     createInitialDraft(getTodayKSTISO())
   );
 
   // UI & Filter States
-  const [activeTab, setActiveTab] = useState<"sheet" | "report" | "history">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "report" | "stats7" | "history">("sheet");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [visitTypeFilter, setVisitTypeFilter] = useState<string>("all");
   const [missingColFilter, setMissingColFilter] = useState<SheetColumnKey | "any_core" | "none">("none");
-  const [isGuideExpanded, setIsGuideExpanded] = useState(true);
+  const [isGuideExpanded, setIsGuideExpanded] = useState(false);
   const [isMasterPanelOpen, setIsMasterPanelOpen] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -897,37 +921,23 @@ function FirstVisitSystemContent() {
           </div>
         )}
 
-        {/* 2. 메인 타이틀 & 개인 보안 배지 & 저장/다운로드 액션바 */}
+        {/* 2. 메인 타이틀 & 저장/다운로드 액션바 */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-extrabold">
-                <ShieldCheck size={14} />
-                한의원별 독립 암호화 저장 · 본인 외 열람 불가 (단, 마스터만 열람 가능)
-              </span>
-              {isStaff && (
+            {isStaff && (
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/35 text-amber-300 text-xs font-extrabold">
                   <Users size={13} />
                   소속 한의원 직원 권한 접속 ({session?.user?.name || "직원"}님)
                 </span>
-              )}
-              {workspace?.lastDetectedEmr && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-200 text-xs font-bold">
-                  최근 인식 양식: {workspace.lastDetectedEmr}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
             <h1 className="text-3xl font-black text-white tracking-tight">
               초진 시스템{" "}
               <span className="text-lg font-bold text-amber-300 ml-1">
                 ({workspace?.clinicName || "내 한의원"})
               </span>
             </h1>
-            <p className="text-sm text-white/55">
-              해당일(<strong className="text-amber-300">{activeDateLabel}</strong>)에 맞춰 날짜가 자동 기입되며,{" "}
-              <strong className="text-white/90">개별 수동 기입 및 즉시 저장</strong>과{" "}
-              <strong className="text-white/90">전 차트 엑셀 자동 정리(19개 표준 열)</strong>를 모두 지원합니다.
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -993,507 +1003,7 @@ function FirstVisitSystemContent() {
           </div>
         </div>
 
-        {/* 3. 해당일 기준 날짜 자동 설정 & 개별 수동 기입·즉시 저장 패널 (요구사항 1번 & 2번 핵심) */}
-        <div className="bg-gradient-to-br from-[#072B1E] via-[#052319] to-[#041B13] border border-emerald-500/35 rounded-3xl p-6 shadow-2xl space-y-5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <div className="flex items-start sm:items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
-                <UserPlus size={22} />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-base font-black text-white">
-                    개별 초진 환자 수동 기입 & 즉시 저장
-                  </h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[11px] font-black">
-                    해당일({activeDateLabel}) 날짜 자동 기입됨
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[11px] font-bold">
-                    본인 한의원 및 마스터만 열람 가능
-                  </span>
-                </div>
-                <p className="text-xs text-white/60 mt-1">
-                  우측에서 <strong className="text-amber-300">해당일(진료 기준일)</strong>을 선택하면 일자와 1회(초진일)가 자동으로 맞춰지며, 원장님과 소속 한의원 직원이 개별로 수동 기입하고 즉시 저장할 수 있습니다.
-                </p>
-              </div>
-            </div>
-
-            {/* 해당일(기준 날짜) 컨트롤 바 */}
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 bg-black/40 border border-amber-400/40 rounded-2xl px-3.5 py-2">
-                <Calendar size={15} className="text-amber-400 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-amber-300/90 font-extrabold">
-                    해당일 설정 (자동 날짜 기입 기준)
-                  </span>
-                  <input
-                    type="date"
-                    value={fallbackDateInput}
-                    onChange={(e) => handleSelectedDateChange(e.target.value)}
-                    className="bg-transparent text-xs font-black text-white focus:outline-none [color-scheme:dark]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleSelectedDateChange(shiftDateISO(fallbackDateInput, -1))}
-                  className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-xs font-bold transition cursor-pointer"
-                  title="하루 전 날짜로 변경"
-                >
-                  -1일
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectedDateChange(getTodayKSTISO())}
-                  className="px-3 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/35 text-amber-200 text-xs font-black transition cursor-pointer"
-                >
-                  오늘({formatISOToKoreanMD(getTodayKSTISO())})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectedDateChange(shiftDateISO(fallbackDateInput, 1))}
-                  className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 text-xs font-bold transition cursor-pointer"
-                  title="다음 날로 변경"
-                >
-                  +1일
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsManualPanelOpen((p) => !p)}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/75 transition cursor-pointer"
-              >
-                <span>{isManualPanelOpen ? "입력창 접기" : "입력창 펼치기"}</span>
-                {isManualPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </button>
-            </div>
-          </div>
-
-          {isManualPanelOpen && (
-            <div className="space-y-4">
-              {/* 1단: 핵심 기본 초진 정보 (1~8, 11번 항목) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-                {/* 1. 일자 (자동 기입) */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-emerald-300 flex items-center justify-between">
-                    <span>1. 일자 (해당일 자동)</span>
-                    <span className="text-[10px] text-amber-300">자동기입</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={manualDraft.visitDate}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({
-                        ...prev,
-                        visitDate: e.target.value,
-                        firstVisitDate:
-                          !prev.firstVisitDate || prev.firstVisitDate === prev.visitDate
-                            ? e.target.value
-                            : prev.firstVisitDate,
-                      }))
-                    }
-                    placeholder="예: 11월 9일"
-                    className="w-full px-3 py-2.5 rounded-xl bg-emerald-950/60 border border-emerald-400/35 text-xs font-black text-emerald-200 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                {/* 2. 환자 이름 */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-white/85">
-                    2. 환자 이름 <span className="text-rose-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={manualDraft.patientName}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, patientName: e.target.value }))
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleRegisterManualPatientAndSave();
-                      }
-                    }}
-                    placeholder="성명 입력 (예: 홍길동)"
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-extrabold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                {/* 3. 나이 */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-white/85">3. 나이</label>
-                  <input
-                    type="text"
-                    value={manualDraft.age}
-                    onChange={(e) => setManualDraft((prev) => ({ ...prev, age: e.target.value }))}
-                    placeholder="예: 45"
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                {/* 4. 초진/재초진 */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-white/85">
-                    4. 초진/재초진
-                  </label>
-                  <select
-                    value={manualDraft.visitType}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, visitType: e.target.value }))
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
-                  >
-                    <option value="초진">초진</option>
-                    <option value="재초진">재초진</option>
-                    <option value="">(공란)</option>
-                  </select>
-                </div>
-
-                {/* 5. 환자구분 */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-white/85">
-                    5. 환자구분 (건보/자보/비급여)
-                  </label>
-                  <select
-                    value={manualDraft.insuranceType}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, insuranceType: e.target.value }))
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
-                  >
-                    <option value="건보">건보</option>
-                    <option value="자보">자보</option>
-                    <option value="비급여">비급여</option>
-                    <option value="">(공란)</option>
-                  </select>
-                </div>
-
-                {/* 7. 다음 진료 예약 안내 */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-extrabold text-white/85">
-                    7. 다음 진료 예약 안내
-                  </label>
-                  <select
-                    value={manualDraft.nextReservation}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, nextReservation: e.target.value }))
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#041E15] border border-white/15 text-xs font-bold text-white focus:outline-none focus:border-emerald-400"
-                  >
-                    <option value="유">유 (예약 완료)</option>
-                    <option value="무">무 (미예약)</option>
-                    <option value="">(공란)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 2단: 진료 내역 & 내원 경로 & 재내원일 */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-                {/* 6. 환자 진료 내역 */}
-                <div className="lg:col-span-5 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-extrabold text-white/85">
-                      6. 환자 진료 내역 (약침 / 추나 / 한약 / 비급여 유무)
-                    </label>
-                    <div className="flex items-center gap-1">
-                      {["약침", "추나", "한약", "비급여"].map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() =>
-                            setManualDraft((prev) => {
-                              const cur = prev.treatmentDetail.trim();
-                              if (cur.includes(tag)) return prev;
-                              return {
-                                ...prev,
-                                treatmentDetail: cur ? `${cur} / ${tag}` : tag,
-                              };
-                            })
-                          }
-                          className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-emerald-500/25 text-[10px] font-bold text-emerald-200 transition cursor-pointer"
-                        >
-                          +{tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={manualDraft.treatmentDetail}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, treatmentDetail: e.target.value }))
-                    }
-                    placeholder="예: 허리·골반 통증 (약침 / 추나)"
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                {/* 11. 내원경로 */}
-                <div className="lg:col-span-4 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-extrabold text-white/85">
-                      11. 내원경로
-                    </label>
-                    <div className="flex items-center gap-1">
-                      {["소개", "네이버", "간판", "당근", "집근처"].map((rt) => (
-                        <button
-                          key={rt}
-                          type="button"
-                          onClick={() =>
-                            setManualDraft((prev) => ({ ...prev, visitRoute: rt }))
-                          }
-                          className="px-1.5 py-0.5 rounded bg-white/10 hover:bg-amber-400/25 text-[10px] font-bold text-amber-200 transition cursor-pointer"
-                        >
-                          {rt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    value={manualDraft.visitRoute}
-                    onChange={(e) =>
-                      setManualDraft((prev) => ({ ...prev, visitRoute: e.target.value }))
-                    }
-                    placeholder="예: 소개 / 네이버 검색 / 간판"
-                    className="w-full px-3 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
-                  />
-                </div>
-
-                {/* 8, 9, 10. 1회 초진일(자동) & 2·3회 재내원일 */}
-                <div className="lg:col-span-3 grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-emerald-300 block truncate">
-                      8. 1회(초진일)
-                    </label>
-                    <input
-                      type="text"
-                      value={manualDraft.firstVisitDate}
-                      onChange={(e) =>
-                        setManualDraft((prev) => ({ ...prev, firstVisitDate: e.target.value }))
-                      }
-                      placeholder={activeDateLabel}
-                      className="w-full px-2.5 py-2.5 rounded-xl bg-emerald-950/60 border border-emerald-400/35 text-xs font-bold text-emerald-200 text-center focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-amber-300 block truncate">
-                      9. 2회(재내원)
-                    </label>
-                    <input
-                      type="text"
-                      value={manualDraft.secondVisitDate}
-                      onChange={(e) =>
-                        setManualDraft((prev) => ({ ...prev, secondVisitDate: e.target.value }))
-                      }
-                      placeholder="미방문/공란"
-                      className="w-full px-2.5 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-amber-200 text-center placeholder:text-white/25 focus:outline-none"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-extrabold text-amber-300 block truncate">
-                      10. 3회(재내원)
-                    </label>
-                    <input
-                      type="text"
-                      value={manualDraft.thirdVisitDate}
-                      onChange={(e) =>
-                        setManualDraft((prev) => ({ ...prev, thirdVisitDate: e.target.value }))
-                      }
-                      placeholder="미방문/공란"
-                      className="w-full px-2.5 py-2.5 rounded-xl bg-black/35 border border-white/15 text-xs font-bold text-amber-200 text-center placeholder:text-white/25 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 3단: 비급여 · 한약 · 패키지 상세 수동 기입 (12~19번 항목) */}
-              <div className="pt-2 border-t border-white/10 space-y-3">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setIsManualDetailExpanded((p) => !p)}
-                    className="flex items-center gap-1.5 text-xs font-extrabold text-amber-300 hover:text-amber-200 cursor-pointer"
-                  >
-                    <span>
-                      비급여 · 한약 · 패키지 결제 추적 항목 수동 기입 (12~19번 표준 항목)
-                    </span>
-                    {isManualDetailExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  </button>
-                  <span className="text-[11px] text-white/45">
-                    비워두신 항목은 공란으로 유지되며 시트에서도 언제든 개별 수정 가능합니다.
-                  </span>
-                </div>
-
-                {isManualDetailExpanded && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        12. 비급여 목록 (한의원별 품목)
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.nonCoveredList}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({ ...prev, nonCoveredList: e.target.value }))
-                        }
-                        placeholder="예: 녹용, 공진단, 다이어트"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        13. 비급여 목록별 판매 건수
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.nonCoveredCount}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({ ...prev, nonCoveredCount: e.target.value }))
-                        }
-                        placeholder="예: 공진단 1, 약침 1"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        14. 상담후 즉시 결제 건수
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.immediatePaymentCount}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({
-                            ...prev,
-                            immediatePaymentCount: e.target.value,
-                          }))
-                        }
-                        placeholder="예: 1건"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        15. 한약 월총 건수 (처방 목적 기입)
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.herbalMonthlySummary}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({
-                            ...prev,
-                            herbalMonthlySummary: e.target.value,
-                          }))
-                        }
-                        placeholder="예: 다이어트2 보약1"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        16. 패키지 건수
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.packageCount}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({ ...prev, packageCount: e.target.value }))
-                        }
-                        placeholder="예: 약침 패키지 1"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        17. 1제 복용후 추가결제 (연복유무)
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.herbalFollowupPayment}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({
-                            ...prev,
-                            herbalFollowupPayment: e.target.value,
-                          }))
-                        }
-                        placeholder="예: 유 / 연복 결제"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        18. 패키지 종료후 연장 (결제유무)
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.packageRenewal}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({ ...prev, packageRenewal: e.target.value }))
-                        }
-                        placeholder="예: 연장 유 / 무"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-white/75">
-                        19. 상담후 1달이내 결제 건수
-                      </label>
-                      <input
-                        type="text"
-                        value={manualDraft.delayedPaymentWithinMonth}
-                        onChange={(e) =>
-                          setManualDraft((prev) => ({
-                            ...prev,
-                            delayedPaymentWithinMonth: e.target.value,
-                          }))
-                        }
-                        placeholder="예: 홍길동 다이어트 3제 결제"
-                        className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 하단 액션 버튼 */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <p className="text-[11px] text-white/50">
-                  * 등록 즉시 <strong className="text-emerald-300">{workspace?.clinicName || "소속 한의원"}</strong> 전용 시트에 추가 및 암호화 저장되며, 마스터 외 타 한의원에서는 절대 열람할 수 없습니다.
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setManualDraft(createInitialDraft(fallbackDateInput || getTodayKSTISO()))}
-                    className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/70 transition cursor-pointer"
-                  >
-                    입력칸 비우기
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    onClick={handleRegisterManualPatientAndSave}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-300 hover:to-amber-200 text-[#031C13] text-xs font-black shadow-lg shadow-amber-400/20 transition cursor-pointer active:scale-95"
-                  >
-                    <Plus size={15} />
-                    <span>개별 환자 등록 및 즉시 저장 ({manualDraft.visitDate || activeDateLabel})</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 4. 전 차트 자동 분석 업로드 드롭존 */}
+        {/* 3. 전 차트 자동 분석 업로드 드롭존 (환자 리스트 파일 선택) */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -1558,81 +1068,475 @@ function FirstVisitSystemContent() {
           </div>
         </div>
 
-        {/* 5. 원장님 전용 공란(미기재) 항목 안내 패널 */}
-        {rows.length > 0 && (
-          <div className="bg-amber-500/[0.08] border border-amber-400/30 rounded-3xl p-5 lg:p-6 space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
-                  <AlertTriangle size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-amber-200">
-                    {missingReport.directorHeadline}
-                  </h3>
-                  <p className="text-xs text-white/55">
-                    차트 원본에 없는 항목은 임의로 채우지 않고 공란으로 비워두었습니다. 시트에서 개별로 수동 기입 후 [저장] 버튼을 누르시면 즉시 반영됩니다.
-                  </p>
-                </div>
+        {/* 4. 개별 초진 환자 수동 기입 (심플 버전 · 기본 접힘) */}
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl px-5 py-3.5 transition-all">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setIsManualPanelOpen((p) => !p)}
+              className="flex items-center gap-2.5 text-left cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-300 shrink-0">
+                <UserPlus size={16} />
               </div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-sm font-extrabold text-white group-hover:text-amber-200 transition">
+                  개별 초진 수동 기입
+                </h2>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-[11px] font-bold">
+                  {activeDateLabel}
+                </span>
+              </div>
+            </button>
+
+            {/* 심플 날짜 설정 + 접기/펼치기 */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-black/30 border border-white/15 rounded-xl px-2.5 py-1.5">
+                <Calendar size={13} className="text-amber-400 shrink-0" />
+                <input
+                  type="date"
+                  value={fallbackDateInput}
+                  onChange={(e) => handleSelectedDateChange(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-white focus:outline-none [color-scheme:dark]"
+                />
+              </div>
+
               <button
                 type="button"
-                onClick={() => setIsGuideExpanded((p) => !p)}
-                className="text-xs font-bold text-amber-300 hover:text-amber-200 flex items-center gap-1 shrink-0 cursor-pointer"
+                onClick={() => handleSelectedDateChange(getTodayKSTISO())}
+                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-amber-400/20 border border-white/10 text-amber-200 text-xs font-bold transition cursor-pointer"
               >
-                <span>{isGuideExpanded ? "안내 접기" : "상세 보기"}</span>
-                {isGuideExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                오늘
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsManualPanelOpen((p) => !p)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/80 transition cursor-pointer"
+              >
+                <span>{isManualPanelOpen ? "입력창 접기" : "입력창 펼치기"}</span>
+                {isManualPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
+          </div>
 
-            {isGuideExpanded && (
-              <div className="space-y-3 pt-2 border-t border-amber-400/15">
-                <ul className="space-y-1.5 text-xs text-white/80 leading-relaxed pl-4 list-disc marker:text-amber-400">
-                  {missingReport.directorMessages.map((msg, i) => (
-                    <li key={i}>{msg}</li>
+          {isManualPanelOpen && (
+            <div className="mt-4 pt-4 border-t border-white/10 space-y-3.5">
+              {/* 1줄: 기본 정보 */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">일자</label>
+                  <input
+                    type="text"
+                    value={manualDraft.visitDate}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({
+                        ...prev,
+                        visitDate: e.target.value,
+                        firstVisitDate:
+                          !prev.firstVisitDate || prev.firstVisitDate === prev.visitDate
+                            ? e.target.value
+                            : prev.firstVisitDate,
+                      }))
+                    }
+                    placeholder={activeDateLabel}
+                    className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs font-bold text-emerald-300 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/80">
+                    이름 <span className="text-amber-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={manualDraft.patientName}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, patientName: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleRegisterManualPatientAndSave();
+                      }
+                    }}
+                    placeholder="홍길동"
+                    className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs font-bold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">나이</label>
+                  <input
+                    type="text"
+                    value={manualDraft.age}
+                    onChange={(e) => setManualDraft((prev) => ({ ...prev, age: e.target.value }))}
+                    placeholder="45"
+                    className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">구분</label>
+                  <select
+                    value={manualDraft.visitType}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, visitType: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-[#041E15] border border-white/15 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="초진">초진</option>
+                    <option value="재초진">재초진</option>
+                    <option value="">공란</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">보험</label>
+                  <select
+                    value={manualDraft.insuranceType}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, insuranceType: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-[#041E15] border border-white/15 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="건보">건보</option>
+                    <option value="자보">자보</option>
+                    <option value="비급여">비급여</option>
+                    <option value="">공란</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">예약 안내</label>
+                  <select
+                    value={manualDraft.nextReservation}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, nextReservation: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-[#041E15] border border-white/15 text-xs text-white focus:outline-none focus:border-emerald-400"
+                  >
+                    <option value="유">유</option>
+                    <option value="무">무</option>
+                    <option value="">공란</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* 2줄: 진료내역 · 내원경로 · 재내원일 */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+                <div className="lg:col-span-4 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-white/60">진료 내역</label>
+                    <div className="flex items-center gap-1">
+                      {["약침", "추나", "한약", "비급여"].map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() =>
+                            setManualDraft((prev) => {
+                              const cur = prev.treatmentDetail.trim();
+                              if (cur.includes(tag)) return prev;
+                              return {
+                                ...prev,
+                                treatmentDetail: cur ? `${cur} / ${tag}` : tag,
+                              };
+                            })
+                          }
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-emerald-500/20 text-[10px] font-semibold text-white/70 hover:text-emerald-200 transition cursor-pointer"
+                        >
+                          +{tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={manualDraft.treatmentDetail}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, treatmentDetail: e.target.value }))
+                    }
+                    placeholder="증상 및 치료 내용"
+                    className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div className="lg:col-span-5 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-white/60">내원경로</label>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 pb-0.5">
+                    {[
+                      "소개",
+                      "홈페이지",
+                      "맘카페",
+                      "인스타",
+                      "스레드",
+                      "유튜브",
+                      "구글",
+                      "블로그",
+                      "플레이스",
+                      "네이버",
+                      "간판",
+                      "당근",
+                    ].map((rt) => (
+                      <button
+                        key={rt}
+                        type="button"
+                        onClick={() =>
+                          setManualDraft((prev) => ({ ...prev, visitRoute: rt }))
+                        }
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition cursor-pointer ${
+                          manualDraft.visitRoute === rt
+                            ? "bg-amber-400 text-[#031C13] font-bold shadow-sm"
+                            : "bg-white/5 hover:bg-amber-400/20 text-white/70 hover:text-amber-200"
+                        }`}
+                      >
+                        {rt}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={manualDraft.visitRoute}
+                    onChange={(e) =>
+                      setManualDraft((prev) => ({ ...prev, visitRoute: e.target.value }))
+                    }
+                    placeholder="직접 입력 또는 단축키 선택"
+                    className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
+                  />
+                </div>
+
+                <div className="lg:col-span-3 grid grid-cols-3 gap-1.5">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-white/60 block truncate">1회</label>
+                    <input
+                      type="text"
+                      value={manualDraft.firstVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, firstVisitDate: e.target.value }))
+                      }
+                      placeholder={activeDateLabel}
+                      className="w-full px-2 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-emerald-300 text-center focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-white/60 block truncate">2회</label>
+                    <input
+                      type="text"
+                      value={manualDraft.secondVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, secondVisitDate: e.target.value }))
+                      }
+                      placeholder="-"
+                      className="w-full px-2 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-white text-center placeholder:text-white/25 focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-white/60 block truncate">3회</label>
+                    <input
+                      type="text"
+                      value={manualDraft.thirdVisitDate}
+                      onChange={(e) =>
+                        setManualDraft((prev) => ({ ...prev, thirdVisitDate: e.target.value }))
+                      }
+                      placeholder="-"
+                      className="w-full px-2 py-2 rounded-xl bg-black/30 border border-white/15 text-xs text-white text-center placeholder:text-white/25 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3줄(선택): 비급여·한약·패키지 추가 입력 (기본 접힘) */}
+              {isManualDetailExpanded && (
+                <div className="pt-3 border-t border-white/10 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {[
+                    { label: "비급여 목록", key: "nonCoveredList" as const, ph: "녹용, 공진단" },
+                    { label: "판매 건수", key: "nonCoveredCount" as const, ph: "공진단 1" },
+                    { label: "즉시 결제", key: "immediatePaymentCount" as const, ph: "1건" },
+                    { label: "한약 월총", key: "herbalMonthlySummary" as const, ph: "보약 1" },
+                    { label: "패키지", key: "packageCount" as const, ph: "약침 1" },
+                    { label: "연복 유무", key: "herbalFollowupPayment" as const, ph: "유/무" },
+                    { label: "패키지 연장", key: "packageRenewal" as const, ph: "유/무" },
+                    { label: "1달내 결제", key: "delayedPaymentWithinMonth" as const, ph: "결제 내역" },
+                  ].map((f) => (
+                    <div key={f.key} className="space-y-1">
+                      <label className="text-[11px] font-bold text-white/55">{f.label}</label>
+                      <input
+                        type="text"
+                        value={manualDraft[f.key]}
+                        onChange={(e) =>
+                          setManualDraft((prev) => ({ ...prev, [f.key]: e.target.value }))
+                        }
+                        placeholder={f.ph}
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-black/25 border border-white/10 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
                   ))}
-                </ul>
+                </div>
+              )}
 
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+              {/* 하단 액션 바 (심플 1줄) */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsManualDetailExpanded((p) => !p)}
+                  className="text-xs font-semibold text-white/55 hover:text-amber-300 flex items-center gap-1 transition cursor-pointer"
+                >
+                  <span>{isManualDetailExpanded ? "비급여·한약 상세 닫기" : "+ 비급여·한약·패키지 추가 입력"}</span>
+                  {isManualDetailExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManualDraft(createInitialDraft(fallbackDateInput || getTodayKSTISO()))}
+                    className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-white/70 transition cursor-pointer"
+                  >
+                    초기화
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={handleRegisterManualPatientAndSave}
+                    className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#031C13] text-xs font-black transition cursor-pointer active:scale-95"
+                  >
+                    <Plus size={14} />
+                    <span>등록 및 저장</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 5. 원장님 안내 (기본 접힘 · 미기재 한 단어 + 호버 자동 설명) */}
+        {rows.length > 0 && (
+          <div className="bg-white/[0.04] border border-amber-400/25 rounded-2xl px-5 py-3.5 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setIsGuideExpanded((p) => !p)}
+                  className="inline-flex items-center gap-2 text-left cursor-pointer group shrink-0"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-amber-400/15 text-amber-300 flex items-center justify-center shrink-0">
+                    <AlertTriangle size={14} />
+                  </div>
+                  <span className="text-xs font-black text-amber-200 group-hover:text-amber-100 transition">
+                    원장님 안내
+                  </span>
+                </button>
+
+                {/* 미기재 항목 한 단어 표시 + 마우스 호버 시 상황 설명 안내문 자동 표시 */}
+                <div className="flex flex-wrap items-center gap-1.5">
                   {missingColFilter !== "none" && (
                     <button
                       type="button"
                       onClick={() => setMissingColFilter("none")}
-                      className="px-3 py-1.5 rounded-xl bg-amber-400 text-[#031C13] text-xs font-black flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-0.5 rounded-md bg-amber-400 text-[#031C13] text-[11px] font-black inline-flex items-center gap-1 cursor-pointer"
                     >
-                      <X size={12} /> 공란 필터 해제
+                      <X size={11} /> 해제
                     </button>
                   )}
 
-                  {missingReport.partialBlankColumns.map((col) => (
-                    <button
-                      key={col.key}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab("sheet");
-                        setMissingColFilter((prev) => (prev === col.key ? "none" : col.key));
-                      }}
-                      title={col.guide}
-                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
-                        missingColFilter === col.key
-                          ? "bg-amber-400 text-[#031C13] border-amber-300 font-black"
-                          : "bg-black/30 text-amber-200/90 border-amber-400/25 hover:bg-amber-400/15"
-                      }`}
-                    >
-                      부분 공란 · {col.shortLabel} ({col.missingCount}명 / {col.missingPct}%)
-                    </button>
-                  ))}
+                  {missingReport.partialBlankColumns.map((col) => {
+                    const oneWord = SINGLE_WORD_COLUMN_LABEL[col.key] || col.shortLabel;
+                    const isSelected = missingColFilter === col.key;
+                    return (
+                      <div key={col.key} className="relative group/tip">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab("sheet");
+                            setMissingColFilter((prev) => (prev === col.key ? "none" : col.key));
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                            isSelected
+                              ? "bg-amber-400 text-[#031C13] border-amber-300 font-black"
+                              : "bg-amber-400/10 text-amber-200 border-amber-400/30 hover:bg-amber-400/20"
+                          }`}
+                        >
+                          {oneWord}
+                        </button>
+                        {/* 호버 자동 안내문 */}
+                        <div className="pointer-events-none invisible opacity-0 group-hover/tip:visible group-hover/tip:opacity-100 transition-all duration-150 absolute left-0 bottom-full mb-2 w-72 z-[80] rounded-xl bg-[#0B1612] border border-amber-400/40 p-3 shadow-2xl">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs font-black text-amber-300">
+                              {col.shortLabel} 미기재
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-200">
+                              {col.missingCount}명 ({col.missingPct}%)
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-white/85 leading-relaxed">
+                            {col.guide}
+                          </p>
+                          <p className="text-[10px] text-emerald-300/90 mt-1.5 font-semibold">
+                            클릭하면 해당 미기재 환자만 시트에서 필터링됩니다.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
 
-                  {missingReport.completelyBlankColumns.map((col) => (
-                    <span
-                      key={col.key}
-                      title={col.guide}
-                      className="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 text-white/45 border border-white/10"
-                    >
-                      차트 미포함(수동 기입 가능) · {col.shortLabel}
-                    </span>
-                  ))}
+                  {missingReport.completelyBlankColumns.map((col) => {
+                    const oneWord = SINGLE_WORD_COLUMN_LABEL[col.key] || col.shortLabel;
+                    return (
+                      <div key={col.key} className="relative group/tip">
+                        <span className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/5 text-white/55 border border-white/10 hover:border-white/30 hover:text-white/85 transition cursor-help">
+                          {oneWord}
+                        </span>
+                        {/* 호버 자동 안내문 */}
+                        <div className="pointer-events-none invisible opacity-0 group-hover/tip:visible group-hover/tip:opacity-100 transition-all duration-150 absolute left-0 bottom-full mb-2 w-72 z-[80] rounded-xl bg-[#0B1612] border border-white/20 p-3 shadow-2xl">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-xs font-black text-white">
+                              {col.shortLabel}
+                            </span>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                              차트 미포함
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-white/80 leading-relaxed">
+                            {col.guide}
+                          </p>
+                          <p className="text-[10px] text-amber-300/85 mt-1.5 font-semibold">
+                            시트에서 개별로 수동 기입 후 저장할 수 있습니다.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {missingReport.partialBlankColumns.length === 0 &&
+                    missingReport.completelyBlankColumns.length === 0 && (
+                      <span className="text-xs font-bold text-emerald-300">
+                        모든 항목 기재 완료
+                      </span>
+                    )}
                 </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsGuideExpanded((p) => !p)}
+                className="text-xs font-bold text-amber-300/90 hover:text-amber-200 flex items-center gap-1 shrink-0 cursor-pointer px-2.5 py-1 rounded-lg hover:bg-white/5 transition"
+              >
+                <span>{isGuideExpanded ? "안내 접기" : "안내 펼치기"}</span>
+                {isGuideExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+            </div>
+
+            {isGuideExpanded && (
+              <div className="space-y-2 pt-3 border-t border-white/10">
+                <p className="text-xs font-bold text-amber-200/90">
+                  {missingReport.directorHeadline}
+                </p>
+                <ul className="space-y-1 text-xs text-white/75 leading-relaxed pl-4 list-disc marker:text-amber-400">
+                  {missingReport.directorMessages.map((msg, i) => (
+                    <li key={i}>{msg}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -1670,6 +1574,22 @@ function FirstVisitSystemContent() {
                   READY
                 </span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("stats7")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                activeTab === "stats7"
+                  ? "bg-white text-[#111111] border border-[#D4AF37] shadow-md"
+                  : "text-white/75 hover:text-white"
+              }`}
+            >
+              <BarChart3 size={15} className={activeTab === "stats7" ? "text-[#0F5132]" : "text-[#D4AF37]"} />
+              <span>인구비례 7대 경영통계</span>
+              <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#D4AF37]/20 text-[#D4AF37] font-extrabold">
+                NEW
+              </span>
             </button>
 
             <button
@@ -2066,6 +1986,11 @@ function FirstVisitSystemContent() {
             aiReport={workspace?.aiReport || null}
             isGenerating={isGeneratingAi}
             onGenerateReport={() => handleGenerateAiReport()}
+          />
+        ) : activeTab === "stats7" ? (
+          <FirstVisitAnalyticsView
+            existingFirstVisitRows={rows}
+            embedded={true}
           />
         ) : (
           /* 업로드 이력 탭 */
