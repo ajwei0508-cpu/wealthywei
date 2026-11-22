@@ -11,6 +11,7 @@ import {
   ChevronUp,
   Calendar,
   Sparkles,
+  Search,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -53,6 +54,10 @@ export default function FirstVisitAnalyticsView({
   const [demographic, setDemographic] = useState<DemographicData>(DEFAULT_DEMOGRAPHIC);
   const [presets, setPresets] = useState<RegionPresetOption[]>([]);
   const [locating, setLocating] = useState(false);
+
+  // 주소 직접 검색 관련 상태
+  const [addressQuery, setAddressQuery] = useState("");
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
 
   // 초진 환자 메트릭: 기존 초진 시트로부터 기본 자동 연동
   const [clinic, setClinic] = useState<ClinicPatientMetrics>(() => {
@@ -120,7 +125,7 @@ export default function FirstVisitAnalyticsView({
   const handleDetectLocation = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       toast.error(
-        "브라우저 위치 정보를 지원하지 않습니다. 상단 목록에서 지역을 직접 선택해 주세요."
+        "브라우저 위치 정보를 지원하지 않습니다. 상단 검색창에 주소를 직접 입력해 주세요."
       );
       return;
     }
@@ -148,11 +153,66 @@ export default function FirstVisitAnalyticsView({
       () => {
         setLocating(false);
         toast(
-          "위치 권한이 허용되지 않아 기본 지역을 유지합니다. 상단에서 지역을 선택하실 수 있습니다."
+          "위치 권한이 허용되지 않아 기본 지역을 유지합니다. 상단 주소 검색창을 통해 직접 검색하실 수 있습니다."
         );
       },
       { timeout: 8000, enableHighAccuracy: false }
     );
+  };
+
+  // 주소 직접 검색 핸들러 (도로명, 지번, 동명 검색 지원)
+  const handleSearchAddress = async (targetQuery?: string) => {
+    const q = (targetQuery ?? addressQuery).trim();
+    if (!q) {
+      toast("검색하실 주소나 읍·면·동 이름을 입력해 주세요.");
+      return;
+    }
+
+    setIsSearchingAddress(true);
+    const toastId = toast.loading(`"${q}" 지역 인구수를 조회하고 있습니다...`);
+    try {
+      const res = await fetch(`/api/sgis/demographics?query=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error("인구 조회 실패");
+      const data: DemographicData = await res.json();
+      setDemographic(data);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("barun_sgis_last_sync", Date.now().toString());
+      }
+      toast.success(`${data.regionName} 인구 데이터를 반영했습니다.`, { id: toastId });
+    } catch {
+      toast.error("주소 검색 중 오류가 발생했습니다. 도로명이나 동 이름을 다시 확인해 주세요.", { id: toastId });
+    } finally {
+      setIsSearchingAddress(false);
+    }
+  };
+
+  // 다음(Daum) 우편번호/도로명 주소 검색 팝업
+  const openDaumPostcode = () => {
+    const scriptId = "daum-postcode-script";
+    const execute = () => {
+      if (typeof window !== "undefined" && (window as any).daum?.Postcode) {
+        new (window as any).daum.Postcode({
+          oncomplete: (data: any) => {
+            const addr =
+              data.roadAddress ||
+              data.address ||
+              `${data.sido} ${data.sigungu} ${data.bname}`;
+            setAddressQuery(addr);
+            handleSearchAddress(addr);
+          },
+        }).open();
+      }
+    };
+
+    if (typeof window !== "undefined" && !document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+      script.onload = execute;
+      document.body.appendChild(script);
+    } else {
+      execute();
+    }
   };
 
   // 지역 프리셋 수동 변경
@@ -220,32 +280,65 @@ export default function FirstVisitAnalyticsView({
               </p>
             </div>
 
-            {/* 위치 감지 & 행정동 선택 */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            {/* 주소 직접 검색 & GPS & 지역 선택 컨트롤 바 */}
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5">
+              {/* 1. 주소 직접 검색창 */}
+              <div className="relative flex items-center min-w-[260px] sm:min-w-[310px]">
+                <Search size={14} className="absolute left-3.5 text-[#737373] pointer-events-none" />
+                <input
+                  type="text"
+                  value={addressQuery}
+                  onChange={(e) => setAddressQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearchAddress()}
+                  placeholder="주소·동명 직접 검색 (예: 정자동, 테헤란로 152)"
+                  className="w-full pl-9 pr-14 py-2.5 rounded-xl bg-white border border-[#D4D4D4] text-xs font-semibold text-[#111111] placeholder:text-[#999999] focus:outline-none focus:border-[#B8924A] shadow-sm transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSearchAddress()}
+                  disabled={isSearchingAddress}
+                  className="absolute right-1.5 px-2.5 py-1.5 rounded-lg bg-[#111111] hover:bg-[#262626] text-white text-[11px] font-bold transition cursor-pointer disabled:opacity-60"
+                >
+                  {isSearchingAddress ? "조회중" : "검색"}
+                </button>
+              </div>
+
+              {/* 2. 우편번호/도로명 주소 찾기 팝업 버튼 */}
+              <button
+                type="button"
+                onClick={openDaumPostcode}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#FBF7EE] hover:bg-[#F5ECD7] border border-[#D4AF37] text-[#7A5B1F] text-xs font-bold transition shadow-sm cursor-pointer"
+                title="카카오/다음 공식 주소 검색창 열기"
+              >
+                <Search size={13} className="text-[#B8924A]" />
+                <span>주소 찾기</span>
+              </button>
+
+              {/* 3. 현재 위치 GPS 조회 버튼 */}
               <button
                 type="button"
                 onClick={handleDetectLocation}
                 disabled={locating}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-60 shadow-sm"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#0F5132] hover:bg-[#0B3D26] text-white text-xs font-bold transition cursor-pointer disabled:opacity-60 shadow-sm"
               >
-                <MapPin size={14} className="text-[#D4AF37]" />
-                {locating ? "GPS 조회 중..." : "현재 위치 GPS 조회"}
+                <MapPin size={13} className="text-[#D4AF37]" />
+                <span>{locating ? "조회 중..." : "GPS 위치"}</span>
               </button>
 
+              {/* 4. 주요 지역 선택 드롭다운 */}
               <select
                 value={demographic.regionCode}
                 onChange={(e) => handlePresetChange(e.target.value)}
-                className="px-3.5 py-2.5 rounded-xl bg-white border border-[#D4D4D4] text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#B8924A] cursor-pointer"
+                className="px-3 py-2.5 rounded-xl bg-white border border-[#D4D4D4] text-xs font-semibold text-[#111111] focus:outline-none focus:border-[#B8924A] cursor-pointer shadow-sm max-w-[210px] truncate"
               >
-                {presets.length === 0 ? (
-                  <option value={demographic.regionCode}>{demographic.regionName}</option>
-                ) : (
-                  presets.map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.name} ({p.totalPopulation.toLocaleString()}명)
-                    </option>
-                  ))
-                )}
+                <option value={demographic.regionCode}>
+                  {demographic.regionName}
+                </option>
+                {presets.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name} ({p.totalPopulation.toLocaleString()}명)
+                  </option>
+                ))}
               </select>
             </div>
           </div>
