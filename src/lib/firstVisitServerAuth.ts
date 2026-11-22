@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { createClient } from "@supabase/supabase-js";
 import { authOptions } from "@/lib/authOptions";
 import { FirstVisitWorkspace, MasterMemberSummary } from "@/types/firstVisit";
+import { repairShiftedFirstVisitRows } from "@/lib/firstVisitEngine";
 
 export const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -292,11 +293,12 @@ export async function readWorkspaceFromStorage(
   try {
     const text = await data.text();
     const parsed = JSON.parse(text) as FirstVisitWorkspace;
+    const cleanRows = Array.isArray(parsed.rows) ? repairShiftedFirstVisitRows(parsed.rows) : [];
     return {
       ownerEmail: targetEmail,
       clinicName: parsed.clinicName || fallbackClinicName,
       directorName: parsed.directorName || fallbackDirectorName,
-      rows: Array.isArray(parsed.rows) ? parsed.rows : [],
+      rows: cleanRows,
       uploadLogs: Array.isArray(parsed.uploadLogs) ? parsed.uploadLogs : [],
       lastDetectedEmr: parsed.lastDetectedEmr,
       aiReport: parsed.aiReport || null,

@@ -212,15 +212,27 @@ export function extractRawTableFromArrayBuffer(
   fileName: string
 ): RawTableExtraction {
   const lower = fileName.toLowerCase();
+  const bytes = new Uint8Array(arrayBuffer);
+  // ZIP(.xlsx) = 0x50 0x4B, OLE2(.xls) = 0xD0 0xCF 0x11 0xE0
+  const isZipXlsx = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+  const isOleXls =
+    bytes.length >= 4 &&
+    bytes[0] === 0xd0 &&
+    bytes[1] === 0xcf &&
+    bytes[2] === 0x11 &&
+    bytes[3] === 0xe0;
+  const isTextOrHtmlFile =
+    lower.endsWith(".csv") ||
+    lower.endsWith(".txt") ||
+    lower.endsWith(".tsv") ||
+    (!isZipXlsx && !isOleXls);
+
   let wb: XLSX.WorkBook;
 
-  if (lower.endsWith(".csv") || lower.endsWith(".txt") || lower.endsWith(".tsv")) {
-    const bytes = new Uint8Array(arrayBuffer);
+  if (isTextOrHtmlFile) {
     const utf8Text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     const hasReplacementChar = utf8Text.includes("\uFFFD");
-    const looksValidKorean =
-      !hasReplacementChar &&
-      /[가-힣]/.test(utf8Text);
+    const looksValidKorean = !hasReplacementChar && /[가-힣]/.test(utf8Text);
 
     let decoded = utf8Text;
     if (!looksValidKorean) {
@@ -235,12 +247,17 @@ export function extractRawTableFromArrayBuffer(
     }
     wb = XLSX.read(decoded, { type: "string", raw: true });
   } else {
-    wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array", raw: true });
+    wb = XLSX.read(bytes, { type: "array", raw: true });
   }
 
-  const firstSheetName = wb.SheetNames[0];
-  const sheet = wb.Sheets[firstSheetName];
-  const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "" });
+  let rows: any[][] = [];
+  for (const sName of wb.SheetNames) {
+    const candidate = XLSX.utils.sheet_to_json<any[]>(wb.Sheets[sName], { header: 1, defval: "" });
+    if (candidate && candidate.length > rows.length) {
+      rows = candidate;
+    }
+    if (rows.length >= 3) break;
+  }
 
   if (!rows || rows.length === 0) {
     return {
@@ -630,18 +647,136 @@ export function convertRawTableToEvents(
     ? Number(effectiveFallbackDate.slice(0, 4))
     : Number(getTodayKSTISO().slice(0, 4));
 
-  // 1) 바른 초진 표준 템플릿(구 19컬럼 & 신 20컬럼[성별 포함] 모두 호환) 직접 매핑
+  // 1) 바른 초진 표준 템플릿(구 19컬럼 & 신 20컬럼 & 성별 열 위치 변형/공란 헤더까지 100% 동적 매핑)
   if (isGoogleSheetTemplate) {
     let lastForwardFillDateISO = effectiveFallbackDate;
     let lastForwardFillLabel = effectiveFallbackDate ? formatISOToKoreanMD(effectiveFallbackDate) : "";
 
-    const hasGenderCol = normHeader(rawHeadersRow[2]) === "성별";
-    const o = hasGenderCol ? 1 : 0; // 성별 열 유무에 따른 인덱스 오프셋
+    const maxCols = Math.max(
+      rawHeadersRow.length,
+      ...dataRows.slice(0, 20).map((r) => (r ? r.length : 0))
+    );
+    const normedH = Array.from({ length: maxCols }, (_, i) => normHeader(rawHeadersRow[i]));
+    const normedSup = Array.from({ length: maxCols }, (_, i) => normHeader(superHeadersRow[i]));
+    const usedCols = new Set<number>();
 
+    const claimCol = (matcher: (h: string, sup: string, idx: number) => boolean): number => {
+      for (let i = 0; i < maxCols; i++) {
+        if (usedCols.has(i)) continue;
+        if (matcher(normedH[i] || "", normedSup[i] || "", i)) {
+          usedCols.add(i);
+          return i;
+        }
+      }
+      return -1;
+    };
+
+    const cDate = claimCol(
+      (h, sup) =>
+        !sup.includes("초진일") &&
+        !sup.includes("재내원일") &&
+        !h.includes("예약") &&
+        (h === "일자" || h === "날짜" || h.includes("내원일") || h.includes("진료일") || h.includes("수진일"))
+    );
+    const cName = claimCol(
+      (h) => h.includes("환자이름") || h.includes("환자명") || h === "이름" || h === "성명" || h.includes("수진자")
+    );
+    let cGender = claimCol(
+      (h) => h === "성별" || h === "남녀" || h === "남여" || h === "sex" || h === "gender"
+    );
+    const cAge = claimCol((h) => h === "나이" || h === "만나이" || h === "연령" || h.includes("성별나이"));
+    const cVisitType = claimCol(
+      (h) => h.includes("초진재초진") || h.includes("초재진") || h.includes("초재구분") || h.includes("신구환")
+    );
+    const cInsType = claimCol(
+      (h) =>
+        h.includes("환자구분") ||
+        h.includes("보험구분") ||
+        h.includes("보험유형") ||
+        h.includes("급여구분") ||
+        h.includes("종별")
+    );
+    const cDetail = claimCol(
+      (h) =>
+        h.includes("환자진료내역") ||
+        h.includes("진료내역") ||
+        h.includes("주소증") ||
+        h.includes("상병") ||
+        h.includes("치료내역") ||
+        h.includes("증상")
+    );
+    const cResv = claimCol(
+      (h) =>
+        h.includes("다음진료예약") ||
+        h.includes("예약안내") ||
+        h.includes("다음예약") ||
+        h.includes("예약유무") ||
+        h.includes("예약여부")
+    );
+    const cFirst = claimCol(
+      (h, sup) => h === "1회" || (sup.includes("초진일") && h.includes("1회")) || h === "초진일"
+    );
+    const cSecond = claimCol(
+      (h, sup) => h === "2회" || (sup.includes("재내원일") && h.includes("2회"))
+    );
+    const cThird = claimCol(
+      (h, sup) => h === "3회" || (sup.includes("재내원일") && h.includes("3회"))
+    );
+    const cRoute = claimCol(
+      (h) => h.includes("내원경로") || h.includes("방문경로") || h.includes("유입경로")
+    );
+    const cNonCovList = claimCol(
+      (h) =>
+        (h.includes("비급여목록") || h.includes("비급여품목") || h.includes("비급여내역")) &&
+        !h.includes("판매건수") &&
+        !h.includes("목록별")
+    );
+    const cNonCovCnt = claimCol(
+      (h) =>
+        h.includes("목록별판매건수") ||
+        h.includes("비급여판매건수") ||
+        h.includes("비급여건수") ||
+        h.includes("판매건수")
+    );
+    const cImmPay = claimCol((h) => h.includes("즉시결제") || h.includes("당일결제"));
+    const cHerbalSum = claimCol(
+      (h) => h.includes("한약월총") || h.includes("처방목적") || (h.includes("한약") && h.includes("건수"))
+    );
+    const cPkgCnt = claimCol((h) => h.includes("패키지건수") || h === "패키지");
+    const cHerbalFollow = claimCol((h) => h.includes("연복") || h.includes("추가결제"));
+    const cPkgRenew = claimCol(
+      (h) => h.includes("종료후연장") || h.includes("패키지복용후") || h.includes("패키지연장")
+    );
+    const cDelayPay = claimCol(
+      (h) => h.includes("1달이내") || h.includes("한달이내") || h.includes("지연결제")
+    );
+
+    // 만약 엑셀에 성별 헤더명이 비어있지만 셀 값들이 "남"/"여"로 기입된 열이 있다면 자동 감지
+    if (cGender === -1) {
+      for (let i = 0; i < maxCols; i++) {
+        if (usedCols.has(i)) continue;
+        const nonEmpty = dataRows
+          .slice(0, 30)
+          .map((row) => cleanStr(row?.[i]))
+          .filter(Boolean);
+        if (nonEmpty.length >= 2) {
+          const genderHits = nonEmpty.filter((v) =>
+            /^(남|여|남자|여자|남성|여성|M|F)$/i.test(v)
+          ).length;
+          if (genderHits / nonEmpty.length >= 0.7) {
+            cGender = i;
+            usedCols.add(i);
+            break;
+          }
+        }
+      }
+    }
+
+    const pick = (r: any[], colIdx: number) => (colIdx >= 0 ? r[colIdx] : undefined);
     const events: ParsedPatientEvent[] = [];
 
     dataRows.forEach((r, idx) => {
-      const rawDate = r[0];
+      const rawDate = pick(r, cDate);
       const parsedDateISO = parseAnyDateToISO(rawDate, refYear);
       if (parsedDateISO) {
         lastForwardFillDateISO = parsedDateISO;
@@ -650,20 +785,23 @@ export function convertRawTableToEvents(
         lastForwardFillLabel = cleanStr(rawDate);
       }
 
-      const { name, inlineAge, inlineGender } = parsePatientNameAndInlineAge(r[1]);
+      const { name, inlineAge, inlineGender } = parsePatientNameAndInlineAge(pick(r, cName));
       if (!name) return;
 
       const finalDateISO = parsedDateISO || lastForwardFillDateISO || effectiveFallbackDate;
-      const firstISO = parseAnyDateToISO(r[7 + o], refYear) || finalDateISO;
-      const secondISO = parseAnyDateToISO(r[8 + o], refYear);
-      const thirdISO = parseAnyDateToISO(r[9 + o], refYear);
+      const firstRaw = pick(r, cFirst);
+      const secondRaw = pick(r, cSecond);
+      const thirdRaw = pick(r, cThird);
 
-      const vTypeNorm = normalizeVisitType(r[3 + o]);
-      const visitTypeVal = vTypeNorm === "재진" ? "" : vTypeNorm || cleanStr(r[3 + o]);
+      const firstISO = parseAnyDateToISO(firstRaw, refYear) || finalDateISO;
+      const secondISO = parseAnyDateToISO(secondRaw, refYear);
+      const thirdISO = parseAnyDateToISO(thirdRaw, refYear);
 
-      const genderVal = hasGenderCol
-        ? parseGenderValue(r[2], r[3], undefined, inlineGender)
-        : parseGenderValue(undefined, r[2], undefined, inlineGender);
+      const vTypeRaw = pick(r, cVisitType);
+      const vTypeNorm = normalizeVisitType(vTypeRaw);
+      const visitTypeVal = vTypeNorm === "재진" ? "" : vTypeNorm;
+
+      const genderVal = parseGenderValue(pick(r, cGender), pick(r, cAge), undefined, inlineGender);
 
       const row: FirstVisitRow = {
         id: `fv_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
@@ -673,32 +811,32 @@ export function convertRawTableToEvents(
         visitDateISO: finalDateISO,
         patientName: name,
         gender: genderVal,
-        age: parseAgeValue(r[2 + o], undefined, refYear) || inlineAge,
+        age: parseAgeValue(pick(r, cAge), undefined, refYear) || inlineAge,
         visitType: visitTypeVal,
-        insuranceType: normalizeInsuranceType(r[4 + o]),
-        treatmentDetail: cleanStr(r[5 + o]),
-        nextReservation: normalizeReservation(r[6 + o]) || cleanStr(r[6 + o]),
-        firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : cleanStr(r[7 + o]),
+        insuranceType: normalizeInsuranceType(pick(r, cInsType)),
+        treatmentDetail: cleanStr(pick(r, cDetail)),
+        nextReservation: normalizeReservation(pick(r, cResv)),
+        firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : cleanStr(firstRaw),
         firstVisitISO: firstISO,
-        secondVisitDate: secondISO ? formatISOToKoreanMD(secondISO) : cleanStr(r[8 + o]),
+        secondVisitDate: secondISO ? formatISOToKoreanMD(secondISO) : "",
         secondVisitISO: secondISO,
-        thirdVisitDate: thirdISO ? formatISOToKoreanMD(thirdISO) : cleanStr(r[9 + o]),
+        thirdVisitDate: thirdISO ? formatISOToKoreanMD(thirdISO) : "",
         thirdVisitISO: thirdISO,
-        visitRoute: cleanStr(r[10 + o]),
-        nonCoveredList: cleanStr(r[11 + o]),
-        nonCoveredCount: cleanStr(r[12 + o]),
-        immediatePaymentCount: cleanStr(r[13 + o]),
-        herbalMonthlySummary: cleanStr(r[14 + o]),
-        packageCount: cleanStr(r[15 + o]),
-        herbalFollowupPayment: cleanStr(r[16 + o]),
-        packageRenewal: cleanStr(r[17 + o]),
-        delayedPaymentWithinMonth: cleanStr(r[18 + o]),
+        visitRoute: cleanStr(pick(r, cRoute)),
+        nonCoveredList: cleanStr(pick(r, cNonCovList)),
+        nonCoveredCount: cleanStr(pick(r, cNonCovCnt)),
+        immediatePaymentCount: cleanStr(pick(r, cImmPay)),
+        herbalMonthlySummary: cleanStr(pick(r, cHerbalSum)),
+        packageCount: cleanStr(pick(r, cPkgCnt)),
+        herbalFollowupPayment: cleanStr(pick(r, cHerbalFollow)),
+        packageRenewal: cleanStr(pick(r, cPkgRenew)),
+        delayedPaymentWithinMonth: cleanStr(pick(r, cDelayPay)),
         sourceFile: extraction.fileName,
         updatedAt: new Date().toISOString(),
       };
 
       events.push({
-        kind: "new_episode",
+        kind: vTypeNorm === "재진" ? "revisit_only" : "new_episode",
         chartNo: "",
         phone: "",
         row,
@@ -1045,13 +1183,68 @@ function daysBetweenISO(isoA: string, isoB: string): number {
  * - 재진 -> 기존 초진/재초진 환자의 2회·3회 재내원일 자동 기입!
  * - 초/재 구분이 아예 없는 파일의 경우 -> 최근 90일 내 초진 기록이 있는 환자면 2회·3회 재내원으로 자동 연결, 없으면 신규 행 추가
  */
+/**
+ * 과거 성별 열 위치 오프셋으로 1칸 밀려 저장된 행을 자동 감지·복구하는 자가 치유 함수
+ */
+export function repairShiftedFirstVisitRows(inputRows: FirstVisitRow[]): FirstVisitRow[] {
+  if (!Array.isArray(inputRows) || inputRows.length === 0) return [];
+  return inputRows.map((r) => {
+    const vt = cleanStr(r.visitType);
+    const ins = cleanStr(r.insuranceType);
+    const det = cleanStr(r.treatmentDetail);
+
+    const isShifted =
+      /^(남|여|남자|여자|M|F)$/i.test(vt) &&
+      /^(초진|재초진|재진)$/.test(ins) &&
+      /^(건보|자보|비급여|산재|일반|)$/.test(det);
+
+    if (!isShifted) return r;
+
+    const refYear = r.visitDateISO ? Number(r.visitDateISO.slice(0, 4)) : Number(getTodayKSTISO().slice(0, 4));
+    const rawFirst = r.secondVisitISO || r.secondVisitDate || r.visitDateISO;
+    const rawSecond = r.thirdVisitISO || r.thirdVisitDate;
+    const rawThirdStr = cleanStr(r.visitRoute);
+    const rawThirdVal = /^\d{5}$/.test(rawThirdStr) ? Number(rawThirdStr) : rawThirdStr;
+
+    const firstISO = parseAnyDateToISO(rawFirst, refYear) || r.visitDateISO;
+    const secondISO = parseAnyDateToISO(rawSecond, refYear);
+    const thirdISO = parseAnyDateToISO(rawThirdVal, refYear);
+
+    const normVt = normalizeVisitType(ins);
+    return {
+      ...r,
+      gender: parseGenderValue(vt) || r.gender || "",
+      visitType: normVt === "재진" ? "" : normVt,
+      insuranceType: normalizeInsuranceType(det),
+      treatmentDetail: cleanStr(r.nextReservation),
+      nextReservation: "",
+      firstVisitISO: firstISO,
+      firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : r.firstVisitDate,
+      secondVisitISO: secondISO,
+      secondVisitDate: secondISO ? formatISOToKoreanMD(secondISO) : "",
+      thirdVisitISO: thirdISO,
+      thirdVisitDate: thirdISO ? formatISOToKoreanMD(thirdISO) : "",
+      visitRoute: cleanStr(r.nonCoveredList),
+      nonCoveredList: cleanStr(r.nonCoveredCount),
+      nonCoveredCount: cleanStr(r.immediatePaymentCount),
+      immediatePaymentCount: cleanStr(r.herbalMonthlySummary),
+      herbalMonthlySummary: cleanStr(r.packageCount),
+      packageCount: cleanStr(r.herbalFollowupPayment),
+      herbalFollowupPayment: cleanStr(r.packageRenewal),
+      packageRenewal: cleanStr(r.delayedPaymentWithinMonth),
+      delayedPaymentWithinMonth: "",
+    };
+  });
+}
+
 export function mergeParsedEventsIntoRows(
   existingRows: FirstVisitRow[],
   events: ParsedPatientEvent[],
   emrDetected: string,
   unmappedColumns: SheetColumnKey[]
 ): MergeUploadResult {
-  const rows: FirstVisitRow[] = existingRows.map((r) => ({ ...r }));
+  const rows: FirstVisitRow[] = repairShiftedFirstVisitRows(existingRows).map((r) => ({ ...r }));
+  const isStandardSheetUpload = emrDetected === "바른 초진 표준시트";
 
   // 날짜순 정렬하여 1회 -> 2회 -> 3회 체이닝이 순서대로 일어나도록 보장
   const sortedEvents = [...events].sort((a, b) => {
@@ -1081,22 +1274,23 @@ export function mergeParsedEventsIntoRows(
     );
 
     if (exactSameIdx !== -1 && ev.kind === "new_episode") {
-      // 기존 행의 비어있는(공란) 컬럼만 안전하게 보완 (수동 입력 데이터 보존)
+      // 표준시트 재업로드 시 변경·추가 기입된 셀 반영 / 일반 EMR은 공란 컬럼만 보완
       const target = rows[exactSameIdx];
       let touched = false;
       for (const col of SHEET_COLUMNS) {
         const k = col.key;
-        if (!cleanStr(target[k]) && cleanStr(incoming[k])) {
+        const incVal = cleanStr(incoming[k]);
+        if (incVal && (isStandardSheetUpload ? cleanStr(target[k]) !== incVal : !cleanStr(target[k]))) {
           target[k] = incoming[k] || "";
           touched = true;
         }
       }
-      if (!target.secondVisitISO && incoming.secondVisitISO) {
+      if (incoming.secondVisitISO && (isStandardSheetUpload || !target.secondVisitISO)) {
         target.secondVisitISO = incoming.secondVisitISO;
         target.secondVisitDate = incoming.secondVisitDate;
         touched = true;
       }
-      if (!target.thirdVisitISO && incoming.thirdVisitISO) {
+      if (incoming.thirdVisitISO && (isStandardSheetUpload || !target.thirdVisitISO)) {
         target.thirdVisitISO = incoming.thirdVisitISO;
         target.thirdVisitDate = incoming.thirdVisitDate;
         touched = true;
@@ -1314,25 +1508,25 @@ export function classifySymptomCategories(detail: string): string[] {
   const cleanedUpper = s.replace(/발등/g, "족배").replace(/발목|손목/g, "관절");
 
   if (
-    /어깨|어꺠|오십견|회전근개|경추|뒷목|거북목|일자목|낙침|승모근|등통증|등결림|등담|흉추|날개뼈|견갑|담결림|담걸림|쇄골|갈비|늑간|(?<![항품과세주])목(?![적록요소리구멍])|^등[\s,/]/.test(
+    /어깨|어꺠|오십견|회전근개|경추|경항|항강|뒷목|거북목|일자목|낙침|승모근|등\s*(?:통증|결림|담|아픔|뻐근)|흉추|날개뼈|견갑|견배|담결림|담걸림|쇄골|갈비|늑간|(?<![항품과세주])목(?![적록요소리구멍])|^등[\s,/]/.test(
       cleanedUpper
     )
   ) {
     matched.push("어깨/목/등/담");
   }
 
-  if (/허리|요통|요추|디스크|협착|골반|엉치|고관절|좌골|옆구리|천장관절/.test(s)) {
+  if (/허리|요통|요추|요각통|디스크|협착|골반|엉치|고관절|좌골|옆구리|천장관절/.test(s)) {
     matched.push("허리/요통");
   }
   if (
-    /무릎|슬관절|슬통|다리|하체|하지|정강이|종아리|허벅지|대퇴|발목|족관절|염좌|접질|삐끗|발바닥|족저|발가락|발등|족배|뒤꿈치|아킬레스|쥐남|(?<![재출다모유폭])발(?![생열진한목등바닥가락])/.test(
+    /무릎|슬관절|슬통|오금|슬와|다리|하체|하지|정강이|종아리|허벅지|대퇴|발목|족관절|염좌|접질|삐끗|발바닥|족저|발가락|발등|족배|뒤꿈치|아킬레스|쥐남|(?<![재출다모유폭])발(?![생열진한목등바닥가락])/.test(
       s
     )
   ) {
     matched.push("무릎/하체/발");
   }
   if (
-    /팔꿈치|엘보|상과염|아래팔|윗팔|전완|상완|손목|손가락|손바닥|손저림|손떨림|수근관|터널|건초염|방아쇠|팔통증|팔저림|(?<![양재])팔(?![월십])|(?<![파훼결손])손(?![실상해님])/.test(
+    /팔꿈치|주관절|엘보|상과염|아래팔|윗팔|전완|상완|손목|완관절|손가락|손바닥|손저림|손떨림|수근관|터널|건초염|방아쇠|팔통증|팔저림|(?<![양재])팔(?![월십])|(?<![파훼결손])손(?![실상해님])/.test(
       s
     )
   ) {
@@ -1342,7 +1536,7 @@ export function classifySymptomCategories(detail: string): string[] {
     matched.push("비염/호흡기");
   }
   if (
-    /다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약상담|소화|체함|체기|식도염|위염|속쓰림|속안좋음|설사|변비|복통|장염|불면|불안|우울|화병|놀람|무기력|기력|피로|기운|어지럼|현훈|이석증|두통|편두통|이명|난청|구안와사|안면|벨마비|턱관절|악관절|소변|절박뇨|전립선|생리|자궁|산후|갱년기|피부|두드러기|가려움|열감|노란끼/.test(
+    /다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약\s*(?:상담|처방)|성장|소화|담적|체함|체기|식도염|역류성|위염|속쓰림|속안좋음|설사|변비|복통|복부|팽만|장염|불면|불안|우울|화병|놀람|무기력|기력|피로|기운|어지럼|현훈|이석증|두통|편두통|이명|난청|구안와사|안면|벨마비|턱관절|악관절|소변|절박뇨|전립선|생리|자궁|산후|갱년기|피부|두드러기|가려움|열감|노란끼/.test(
       s
     )
   ) {
