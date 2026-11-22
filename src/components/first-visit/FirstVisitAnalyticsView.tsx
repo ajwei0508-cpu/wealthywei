@@ -343,8 +343,8 @@ export default function FirstVisitAnalyticsView({
             </div>
           </div>
 
-          {/* 동네 인구 및 통계청 기준 년월 / 6개월 자동 갱신 안내 바 */}
-          <div className="mt-5 pt-5 border-t border-[#EFEFEF] grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+          {/* 동네 인구 및 통계청 기준 안내 바 */}
+          <div className="mt-5 pt-5 border-t border-[#EFEFEF] grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
             <div>
               <span className="text-[#737373] block mb-0.5">적용 배후 지역</span>
               <span className="font-bold text-[#111111]">{demographic.regionName}</span>
@@ -360,15 +360,6 @@ export default function FirstVisitAnalyticsView({
               <span className="font-bold text-[#111111] text-sm flex items-center gap-1">
                 <Calendar size={13} className="text-[#B8924A]" />
                 {demographic.censusBaseDate || "2026년 05월 자료"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[#737373] block mb-0.5">인구 통계 갱신 주기</span>
-              <span className="font-bold text-[#B8924A] text-xs block">
-                6개월 단위 자동 갱신
-              </span>
-              <span className="text-[10px] text-[#737373]">
-                다음 갱신: {demographic.nextUpdateDate || "2026년 11월 예정"}
               </span>
             </div>
             <div>
