@@ -25,7 +25,9 @@ import {
   FirstVisitAnalytics,
   FirstVisitAiReportData,
   MissingDataReport,
+  FirstVisitRow,
 } from "@/types/firstVisit";
+import FirstVisitAnalyticsView from "./FirstVisitAnalyticsView";
 
 interface Props {
   clinicName: string;
@@ -35,6 +37,7 @@ interface Props {
   aiReport: FirstVisitAiReportData | null;
   isGenerating: boolean;
   onGenerateReport: () => void;
+  rows?: FirstVisitRow[];
 }
 
 export default function FirstVisitAiReportView({
@@ -45,6 +48,7 @@ export default function FirstVisitAiReportView({
   aiReport,
   isGenerating,
   onGenerateReport,
+  rows = [],
 }: Props) {
   if (analytics.totalPatients === 0) {
     return (
@@ -88,7 +92,7 @@ export default function FirstVisitAiReportView({
           </div>
           <h2 className="text-xl font-black text-white flex items-center gap-2">
             <FileText size={20} className="text-amber-400" />
-            {clinicName} ({directorName} 원장님) 초진·재내원 AI 심층 분석서
+            {clinicName} ({directorName} 원장님) 초진·재내원 AI 심층 분석 & 7대 경영통계 리포트
           </h2>
           <p className="text-xs text-white/60">
             분석 기간: <strong className="text-emerald-300">{analytics.periodLabel}</strong> · 총{" "}
@@ -159,7 +163,10 @@ export default function FirstVisitAiReportView({
         </div>
       </div>
 
-      {/* === 3번 구글 문서(Doc) 백서 스타일 본문 + 3대 시각 차트 === */}
+      {/* 통계청 인구 비례 7대 경영 통계 분석 통합 섹션 */}
+      <FirstVisitAnalyticsView existingFirstVisitRows={rows} embedded={true} />
+
+      {/* === 3번 구글 문서(Doc) 백서 스타일 본문 + 2대 시각 차트 === */}
       <div className="bg-[#FAFBFD] text-slate-800 rounded-[32px] shadow-2xl border border-slate-200/80 overflow-hidden">
         {/* 문서 상단: 핵심 시각 차트 영역 */}
         <div className="p-6 md:p-10 bg-[#F2F5F8] border-b border-slate-200">

@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/DashboardLayout";
 import FirstVisitAiReportView from "@/components/first-visit/FirstVisitAiReportView";
-import FirstVisitAnalyticsView from "@/components/first-visit/FirstVisitAnalyticsView";
 import {
   FirstVisitRow,
   FirstVisitWorkspace,
@@ -188,7 +187,7 @@ function FirstVisitSystemContent() {
   );
 
   // UI & Filter States
-  const [activeTab, setActiveTab] = useState<"sheet" | "report" | "stats7" | "history">("sheet");
+  const [activeTab, setActiveTab] = useState<"sheet" | "report" | "history">("sheet");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [visitTypeFilter, setVisitTypeFilter] = useState<string>("all");
@@ -1568,28 +1567,12 @@ function FirstVisitSystemContent() {
               }`}
             >
               <Sparkles size={15} />
-              <span>원장님 AI 심층 분석 리포트</span>
+              <span>원장님 AI 심층 분석 & 7대 경영통계</span>
               {workspace?.aiReport && (
                 <span className="px-1.5 py-0.5 text-[10px] rounded bg-black/20 font-extrabold">
                   READY
                 </span>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab("stats7")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                activeTab === "stats7"
-                  ? "bg-white text-[#111111] border border-[#D4AF37] shadow-md"
-                  : "text-white/75 hover:text-white"
-              }`}
-            >
-              <BarChart3 size={15} className={activeTab === "stats7" ? "text-[#0F5132]" : "text-[#D4AF37]"} />
-              <span>인구비례 7대 경영통계</span>
-              <span className="px-1.5 py-0.5 text-[10px] rounded bg-[#D4AF37]/20 text-[#D4AF37] font-extrabold">
-                NEW
-              </span>
             </button>
 
             <button
@@ -1986,11 +1969,7 @@ function FirstVisitSystemContent() {
             aiReport={workspace?.aiReport || null}
             isGenerating={isGeneratingAi}
             onGenerateReport={() => handleGenerateAiReport()}
-          />
-        ) : activeTab === "stats7" ? (
-          <FirstVisitAnalyticsView
-            existingFirstVisitRows={rows}
-            embedded={true}
+            rows={rows}
           />
         ) : (
           /* 업로드 이력 탭 */
