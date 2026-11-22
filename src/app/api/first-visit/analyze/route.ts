@@ -80,8 +80,8 @@ export async function POST(req: NextRequest) {
 - 기간: ${analytics.periodLabel} / 총 ${analytics.totalPatients}명 (초진 ${analytics.firstVisitCount}명, 재초진 ${analytics.reFirstVisitCount}명)
 - 성별: 남성 ${maleCnt}명, 여성 ${femaleCnt}명 (미기입 ${Math.max(0, analytics.totalPatients - maleCnt - femaleCnt)}명)
 - 재내원: 2차 ${analytics.overallSecondVisitRate}% (${analytics.overallSecondVisitCount}명, 권장목표 80%↑), 3차 ${analytics.overallThirdVisitRate}% (${analytics.overallThirdVisitCount}명, 권장목표 70%↑ — 10명 중 타지역·1회성 3명 제외 7명 완주 기준), 다음예약 '유' ${analytics.overallReservationYesRate}% (권장목표 85%↑)
-- 연령별 분포: ${JSON.stringify(analytics.ageDistribution)}
-- 내원경로 분포(기록 ${analytics.recordedRouteCount}명 / 미기재 ${analytics.missingRouteCount}명): ${JSON.stringify(analytics.routeDistribution)}
+- 연령별 분포(권장목표: 65세 미만 80%↑ : 65세 이상 20%↓ 황금비율): ${JSON.stringify(analytics.ageDistribution)}
+- 내원경로 분포(기록 ${analytics.recordedRouteCount}명 / 미기재 ${analytics.missingRouteCount}명, 권장목표: 순수초진 중 소개 70% : 광고·간판·검색·블로그 외부 신규창출 30%): ${JSON.stringify(analytics.routeDistribution)}
 - 주소증 분포: ${JSON.stringify(analytics.symptomDistribution)}
 - 비급여(실장) 기록: 비급여관여 ${analytics.nonCoveredRecordedRows}명, 당일즉시결제 ${immCnt}건, 한약 ${herbalCnt}명(연복 ${followupCnt}명), 패키지 ${pkgCnt}명(연장 ${renewCnt}명), 30일내 지연회수 ${delayCnt}건
 

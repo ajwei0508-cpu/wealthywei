@@ -258,6 +258,12 @@ export function evaluateDualTrackStats(
   let routeOrganicWalk = 0;
   let routeDigital = 0;
 
+  // 순수초진(생애 첫 방문) 전용 내원경로 분리 집계 (재초진 분모 왜곡 원천 차단)
+  let pureFirstRouteRecorded = 0;
+  let pureFirstReferral = 0;
+  let pureFirstWalkIn = 0;
+  let pureFirstDigital = 0;
+
   // --- 비급여(실장) 집계 ---
   let nonCovPatientCount = 0;
   let immediatePayPatients = 0;
@@ -310,9 +316,18 @@ export function evaluateDualTrackStats(
     const rt = clean(r.visitRoute).toLowerCase().replace(/\s+/g, "");
     if (rt) {
       routeRecorded++;
-      if (/소개|지인|가족|추천/.test(rt)) routeReferral++;
-      else if (/간판|지나가|근처|동네|인근|거주|도보/.test(rt)) routeOrganicWalk++;
+      const isRef = /소개|지인|가족|추천/.test(rt);
+      const isWalk = /간판|지나가|근처|동네|인근|거주|도보/.test(rt);
+      if (isRef) routeReferral++;
+      else if (isWalk) routeOrganicWalk++;
       else routeDigital++;
+
+      if (!isReFirstRow) {
+        pureFirstRouteRecorded++;
+        if (isRef) pureFirstReferral++;
+        else if (isWalk) pureFirstWalkIn++;
+        else pureFirstDigital++;
+      }
     }
 
     // 비급여(실장) 판별
@@ -435,10 +450,13 @@ export function evaluateDualTrackStats(
       ? "WARNING"
       : "CRITICAL";
 
-  const organicShare = routeRecorded > 0 ? pct(routeReferral + routeOrganicWalk, routeRecorded) : 0;
-  const referralRate = pct(routeReferral, routeRecorded || safeTotal);
-  const targetReferral = 25;
-  const needReferral = neededCount(routeReferral, routeRecorded || totalPatients, targetReferral);
+  // 정답 방식 ①: 순수초진(생애 첫 방문자) 분리형 [소개 70% : 외부 신규창출(광고·간판·검색·블로그) 30%]
+  const pureRouteDenom = pureFirstRouteRecorded > 0 ? pureFirstRouteRecorded : Math.max(1, pureFirst);
+  const referralRate = pureFirst > 0 ? pct(pureFirstReferral, pureRouteDenom) : 0;
+  const externalSeedCount = pureFirstWalkIn + pureFirstDigital;
+  const externalSeedRate = pureFirstRouteRecorded > 0 ? pct(externalSeedCount, pureFirstRouteRecorded) : 0;
+  const targetReferral = 70;
+  const needReferral = pureFirst > 0 ? neededCount(pureFirstReferral, pureRouteDenom, targetReferral) : 0;
   const mpi =
     demographic.totalPopulation > 0
       ? Number(((pureFirst / demographic.totalPopulation) * 1000).toFixed(2))
@@ -743,42 +761,48 @@ export function evaluateDualTrackStats(
       id: "ins_route_referral",
       track: "insurance",
       order: 8,
-      title: "소개 · 자생 유입률",
-      subMetric: `MPI ${mpi}‰`,
+      title: "순수초진 소개율 (7:3)",
+      subMetric: pureFirstRouteRecorded > 0 ? `신규창출 ${externalSeedRate}%` : `MPI ${mpi}‰`,
       currentValue: referralRate,
-      valueDisplay: routeRecorded === 0 ? "경로 미기입" : `소개 ${referralRate}%`,
+      valueDisplay: pureFirstRouteRecorded === 0 ? "경로 미기입" : `소개 ${referralRate}%`,
       targetValue: targetReferral,
-      targetDisplay: `소개 ${targetReferral}%↑ (자생 55%↑)`,
+      targetDisplay: "목표 소개 70% · 신규 30%",
       gapDisplay:
-        routeRecorded === 0
+        pureFirstRouteRecorded === 0
           ? "경로 체크 필요"
+          : referralRate > 85 && mpi < district.mpiMin
+          ? "외부 신규창출 보강"
           : needReferral === 0
-          ? `자생력 ${organicShare}%`
+          ? `7:3 달성 (+${(referralRate - targetReferral).toFixed(1)}%p)`
           : `소개 ${needReferral}명 부족`,
       status:
-        routeRecorded === 0
+        pureFirstRouteRecorded === 0
           ? "WARNING"
-          : referralRate >= targetReferral && organicShare >= 50
+          : referralRate > 85 && mpi < district.mpiMin
+          ? "WARNING"
+          : referralRate >= targetReferral
           ? "HEALTHY"
-          : referralRate >= 15
+          : referralRate >= 40
           ? "WARNING"
           : "CRITICAL",
       conclusion:
-        routeRecorded === 0
+        pureFirstRouteRecorded === 0
           ? "접수 시 내원경로 단축키 필수 체크"
+          : referralRate > 85 && mpi < district.mpiMin
+          ? "광고·검색 투자로 30% 신규환자 창출"
           : needReferral === 0
-          ? "입소문·자생 유입 포트폴리오 탄탄"
-          : `소개 감사인사 강화 (+${needReferral}명 목표)`,
+          ? "소개 70% : 신규창출 30% 황금구조"
+          : `만족·소개 축적 중 (+${needReferral}명 목표)`,
       modal: {
-        exactCounts: `경로 기록 ${routeRecorded}명 중 소개 ${routeReferral}명(${referralRate}%), 간판·인근 ${routeOrganicWalk}명, 온라인·검색 ${routeDigital}명 | 동네 인구(${demographic.totalPopulation.toLocaleString()}명) 대비 월 침투율 MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`,
+        exactCounts: `순수초진(경로확인) ${pureFirstRouteRecorded}명 중 [지인·가족 소개 ${pureFirstReferral}명(${referralRate}%) : 외부 신규창출 ${externalSeedCount}명(${externalSeedRate}% — 간판·도보 ${pureFirstWalkIn}명 + 광고·검색·블로그 ${pureFirstDigital}명)] ※ 재초진 ${reFirst}명은 분모 왜곡 방지를 위해 별도 분리 | 동네 인구 대비 침투율 MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`,
         benchmarkReason:
-          "Markowitz 포트폴리오 이론 및 NPS 연구상, 소개 환자(25%↑)와 오가닉 유입(55%↑)이 뒷받침되어야 네이버·광고 알고리즘 변동에도 매출이 흔들리지 않습니다.",
+          "Bass 확산 모델(누적 단골 복리 이론)에 따라, 개원 초기·광고 확장기(1~3년)에는 외부 유입 투자로 일시적으로 30~50% 구간이 나타나지만, 3차 정착(70%)과 재초진 단골 자산(Stock)이 5~10년 축적되면 생애 첫 방문자(순수초진)의 70%가 소개로 유입되고 나머지 30%는 광고·블로그·플레이스·간판 투자로 신규 씨앗 환자를 창출하는 '7:3 황금 균형점'에 수렴합니다.",
         riskWarning:
-          "소개율 15% 미만 또는 유료 광고 편중 시 마케팅 비용이 순이익을 잠식하며 초진 이탈률이 급증합니다.",
+          "40% 미만이면 진료 만족도가 구전으로 이어지지 않는 상태이며, 반대로 신환 총수(MPI)가 낮은데 소개만 85%를 넘으면 외부 신규 씨앗(30% 광고·검색 창출) 투자가 멈춰 환자층이 고립·노후화됩니다.",
         actionInstruction:
-          "접수 시 내원경로 기록률을 90% 이상으로 올리고, 소개로 오신 환자와 소개해 주신 기존 환자 모두에게 원장님이 직접 감사 인사를 전하세요.",
+          "소개 환자에게는 원장님 직접 감사 인사로 만족도 복리를 가속하고, 동시에 전체 순수초진의 20~30%는 블로그·플레이스·홈페이지·간판을 통해 새로운 씨앗 환자가 꾸준히 유입되도록 마케팅을 유지하세요.",
         scriptExample:
-          "\"OOO님 소개로 오셨군요! 믿고 소개해 주신 만큼 제가 더 세심하게 진료해 드리겠습니다.\"",
+          "\"OOO님 소개로 오셨군요! 믿고 찾아주신 만큼 3회 치료 원칙으로 확실히 호전시켜 드리겠습니다.\"",
         revenueImpactManwon: gainReferralManwon,
       },
     },
