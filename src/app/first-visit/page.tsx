@@ -258,18 +258,48 @@ function FirstVisitSystemContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, activeTargetEmail, hasMenuAccess]);
 
-  // Derived Analytics & Missing Data Report
-  const missingReport = useMemo(() => computeMissingDataReport(rows), [rows]);
-  const analytics = useMemo(() => computeFirstVisitAnalytics(rows), [rows]);
-
-  const availableMonths = useMemo(() => {
-    const s = new Set<string>();
+  // 월별 선택 옵션 (전체 기간 vs 각 월별 인원)
+  const availableMonthOptions = useMemo(() => {
+    const map = new Map<string, number>();
     rows.forEach((r) => {
       const iso = r.visitDateISO || r.firstVisitISO;
-      if (iso && iso.length >= 7) s.add(iso.slice(0, 7));
+      if (iso && iso.length >= 7) {
+        const ym = iso.slice(0, 7);
+        map.set(ym, (map.get(ym) || 0) + 1);
+      }
     });
-    return Array.from(s).sort();
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([month, count]) => {
+        const [y, m] = month.split("-");
+        return { month, label: `${y}년 ${Number(m)}월`, count };
+      });
   }, [rows]);
+
+  const availableMonths = useMemo(
+    () => availableMonthOptions.map((m) => m.month).sort(),
+    [availableMonthOptions]
+  );
+
+  // 선택된 월이 현재 데이터에 없으면 자동으로 '전체(all)'로 복귀
+  useEffect(() => {
+    if (selectedMonth !== "all" && rows.length > 0 && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth("all");
+    }
+  }, [selectedMonth, availableMonths, rows.length]);
+
+  // 통계 분석용 범위 데이터 (전체 기간 vs 선택된 특정 월)
+  const scopedReportRows = useMemo(() => {
+    if (selectedMonth === "all") return rows;
+    return rows.filter((r) => {
+      const iso = r.visitDateISO || r.firstVisitISO;
+      return iso && iso.startsWith(selectedMonth);
+    });
+  }, [rows, selectedMonth]);
+
+  // Derived Analytics & Missing Data Report (선택 범위 연동)
+  const missingReport = useMemo(() => computeMissingDataReport(scopedReportRows), [scopedReportRows]);
+  const analytics = useMemo(() => computeFirstVisitAnalytics(scopedReportRows), [scopedReportRows]);
 
   // 일자 또는 1회 초진일이 비어있는 행 수
   const blankDateRowCount = useMemo(
@@ -396,20 +426,25 @@ function FirstVisitSystemContent() {
     }
   };
 
-  // Trigger AI Report Generation
+  // Trigger AI Report Generation (전체 또는 현재 선택된 월 기준 분석)
   const handleGenerateAiReport = async (overrideRows?: FirstVisitRow[]) => {
-    const targetRows = overrideRows ?? rows;
+    const isSubset = !overrideRows && selectedMonth !== "all";
+    const targetRows = overrideRows ?? scopedReportRows;
     if (targetRows.length === 0) {
       toast.error("분석할 환자 데이터가 없습니다.");
       return;
     }
     setIsGeneratingAi(true);
-    const toastId = toast.loading("AI가 초진·재내원 데이터와 공란 항목을 심층 분석 중입니다...");
+    const scopeLabel =
+      !overrideRows && selectedMonth !== "all"
+        ? `${availableMonthOptions.find((m) => m.month === selectedMonth)?.label || selectedMonth} `
+        : "";
+    const toastId = toast.loading(`AI가 ${scopeLabel}초진·재내원 데이터를 심층 분석 중입니다...`);
     try {
       const res = await fetch(`/api/first-visit/analyze${buildQuerySuffix()}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: targetRows }),
+        body: JSON.stringify({ rows: targetRows, isFilteredSubset: isSubset }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -418,11 +453,16 @@ function FirstVisitSystemContent() {
       const data = await res.json();
       setWorkspace((prev) =>
         prev
-          ? { ...prev, rows: targetRows, aiReport: data.aiReport, updatedAt: new Date().toISOString() }
+          ? {
+              ...prev,
+              rows: isSubset ? prev.rows : targetRows,
+              aiReport: data.aiReport,
+              updatedAt: new Date().toISOString(),
+            }
           : prev
       );
       setHasUnsavedChanges(false);
-      toast.success("원장님 맞춤형 AI 심층 분석 리포트가 완성되었습니다!", { id: toastId });
+      toast.success(`${scopeLabel}맞춤형 AI 심층 분석이 완성되었습니다!`, { id: toastId });
     } catch (err: any) {
       toast.error(err.message || "AI 분석 실패", { id: toastId });
     } finally {
@@ -1647,6 +1687,29 @@ function FirstVisitSystemContent() {
             </button>
           </div>
 
+          {activeTab === "report" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#07291c] border border-amber-400/40 text-xs font-extrabold text-amber-200">
+                <Calendar size={13} className="text-amber-400 shrink-0" />
+                <span>분석 범위:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent text-white font-black focus:outline-none cursor-pointer"
+                >
+                  <option value="all" className="bg-[#052319] text-white">
+                    전체 기간 ({rows.length}명)
+                  </option>
+                  {availableMonthOptions.map((m) => (
+                    <option key={m.month} value={m.month} className="bg-[#052319] text-white">
+                      {m.label} ({m.count}명)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {activeTab === "sheet" && (
             <div className="flex flex-wrap items-center gap-2">
               {/* 시트 열 보기 스위치: 전체 / 보험(원장) / 비급여(실장) */}
@@ -2031,9 +2094,13 @@ function FirstVisitSystemContent() {
             aiReport={workspace?.aiReport || null}
             isGenerating={isGeneratingAi}
             onGenerateReport={() => handleGenerateAiReport()}
-            rows={rows}
+            rows={scopedReportRows}
             activeTrack={activeAnalysisTrack}
             onTrackChange={setActiveAnalysisTrack}
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
+            availableMonths={availableMonthOptions}
+            totalAllRowsCount={rows.length}
           />
         ) : (
           /* 업로드 이력 탭 */

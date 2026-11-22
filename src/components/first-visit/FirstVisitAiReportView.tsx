@@ -25,7 +25,7 @@ import {
   FirstVisitTrack,
   KeyTakeawaySection,
 } from "@/types/firstVisit";
-import FirstVisitAnalyticsView from "./FirstVisitAnalyticsView";
+import FirstVisitAnalyticsView, { MonthScopeOption } from "./FirstVisitAnalyticsView";
 
 interface Props {
   clinicName: string;
@@ -38,6 +38,10 @@ interface Props {
   rows?: FirstVisitRow[];
   activeTrack?: FirstVisitTrack;
   onTrackChange?: (track: FirstVisitTrack) => void;
+  selectedMonth?: string;
+  onMonthChange?: (month: string) => void;
+  availableMonths?: MonthScopeOption[];
+  totalAllRowsCount?: number;
 }
 
 export default function FirstVisitAiReportView({
@@ -50,6 +54,10 @@ export default function FirstVisitAiReportView({
   rows = [],
   activeTrack: controlledTrack,
   onTrackChange,
+  selectedMonth,
+  onMonthChange,
+  availableMonths,
+  totalAllRowsCount,
 }: Props) {
   const [internalTrack, setInternalTrack] = useState<FirstVisitTrack>("insurance");
   const activeTrack = controlledTrack ?? internalTrack;
@@ -83,6 +91,10 @@ export default function FirstVisitAiReportView({
         embedded={true}
         activeTrack={activeTrack}
         onTrackChange={handleTrackChange}
+        selectedMonth={selectedMonth}
+        onMonthChange={onMonthChange}
+        availableMonths={availableMonths}
+        totalAllRowsCount={totalAllRowsCount}
       />
 
       {/* 2. 심플 AI 핵심 결론 바 (글자 최소화 + ⓘ 아이콘 클릭 시 상세 컨설팅 모달) */}

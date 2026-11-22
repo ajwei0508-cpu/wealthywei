@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Crown,
   RotateCcw,
+  Calendar,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -41,11 +42,21 @@ interface RegionPresetOption {
   seniorRatio: number;
 }
 
+export interface MonthScopeOption {
+  month: string; // "2026-11"
+  label: string; // "2026년 11월"
+  count: number;
+}
+
 interface FirstVisitAnalyticsViewProps {
   existingFirstVisitRows?: FirstVisitRow[];
   embedded?: boolean;
   activeTrack?: FirstVisitTrack;
   onTrackChange?: (track: FirstVisitTrack) => void;
+  selectedMonth?: string;
+  onMonthChange?: (month: string) => void;
+  availableMonths?: MonthScopeOption[];
+  totalAllRowsCount?: number;
 }
 
 type ModalPayload =
@@ -60,6 +71,10 @@ export default function FirstVisitAnalyticsView({
   embedded = false,
   activeTrack: controlledTrack,
   onTrackChange,
+  selectedMonth: controlledMonth,
+  onMonthChange,
+  availableMonths: controlledMonths,
+  totalAllRowsCount,
 }: FirstVisitAnalyticsViewProps) {
   const [internalTrack, setInternalTrack] = useState<FirstVisitTrack>("insurance");
   const track = controlledTrack ?? internalTrack;
@@ -68,6 +83,46 @@ export default function FirstVisitAnalyticsView({
     setInternalTrack(next);
     onTrackChange?.(next);
   };
+
+  const [internalMonth, setInternalMonth] = useState<string>("all");
+  const activeMonth = controlledMonth ?? internalMonth;
+  const handleMonthSelect = (m: string) => {
+    setInternalMonth(m);
+    onMonthChange?.(m);
+  };
+
+  // 단독 사용 시 내부에서 월 목록 및 필터링 자동 처리
+  const derivedMonths = useMemo<MonthScopeOption[]>(() => {
+    if (controlledMonths) return controlledMonths;
+    const map = new Map<string, number>();
+    for (const r of existingFirstVisitRows) {
+      const iso = r.visitDateISO || r.firstVisitISO || "";
+      if (iso.length >= 7) {
+        const ym = iso.slice(0, 7);
+        map.set(ym, (map.get(ym) || 0) + 1);
+      }
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([ym, count]) => {
+        const [y, m] = ym.split("-");
+        return { month: ym, label: `${y}년 ${Number(m)}월`, count };
+      });
+  }, [controlledMonths, existingFirstVisitRows]);
+
+  const scopedRows = useMemo(() => {
+    if (controlledMonths !== undefined) {
+      // 상위(page.tsx)에서 이미 월 필터링된 rows를 전달한 경우 그대로 사용
+      return existingFirstVisitRows;
+    }
+    if (activeMonth === "all") return existingFirstVisitRows;
+    return existingFirstVisitRows.filter((r) => {
+      const iso = r.visitDateISO || r.firstVisitISO || "";
+      return iso.startsWith(activeMonth);
+    });
+  }, [controlledMonths, existingFirstVisitRows, activeMonth]);
+
+  const allCount = totalAllRowsCount ?? existingFirstVisitRows.length;
 
   const [demographic, setDemographic] = useState<DemographicData>(DEFAULT_DEMOGRAPHIC);
   const [presets, setPresets] = useState<RegionPresetOption[]>([]);
@@ -253,10 +308,10 @@ export default function FirstVisitAnalyticsView({
     } catch {}
   };
 
-  // 2트랙 정밀 계산
+  // 2트랙 정밀 계산 (선택된 전체/월별 범위 기준)
   const evaluation = useMemo(
-    () => evaluateDualTrackStats(existingFirstVisitRows, demographic, genderOverride),
-    [existingFirstVisitRows, demographic, genderOverride]
+    () => evaluateDualTrackStats(scopedRows, demographic, genderOverride),
+    [scopedRows, demographic, genderOverride]
   );
 
   const currentSummary = track === "insurance" ? evaluation.insurance : evaluation.nonCovered;
@@ -285,49 +340,69 @@ export default function FirstVisitAnalyticsView({
         {/* 1. 최상단 2대 핵심 메뉴 스위치 [보험(원장)] vs [비급여(실장)] + 컴팩트 주소 검색 */}
         <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 md:p-5 shadow-sm space-y-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
-            {/* 2대 기준 메뉴 */}
-            <div className="inline-flex p-1 rounded-xl bg-[#F2F2F2] border border-[#E5E5E5] self-start">
-              <button
-                type="button"
-                onClick={() => setTrack("insurance")}
-                className={`px-5 py-2.5 rounded-lg text-xs md:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
-                  track === "insurance"
-                    ? "bg-[#0F5132] text-white shadow-sm"
-                    : "text-[#555555] hover:text-[#111111]"
-                }`}
-              >
-                <span>보험 (원장)</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+            {/* 좌측: 2대 기준 메뉴 + 전체/월별 범위 선택 */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="inline-flex p-1 rounded-xl bg-[#F2F2F2] border border-[#E5E5E5]">
+                <button
+                  type="button"
+                  onClick={() => setTrack("insurance")}
+                  className={`px-4 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
                     track === "insurance"
-                      ? "bg-white/20 text-[#F3D899]"
-                      : "bg-black/5 text-[#666666]"
+                      ? "bg-[#0F5132] text-white shadow-sm"
+                      : "text-[#555555] hover:text-[#111111]"
                   }`}
                 >
-                  내원경로까지
-                </span>
-              </button>
+                  <span>보험 (원장)</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+                      track === "insurance"
+                        ? "bg-white/20 text-[#F3D899]"
+                        : "bg-black/5 text-[#666666]"
+                    }`}
+                  >
+                    내원경로까지
+                  </span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setTrack("non_covered")}
-                className={`px-5 py-2.5 rounded-lg text-xs md:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
-                  track === "non_covered"
-                    ? "bg-[#111111] text-[#D4AF37] shadow-sm"
-                    : "text-[#555555] hover:text-[#111111]"
-                }`}
-              >
-                <span>비급여 (실장)</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+                <button
+                  type="button"
+                  onClick={() => setTrack("non_covered")}
+                  className={`px-4 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-black transition-all cursor-pointer flex items-center gap-2 ${
                     track === "non_covered"
-                      ? "bg-[#D4AF37]/20 text-[#D4AF37]"
-                      : "bg-black/5 text-[#666666]"
+                      ? "bg-[#111111] text-[#D4AF37] shadow-sm"
+                      : "text-[#555555] hover:text-[#111111]"
                   }`}
                 >
-                  패키지·한약·결제
-                </span>
-              </button>
+                  <span>비급여 (실장)</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-extrabold ${
+                      track === "non_covered"
+                        ? "bg-[#D4AF37]/20 text-[#D4AF37]"
+                        : "bg-black/5 text-[#666666]"
+                    }`}
+                  >
+                    패키지·한약·결제
+                  </span>
+                </button>
+              </div>
+
+              {/* 통계 기간 스위치: 전체 누적 vs 월별 선택 */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FBF7EE] border border-[#D4AF37]">
+                <Calendar size={13} className="text-[#8C6B2D] shrink-0" />
+                <select
+                  value={activeMonth}
+                  onChange={(e) => handleMonthSelect(e.target.value)}
+                  className="bg-transparent text-xs font-extrabold text-[#111111] focus:outline-none cursor-pointer"
+                  title="전체 누적 또는 월별 통계 선택"
+                >
+                  <option value="all">전체 기간 ({allCount}명)</option>
+                  {derivedMonths.map((m) => (
+                    <option key={m.month} value={m.month}>
+                      {m.label} ({m.count}명)
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* 심플 주소 검색 바 */}
@@ -452,7 +527,11 @@ export default function FirstVisitAnalyticsView({
               {currentSummary.focusMission}
             </p>
             <div className="flex items-center gap-2 text-[11px] text-[#737373]">
-              <span>시트 {existingFirstVisitRows.length}명 자동 연동</span>
+              <span>
+                {activeMonth === "all"
+                  ? `전체 ${scopedRows.length}명 연동`
+                  : `${derivedMonths.find((m) => m.month === activeMonth)?.label || activeMonth} ${scopedRows.length}명 연동`}
+              </span>
               <span>·</span>
               <span className="text-[#B8924A] font-bold">우측 ⓘ 클릭 시 실행 멘트 안내</span>
             </div>
@@ -475,7 +554,7 @@ export default function FirstVisitAnalyticsView({
             </div>
             <div className="my-1.5">
               <span className="text-2xl font-black text-[#111111]">
-                {existingFirstVisitRows.length === 0
+                {scopedRows.length === 0
                   ? "데이터 대기"
                   : currentSummary.potentialMonthlyGainManwon > 0
                   ? `+월 ${currentSummary.potentialMonthlyGainManwon.toLocaleString()}만 원`
@@ -1138,7 +1217,7 @@ export default function FirstVisitAnalyticsView({
                     </p>
                   )}
 
-                  {existingFirstVisitRows.length === 0 ? (
+                  {scopedRows.length === 0 ? (
                     <div className="p-4 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA] text-[#666666] font-bold text-center">
                       환자 시트 데이터가 연동되면 자동 산출됩니다.
                     </div>

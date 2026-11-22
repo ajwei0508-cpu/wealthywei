@@ -172,9 +172,12 @@ export async function POST(req: NextRequest) {
       console.warn("FirstVisit AI Report used deterministic fallback:", aiErr);
     }
 
+    const isFilteredSubset = Boolean(body.isFilteredSubset);
+
+    // 월별 필터 부분 분석인 경우 기존 전체 rows는 절대 덮어쓰지 않고 보존
     const updatedWorkspace = {
       ...existing,
-      rows,
+      rows: isFilteredSubset ? existing.rows : rows,
       aiReport,
       updatedAt: new Date().toISOString(),
     };

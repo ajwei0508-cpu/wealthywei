@@ -796,9 +796,17 @@ export function evaluateDualTrackStats(
   const externalSeedRate = pureFirstRouteRecorded > 0 ? pct(externalSeedCount, pureFirstRouteRecorded) : 0;
   const targetReferral = 70;
   const needReferral = pureFirst > 0 ? neededCount(pureFirstReferral, pureRouteDenom, targetReferral) : 0;
+  const monthSet = new Set<string>();
+  for (const r of rows) {
+    const mIso = clean(r.visitDateISO || r.firstVisitISO);
+    if (mIso.length >= 7) monthSet.add(mIso.slice(0, 7));
+  }
+  const activeMonthSpan = Math.max(1, monthSet.size);
+  const monthlyPureFirst = pureFirst / activeMonthSpan;
+
   const mpi =
     demographic.totalPopulation > 0
-      ? Number(((pureFirst / demographic.totalPopulation) * 1000).toFixed(2))
+      ? Number(((monthlyPureFirst / demographic.totalPopulation) * 1000).toFixed(2))
       : 0;
 
   const insIndicators: DualTrackIndicator[] = [
