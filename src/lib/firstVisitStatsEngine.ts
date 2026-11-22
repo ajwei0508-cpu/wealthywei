@@ -245,6 +245,10 @@ export function evaluateDualTrackStats(
 
   let senior65 = 0;
   let knownAge = 0;
+  let pureFirstKnownAge = 0;
+  let pureFirstSenior65 = 0;
+  let reFirstKnownAge = 0;
+  let reFirstSenior65 = 0;
 
   let recordedMale = 0;
   let recordedFemale = 0;
@@ -285,10 +289,18 @@ export function evaluateDualTrackStats(
       if (has2) resvNo2nd++;
     }
 
+    const isReFirstRow = vt.includes("재초진");
     const ageNum = parseInt(clean(r.age).replace(/[^0-9]/g, ""), 10);
     if (!isNaN(ageNum) && ageNum > 0) {
       knownAge++;
       if (ageNum >= 65) senior65++;
+      if (isReFirstRow) {
+        reFirstKnownAge++;
+        if (ageNum >= 65) reFirstSenior65++;
+      } else {
+        pureFirstKnownAge++;
+        if (ageNum >= 65) pureFirstSenior65++;
+      }
     }
 
     const g = clean(r.gender);
@@ -394,17 +406,23 @@ export function evaluateDualTrackStats(
   const targetReFirst = 30;
   const needReFirst = neededCount(reFirst, totalPatients, targetReFirst);
 
+  const under65Count = Math.max(0, knownAge - senior65);
+  const under65Rate = knownAge > 0 ? pct(under65Count, knownAge) : 0;
   const seniorRate = knownAge > 0 ? pct(senior65, knownAge) : 0;
-  const regSenior = demographic.seniorRatio || 16;
+  const pureFirstSeniorRate = pureFirstKnownAge > 0 ? pct(pureFirstSenior65, pureFirstKnownAge) : 0;
+  const reFirstSeniorRate = reFirstKnownAge > 0 ? pct(reFirstSenior65, reFirstKnownAge) : 0;
+  const regSenior = demographic.seniorRatio || 22.2;
   const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
-  const gdiStatus: RiskLevel =
+  const ageWarningCap = Math.max(30, Number((regSenior * 1.25).toFixed(1))); // 동네 고령화율 반영 상한선
+  const age65Status: RiskLevel =
     knownAge === 0
       ? "EMPTY"
-      : gdi >= 0.8 && gdi <= 1.35
+      : seniorRate <= 20
       ? "HEALTHY"
-      : gdi >= 0.6 && gdi <= 1.65
+      : seniorRate <= ageWarningCap
       ? "WARNING"
       : "CRITICAL";
+  const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, 80) : 0;
 
   const genderSum = effectiveMale + effectiveFemale;
   const femaleRate = genderSum > 0 ? pct(effectiveFemale, genderSum) : 0;
@@ -643,49 +661,88 @@ export function evaluateDualTrackStats(
       },
     },
     {
-      id: "ins_gender_age",
+      id: "ins_age_65_ratio",
       track: "insurance",
       order: 6,
-      title: "성별 · 고령 균형",
-      subMetric: `동네고령 ${regSenior}%`,
-      currentValue: genderSum > 0 ? femaleRate : seniorRate,
-      valueDisplay:
-        genderSum > 0 ? `여 ${femaleRate}%` : knownAge > 0 ? `65세↑ ${seniorRate}%` : "성별 미입력",
+      title: "65세 연령 비율",
+      subMetric: knownAge > 0 ? `65세↑ ${seniorRate}%` : "나이 미기입",
+      currentValue: under65Rate,
+      valueDisplay: knownAge === 0 ? "나이 미기입" : `65세↓ ${under65Rate}%`,
+      targetValue: 80,
+      targetDisplay: "목표 65세↓ 80%↑ (고령 20%↓)",
+      gapDisplay:
+        knownAge === 0
+          ? "나이 입력 필요"
+          : seniorRate <= 20
+          ? `황금비율 (고령 ${seniorRate}%)`
+          : `동네고령 ${regSenior}% · GDI ${gdi}배`,
+      status: age65Status,
+      conclusion:
+        knownAge === 0
+          ? "차트 연령(나이) 항목을 포함하세요"
+          : seniorRate <= 20
+          ? "65세↓ 80% 이상 황금 연령대 유지"
+          : seniorRate <= ageWarningCap
+          ? `2050 청장년 초진 +${needUnder65}명 보강 권장`
+          : "고령 편중 위험 · 젊은 신환 유입 시급",
+      modal: {
+        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
+        benchmarkReason:
+          `2026년 대한민국 전체 65세 이상 인구 비율(22.2%)과 노인외래정액제 내원 빈도 승수 효과(고령 신환 1명이 주 3~4회 내원하여 베드를 3배 점유)를 고려할 때, 초진·재초진 인원 기준 '65세 미만 80% : 65세 이상 20% 이하'가 한의원 활력과 수익성을 지키는 황금 기준점입니다. (단, ${demographic.regionName} 고령화율 ${regSenior}% 특성상 최대 상한 마지노선은 ${ageWarningCap}%로 보정)`,
+        riskWarning:
+          "초진 인원 중 65세 이상이 30%를 넘으면 방문 빈도 승수 효과로 실제 대기실·치료베드 점유율은 65~70%가 고령층으로 채워지며, 경제학 구축 효과(Crowding-Out)로 인해 고부가가치 20~50대 환자가 '어르신 침방'으로 인식해 이탈합니다.",
+        actionInstruction:
+          "순수초진의 65세 이상 비중이 20%를 초과한다면 야간/점심 직장인 추나·약침, 교통사고, 소아·여성·다이어트 키워드 노출을 보강해 20~50대 신환 비율을 80% 선으로 맞추세요.",
+        scriptExample:
+          "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 피로회복 보약도 저녁 진료 시간에 편하게 예약해 주세요.\"",
+        revenueImpactManwon: age65Status === "CRITICAL" ? 120 : age65Status === "WARNING" ? 60 : 0,
+      },
+    },
+    {
+      id: "ins_gender",
+      track: "insurance",
+      order: 7,
+      title: "성별 분포 균형",
+      subMetric: genderSum > 0 ? `남${effectiveMale}·여${effectiveFemale}` : "성별 미입력",
+      currentValue: femaleRate,
+      valueDisplay: genderSum > 0 ? `여 ${femaleRate}%` : "성별 미입력",
       targetValue: 58,
-      targetDisplay: `여 54~66% · GDI 1.0`,
+      targetDisplay: "목표 여 54~66%",
       gapDisplay:
         genderSum === 0
-          ? "성별 입력 필요"
-          : gdi > 0
-          ? `고령지수 ${gdi}배`
-          : `남${effectiveMale}·여${effectiveFemale}`,
-      status: genderSum === 0 ? "WARNING" : genderStatus === "CRITICAL" || gdiStatus === "CRITICAL" ? "CRITICAL" : genderStatus === "WARNING" || gdiStatus === "WARNING" ? "WARNING" : "HEALTHY",
+          ? "하단 입력 가능"
+          : genderStatus === "HEALTHY"
+          ? `동네여성 ${demographic.femaleRatio}%`
+          : femaleRate < 52
+          ? "여성 유입 보강"
+          : "남성 유입 보강",
+      status: genderSum === 0 ? "WARNING" : genderStatus,
       conclusion:
         genderSum === 0
           ? "하단 성별란에 남/여 인원 입력"
-          : gdi > 1.5
-          ? "고령 편중 · 3040 직장인 유입 보강"
-          : femaleRate < 50
-          ? "여성·가족 친화 진료프로그램 보강"
-          : "동네 인구 대비 성별·연령 균형 양호",
+          : femaleRate < 52
+          ? "여성·가족 친화 프로그램 보강"
+          : femaleRate > 72
+          ? "남성 직장인 통증·추나 유입 보강"
+          : "동네 인구 대비 성별 균형 양호",
       isGenderCard: true,
       modal: {
-        exactCounts: `성별: 남성 ${effectiveMale}명 · 여성 ${effectiveFemale}명 (미기입 ${unrecordedGender}명) / 65세↑ 고령: ${senior65}명 (${seniorRate}%, 동네 ${regSenior}% 대비 GDI ${gdi || "-"}배)`,
+        exactCounts: `성별 집계: 남성 ${effectiveMale}명(${genderSum > 0 ? (100 - femaleRate).toFixed(1) : 0}%) · 여성 ${effectiveFemale}명(${femaleRate}%) · 시트 미기입 ${unrecordedGender}명 | 동네 여성 인구비율 ${demographic.femaleRatio}%`,
         benchmarkReason:
-          `${demographic.regionName} 실제 인구(여성 ${demographic.femaleRatio}%, 65세↑ ${regSenior}%) 대비 한의원 적정 여성 비율은 54~66%(가계 의료 결정권자), 고령화 왜곡지수(GDI)는 0.8~1.3배입니다.`,
+          "보건복지부 한방의료이용실태조사 및 가계 의료 의사결정 연구상, 여성 환자 비율이 54~66% 구간일 때 배우자·자녀·부모님으로 이어지는 가족 연쇄 소개율이 극대화됩니다.",
         riskWarning:
-          "GDI가 1.6배를 넘으면 노인 급여 침 위주로 고착되어 객단가가 하락하고, 여성 비율이 50% 미만이면 가족 연쇄 소개 및 비급여 확장성이 크게 떨어집니다.",
+          "여성 비율이 48% 미만이면 단발성 통증 치료에 그쳐 가족 보약·소아·다이어트 등 고단가 비급여 확장성이 크게 떨어집니다.",
         actionInstruction:
-          "차트나 시트에 성별을 기입(또는 카드에서 즉시 입력)하여 동네 인구 구조와 우리 한의원 환자층의 괴리를 상시 점검하세요.",
+          "시트 또는 카드 내 성별 입력란으로 남녀 비율을 관리하고, 파우더룸·프라이빗 베드·여성 특화 상담 등 여성 친화 접점을 점검하세요.",
         scriptExample:
-          "\"어머님 치료 오실 때 따님이나 아드님 거북목·보약 상담도 편하게 같이 말씀해 주세요.\"",
-        revenueImpactManwon: genderStatus !== "HEALTHY" || gdiStatus !== "HEALTHY" ? 80 : 0,
+          "\"환자분 체질에 맞춘 순환·수족냉증 케어도 함께 도와드리고 있으니 불편하신 점 편하게 말씀해 주세요.\"",
+        revenueImpactManwon: genderStatus !== "HEALTHY" ? 60 : 0,
       },
     },
     {
       id: "ins_route_referral",
       track: "insurance",
-      order: 7,
+      order: 8,
       title: "소개 · 자생 유입률",
       subMetric: `MPI ${mpi}‰`,
       currentValue: referralRate,
