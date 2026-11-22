@@ -161,7 +161,10 @@ export default function FirstVisitAnalyticsView({
   };
 
   // 주소 직접 검색 핸들러 (도로명, 지번, 동명 검색 지원)
-  const handleSearchAddress = async (targetQuery?: string) => {
+  const handleSearchAddress = async (
+    targetQuery?: string,
+    extra?: { sido?: string; sigungu?: string; bname?: string }
+  ) => {
     const q = (targetQuery ?? addressQuery).trim();
     if (!q) {
       toast("검색하실 주소나 읍·면·동 이름을 입력해 주세요.");
@@ -171,16 +174,27 @@ export default function FirstVisitAnalyticsView({
     setIsSearchingAddress(true);
     const toastId = toast.loading(`"${q}" 지역 인구수를 조회하고 있습니다...`);
     try {
-      const res = await fetch(`/api/sgis/demographics?query=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error("인구 조회 실패");
-      const data: DemographicData = await res.json();
-      setDemographic(data);
+      const qs = new URLSearchParams({ query: q });
+      if (extra?.sido) qs.set("sido", extra.sido);
+      if (extra?.sigungu) qs.set("sigungu", extra.sigungu);
+      if (extra?.bname) qs.set("bname", extra.bname);
+
+      const res = await fetch(`/api/sgis/demographics?${qs.toString()}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "해당 지역의 인구 통계를 찾을 수 없습니다.");
+      }
+      setDemographic(data as DemographicData);
       if (typeof window !== "undefined") {
         localStorage.setItem("barun_sgis_last_sync", Date.now().toString());
       }
       toast.success(`${data.regionName} 인구 데이터를 반영했습니다.`, { id: toastId });
-    } catch {
-      toast.error("주소 검색 중 오류가 발생했습니다. 도로명이나 동 이름을 다시 확인해 주세요.", { id: toastId });
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "주소 검색 중 오류가 발생했습니다. 도로명이나 동 이름을 다시 확인해 주세요.";
+      toast.error(msg, { id: toastId });
     } finally {
       setIsSearchingAddress(false);
     }
@@ -198,7 +212,11 @@ export default function FirstVisitAnalyticsView({
               data.address ||
               `${data.sido} ${data.sigungu} ${data.bname}`;
             setAddressQuery(addr);
-            handleSearchAddress(addr);
+            handleSearchAddress(addr, {
+              sido: data.sido || "",
+              sigungu: data.sigungu || "",
+              bname: data.bname || data.bname2 || "",
+            });
           },
         }).open();
       }
