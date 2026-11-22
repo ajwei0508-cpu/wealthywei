@@ -46,12 +46,6 @@ export default function FirstVisitAiReportView({
   isGenerating,
   onGenerateReport,
 }: Props) {
-  const [trendMode, setTrendMode] = useState<"monthly" | "daily">(
-    analytics.monthlySummary.length <= 1 && analytics.dailySummary.length > 1
-      ? "daily"
-      : "monthly"
-  );
-
   if (analytics.totalPatients === 0) {
     return (
       <div className="bg-white/5 border border-white/10 rounded-[28px] p-14 text-center space-y-5">
@@ -63,26 +57,11 @@ export default function FirstVisitAiReportView({
         </h3>
         <p className="text-sm text-white/55 max-w-lg mx-auto leading-relaxed">
           상단 업로드 영역에 사용 중이신 차트 프로그램(한차트·오케이차트·한의사랑·동의보감·엑셀 시트 등)의{" "}
-          <strong className="text-amber-300">일일 환자 리스트</strong>를 업로드하시면, 3대 시각 차트와 원장님 맞춤형 AI 심층 리포트가 자동 생성됩니다.
+          <strong className="text-amber-300">일일 환자 리스트</strong>를 업로드하시면, 시각 차트와 원장님 맞춤형 AI 심층 리포트가 자동 생성됩니다.
         </p>
       </div>
     );
   }
-
-  const trendChartData =
-    trendMode === "monthly"
-      ? analytics.monthlySummary.map((m) => ({
-          name: m.month,
-          total_patients: m.totalPatients,
-          secondRate: m.secondVisitRate,
-          thirdRate: m.thirdVisitRate,
-        }))
-      : analytics.dailySummary.map((d) => ({
-          name: d.label,
-          total_patients: d.totalPatients,
-          secondRate: d.secondVisitRate,
-          thirdRate: d.thirdVisitRate,
-        }));
 
   const isOutdated =
     aiReport && aiReport.analyzedRowCount !== analytics.totalPatients;
@@ -182,84 +161,10 @@ export default function FirstVisitAiReportView({
 
       {/* === 3번 구글 문서(Doc) 백서 스타일 본문 + 3대 시각 차트 === */}
       <div className="bg-[#FAFBFD] text-slate-800 rounded-[32px] shadow-2xl border border-slate-200/80 overflow-hidden">
-        {/* 문서 상단: 3대 핵심 차트 영역 (Google Doc 1:1 구성) */}
-        <div className="p-6 md:p-10 space-y-8 bg-[#F2F5F8] border-b border-slate-200">
+        {/* 문서 상단: 핵심 시각 차트 영역 */}
+        <div className="p-6 md:p-10 bg-[#F2F5F8] border-b border-slate-200">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* 차트 1: 월별(또는 일별) 초진/재초진 환자 수 추이 */}
-            <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[15px] font-extrabold text-slate-800">
-                  {trendMode === "monthly"
-                    ? `월별 초진/재초진 환자 수 추이 (${analytics.periodLabel})`
-                    : `일자별 초진/재초진 환자 수 추이 (${analytics.periodLabel})`}
-                </h3>
-                <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setTrendMode("monthly")}
-                    className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                      trendMode === "monthly"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    월별
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTrendMode("daily")}
-                    className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                      trendMode === "daily"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    일별
-                  </button>
-                </div>
-              </div>
-              <div className="h-[290px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={trendChartData} margin={{ top: 18, right: 16, left: -8, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="0" vertical={false} stroke="#CBD5E1" />
-                    <XAxis
-                      dataKey="name"
-                      tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
-                      axisLine={{ stroke: "#334155" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fill: "#475569", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0F172A",
-                        border: "none",
-                        borderRadius: "12px",
-                        color: "#F8FAFC",
-                        fontSize: "12px",
-                      }}
-                      formatter={(val: any, _name: any, item: any) => [
-                        `${val}명 (2차 ${item?.payload?.secondRate ?? 0}% · 3차 ${item?.payload?.thirdRate ?? 0}%)`,
-                        "환자 수",
-                      ]}
-                    />
-                    <Bar dataKey="total_patients" fill="#4675A6" radius={[4, 4, 0, 0]} maxBarSize={68}>
-                      <LabelList
-                        dataKey="total_patients"
-                        position="top"
-                        style={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* 차트 2: 연령대별 환자 수 분포 및 재내원율 */}
+            {/* 차트 1: 연령대별 환자 수 분포 및 재내원율 */}
             <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[15px] font-extrabold text-slate-800">
@@ -314,65 +219,65 @@ export default function FirstVisitAiReportView({
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
 
-          {/* 차트 3: 주요 증상 및 진료 부위별 환자 수 (가로 막대형) */}
-          <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[15px] font-extrabold text-slate-800">
-                주요 증상 및 진료 부위별 환자 수
-              </h3>
-              {analytics.missingSymptomCount > 0 && (
-                <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2.5 py-0.5 rounded-full">
-                  진료내역 공란 {analytics.missingSymptomCount}명
-                </span>
-              )}
-            </div>
-            <div className="h-[290px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={analytics.symptomDistribution}
-                  layout="vertical"
-                  margin={{ top: 8, right: 36, left: 28, bottom: 8 }}
-                >
-                  <CartesianGrid strokeDasharray="0" horizontal={false} stroke="#CBD5E1" />
-                  <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    tick={{ fill: "#475569", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="category"
-                    width={120}
-                    tick={{ fill: "#334155", fontSize: 12, fontWeight: 700 }}
-                    axisLine={{ stroke: "#334155" }}
-                    tickLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#0F172A",
-                      border: "none",
-                      borderRadius: "12px",
-                      color: "#F8FAFC",
-                      fontSize: "12px",
-                    }}
-                    formatter={(val: any, _name: any, item: any) => [
-                      `${val}명 (전체 대비 ${item?.payload?.sharePct ?? 0}%)`,
-                      "환자 수",
-                    ]}
-                  />
-                  <Bar dataKey="count" fill="#559E4C" radius={[0, 4, 4, 0]} barSize={28}>
-                    <LabelList
-                      dataKey="count"
-                      position="right"
-                      style={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
+            {/* 차트 2: 주요 증상 및 진료 부위별 환자 수 (가로 막대형) */}
+            <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[15px] font-extrabold text-slate-800">
+                  주요 증상 및 진료 부위별 환자 수
+                </h3>
+                {analytics.missingSymptomCount > 0 && (
+                  <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2.5 py-0.5 rounded-full">
+                    진료내역 공란 {analytics.missingSymptomCount}명
+                  </span>
+                )}
+              </div>
+              <div className="h-[290px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={analytics.symptomDistribution}
+                    layout="vertical"
+                    margin={{ top: 8, right: 36, left: 28, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="0" horizontal={false} stroke="#CBD5E1" />
+                    <XAxis
+                      type="number"
+                      allowDecimals={false}
+                      tick={{ fill: "#475569", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
                     />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    <YAxis
+                      type="category"
+                      dataKey="category"
+                      width={120}
+                      tick={{ fill: "#334155", fontSize: 12, fontWeight: 700 }}
+                      axisLine={{ stroke: "#334155" }}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0F172A",
+                        border: "none",
+                        borderRadius: "12px",
+                        color: "#F8FAFC",
+                        fontSize: "12px",
+                      }}
+                      formatter={(val: any, _name: any, item: any) => [
+                        `${val}명 (전체 대비 ${item?.payload?.sharePct ?? 0}%)`,
+                        "환자 수",
+                      ]}
+                    />
+                    <Bar dataKey="count" fill="#559E4C" radius={[0, 4, 4, 0]} barSize={28}>
+                      <LabelList
+                        dataKey="count"
+                        position="right"
+                        style={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>
@@ -419,7 +324,7 @@ export default function FirstVisitAiReportView({
                   차트 시각화가 준비되었습니다! 상단 [AI 심층 분석 생성하기] 버튼을 누르시면 원장님 맞춤 Key Takeaways 해설이 작성됩니다.
                 </p>
                 <p className="text-xs text-emerald-800/80">
-                  월별 추이, 연령별 재내원 격차, 내원경로 효율성, 주소증 분포 및 공란 항목 보완 가이드를 한 번에 브리핑해 드립니다.
+                  연령별 재내원 격차, 내원경로 효율성, 주소증 분포 및 공란 항목 보완 가이드를 한 번에 브리핑해 드립니다.
                 </p>
               </div>
               <button
