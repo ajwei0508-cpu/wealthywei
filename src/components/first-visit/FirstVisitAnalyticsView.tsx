@@ -651,7 +651,7 @@ export default function FirstVisitAnalyticsView({
         </div>
 
         {/* 3-B. 보험(원장) 전용: 진료부위별 삼진율(3회 내원율) 강·약점 진단 보드 */}
-        {track === "insurance" && existingFirstVisitRows.length > 0 && (
+        {track === "insurance" && (
           <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-sm space-y-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -677,97 +677,149 @@ export default function FirstVisitAnalyticsView({
             </div>
 
             {evaluation.bodyPartRetention.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                {evaluation.bodyPartRetention.map((part) => {
-                  const isGood = part.thirdRate >= 70;
-                  const isLowSample = !isGood && (part.patients < 2 || part.isConsultOnly);
-                  const isCrit = !isGood && !isLowSample && part.thirdRate < 50;
-
-                  return (
-                    <div
-                      key={part.id}
-                      className={`p-3.5 rounded-xl border transition-all ${
-                        isGood
-                          ? "bg-[#FAFAFA] border-[#E5E5E5]"
-                          : isCrit
-                          ? "bg-white border-[#111111]"
-                          : "bg-white border-[#E6D5B3]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-extrabold text-[#111111] truncate">
-                            {part.label}
-                          </span>
-                          <span className="text-[10px] font-semibold text-[#737373] shrink-0">
-                            {part.patients}명 · 2차 {part.secondRate}%
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-sm font-black text-[#111111]">
-                            {part.thirdRate}%
-                          </span>
-                          <span className="text-[10px] text-[#737373] font-semibold">
-                            ({part.thirdCount}/{part.patients})
-                          </span>
-                          {isGood ? (
-                            <span className="px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
-                              강점
-                            </span>
-                          ) : part.isConsultOnly ? (
-                            <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
-                              첩약군
-                            </span>
-                          ) : part.patients < 2 ? (
-                            <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
-                              표본1명
-                            </span>
-                          ) : isCrit ? (
-                            <span className="px-1.5 py-0.5 rounded bg-[#111111] text-[#D4AF37] text-[10px] font-extrabold">
-                              이탈
-                            </span>
-                          ) : (
-                            <span className="px-1.5 py-0.5 rounded bg-[#FBF7EE] text-[#8C6B2D] text-[10px] font-extrabold">
-                              보완
-                            </span>
-                          )}
+              <>
+                {/* 잘 잡는 질환 vs 놓치는 질환 핵심 1줄 요약 칩 (클릭 시 처방 모달) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <div className="px-3 py-2 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] flex flex-wrap items-center gap-1.5">
+                    <span className="font-extrabold text-[#0F5132] shrink-0">잘 잡는 질환:</span>
+                    {evaluation.bodyPartRetention.filter((p) => p.thirdRate >= 70).length > 0 ? (
+                      evaluation.bodyPartRetention
+                        .filter((p) => p.thirdRate >= 70)
+                        .map((p) => (
                           <button
+                            key={p.id}
                             type="button"
-                            onClick={() => setActiveModal({ kind: "bodyPart", part })}
-                            className="w-5 h-5 rounded-full bg-[#F2F2F2] hover:bg-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center transition-colors cursor-pointer"
-                            title={`${part.label} 삼진율 처방 보기`}
+                            onClick={() => setActiveModal({ kind: "bodyPart", part: p })}
+                            className="px-2 py-0.5 rounded-md bg-white border border-[#C6DFCE] text-[#0F5132] font-extrabold text-[11px] hover:bg-[#0F5132] hover:text-white transition cursor-pointer"
                           >
-                            <Info size={11} />
+                            {p.label} {p.thirdRate}%
                           </button>
+                        ))
+                    ) : (
+                      <span className="text-[#555555] text-[11px] font-semibold">
+                        아직 70%↑ 달성 부위 없음
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="px-3 py-2 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] flex flex-wrap items-center gap-1.5">
+                    <span className="font-extrabold text-[#7A5B1F] shrink-0">놓치는 질환:</span>
+                    {evaluation.bodyPartRetention.filter(
+                      (p) => p.thirdRate < 70 && !p.isConsultOnly
+                    ).length > 0 ? (
+                      evaluation.bodyPartRetention
+                        .filter((p) => p.thirdRate < 70 && !p.isConsultOnly)
+                        .sort((a, b) => a.thirdRate - b.thirdRate)
+                        .map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setActiveModal({ kind: "bodyPart", part: p })}
+                            className="px-2 py-0.5 rounded-md bg-[#111111] text-[#D4AF37] font-extrabold text-[11px] hover:opacity-85 transition cursor-pointer"
+                          >
+                            {p.label} {p.thirdRate}%
+                          </button>
+                        ))
+                    ) : (
+                      <span className="text-[#0F5132] text-[11px] font-extrabold">
+                        전 진료부위 70%↑ 안정 유지
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {evaluation.bodyPartRetention.map((part) => {
+                    const isGood = part.thirdRate >= 70;
+                    const isLowSample = !isGood && (part.patients < 2 || part.isConsultOnly);
+                    const isCrit = !isGood && !isLowSample && part.thirdRate < 50;
+
+                    return (
+                      <div
+                        key={part.id}
+                        className={`p-3.5 rounded-xl border transition-all ${
+                          isGood
+                            ? "bg-[#FAFAFA] border-[#E5E5E5]"
+                            : isCrit
+                            ? "bg-white border-[#111111]"
+                            : "bg-white border-[#E6D5B3]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-extrabold text-[#111111] truncate">
+                              {part.label}
+                            </span>
+                            <span className="text-[10px] font-semibold text-[#737373] shrink-0">
+                              {part.patients}명 · 2차 {part.secondRate}%
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-sm font-black text-[#111111]">
+                              {part.thirdRate}%
+                            </span>
+                            <span className="text-[10px] text-[#737373] font-semibold">
+                              ({part.thirdCount}/{part.patients})
+                            </span>
+                            {isGood ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
+                                강점
+                              </span>
+                            ) : part.isConsultOnly ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
+                                첩약군
+                              </span>
+                            ) : part.patients < 2 ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
+                                표본1명
+                              </span>
+                            ) : isCrit ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#111111] text-[#D4AF37] text-[10px] font-extrabold">
+                                이탈
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-[#FBF7EE] text-[#8C6B2D] text-[10px] font-extrabold">
+                                보완
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setActiveModal({ kind: "bodyPart", part })}
+                              className="w-5 h-5 rounded-full bg-[#F2F2F2] hover:bg-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center transition-colors cursor-pointer"
+                              title={`${part.label} 삼진율 처방 보기`}
+                            >
+                              <Info size={11} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 70% 기준선이 표시된 심플 바 */}
+                        <div className="relative h-1.5 w-full bg-[#EAEAEA] rounded-full overflow-hidden">
+                          <div
+                            className="absolute top-0 bottom-0 w-[1.5px] bg-[#111111]/35 z-10"
+                            style={{ left: "70%" }}
+                            title="기준점 70%"
+                          />
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isGood
+                                ? "bg-[#0F5132]"
+                                : isCrit
+                                ? "bg-[#111111]"
+                                : "bg-[#C5A059]"
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(3, part.thirdRate))}%` }}
+                          />
                         </div>
                       </div>
-
-                      {/* 70% 기준선이 표시된 심플 바 */}
-                      <div className="relative h-1.5 w-full bg-[#EAEAEA] rounded-full overflow-hidden">
-                        <div
-                          className="absolute top-0 bottom-0 w-[1.5px] bg-[#111111]/35 z-10"
-                          style={{ left: "70%" }}
-                          title="기준점 70%"
-                        />
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            isGood
-                              ? "bg-[#0F5132]"
-                              : isCrit
-                              ? "bg-[#111111]"
-                              : "bg-[#C5A059]"
-                          }`}
-                          style={{ width: `${Math.min(100, Math.max(3, part.thirdRate))}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-dashed border-[#D4D4D4] text-xs text-[#666666]">
-                시트의 &apos;환자 진료 내역&apos;란에 통증·질환 부위(예: 허리, 목, 어깨, 발목)를 기입하시면 질환별 삼진율 강·약점이 자동 표시됩니다.
+                시트의 &apos;환자 진료 내역&apos;란에 통증·질환 부위(허리, 목, 어깨, 무릎, 발목, 손목, 소화 등)가 입력되면 잘 잡는 질환과 놓치는 질환이 자동 분류됩니다.
               </div>
             )}
           </div>
