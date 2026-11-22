@@ -351,14 +351,21 @@ export function evaluateDualTrackStats(
 
   // =========================================================================
   // TRACK 1: 보험 (원장) — 내원경로까지 7대 핵심 지표
+  // (10명 중 타지역·1회성 경증 2~3명 제외, 유효 치료군 8명 2차 내원[80%↑] → 7명 3차 완주[70%↑] 기준)
   // =========================================================================
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const recentUnder7DaysCount = rows.filter((r) => {
+    const d = daysBetweenISO(r.firstVisitISO || r.visitDateISO, todayISO);
+    return d !== null && d < 7 && !clean(r.thirdVisitDate);
+  }).length;
+
   const rate2nd = pct(secondCount, safeTotal);
-  const target2nd = 65;
+  const target2nd = 80;
   const need2nd = neededCount(secondCount, totalPatients, target2nd);
   const gain2ndManwon = Math.round(need2nd * 2.5 * 3.5); // 정착 1명당 평균 후속 2.5회 * 3.5만원
 
   const rate3rd = pct(thirdCount, safeTotal);
-  const target3rd = 45;
+  const target3rd = 70;
   const need3rd = neededCount(thirdCount, totalPatients, target3rd);
   const gain3rdManwon = Math.round(need3rd * 3.0 * 3.8);
 
@@ -442,25 +449,25 @@ export function evaluateDualTrackStats(
           ? "EMPTY"
           : rate2nd >= target2nd
           ? "HEALTHY"
-          : rate2nd >= 50
+          : rate2nd >= 65
           ? "WARNING"
           : "CRITICAL",
       conclusion:
         totalPatients === 0
           ? "환자 시트를 업로드하세요"
           : need2nd === 0
-          ? "초진 안착률 우수 유지"
+          ? "초진 80%↑ 안착 달성"
           : `초진 ${need2nd}명 더 2회차 예약 고정`,
       modal: {
         exactCounts: `전체 신환 ${totalPatients}명 중 2회 내원 ${secondCount}명 (${rate2nd}%)`,
         benchmarkReason:
-          "Fred Reichheld 충성도 이론 및 한의 통증 임상 기준상, 초진 환자의 최소 65% 이상이 2회차에 내원해야 라포(신뢰)가 형성되고 치료 효과가 발현됩니다.",
+          "초진 10명 중 타지역 방문·단순 1회성 경증(약 2명, 20%)을 제외한 유효 치료 대상군 8명(80%↑)은 반드시 2회차 반응 확인으로 연결되어야 3차 정착률 70% 달성이 수학적으로 성립합니다 (Musculoskeletal Science & Practice 외래 미재방문 연구 근거).",
         riskWarning:
-          "50% 미만 시 '밑 빠진 독(Leaky Bucket)' 구조에 빠져 매달 광고비로만 신환을 채워야 하며 원장님 피로도가 급증합니다.",
+          "65% 미만 시 초기 치료 대상군마저 1회 시술로 이탈하는 '밑 빠진 독(Leaky Bucket)' 구조가 고착화됩니다.",
         actionInstruction:
-          "초진 진료 마지막 30초에 반드시 '오늘 치료 후 내일 모레 반응 확인이 가장 중요합니다'라고 원장님이 직접 2차 내원일을 못 박아 주세요.",
+          "초진 진료 마지막 30초에 원장님이 직접 '3회 집중 치료 원칙'을 선언하고 2~4일 내 2차 내원일을 확정하세요.",
         scriptExample:
-          "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 경과를 봐야 재발을 막을 수 있어요.\"",
+          "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 합니다.\"",
         revenueImpactManwon: gain2ndManwon,
       },
     },
@@ -485,25 +492,28 @@ export function evaluateDualTrackStats(
           ? "EMPTY"
           : rate3rd >= target3rd
           ? "HEALTHY"
-          : rate3rd >= 32
+          : rate3rd >= 50
           ? "WARNING"
           : "CRITICAL",
       conclusion:
         totalPatients === 0
           ? "환자 시트를 업로드하세요"
           : need3rd === 0
-          ? "주치의 정착 흐름 탄탄"
-          : `2회차에 3회 치료계획 고지 (+${need3rd}명)`,
+          ? "10명 중 7명↑ 3회 완주 달성"
+          : `유효환자 3회 완주 유도 (+${need3rd}명)`,
       modal: {
-        exactCounts: `전체 신환 ${totalPatients}명 중 3회 이상 안착 ${thirdCount}명 (${rate3rd}%)`,
+        exactCounts:
+          recentUnder7DaysCount > 0
+            ? `전체 신환 ${totalPatients}명 중 3회 완주 ${thirdCount}명 (${rate3rd}%) · ※ 최근 7일 이내 내원 진행중 ${recentUnder7DaysCount}명 포함`
+            : `전체 신환 ${totalPatients}명 중 3회 이상 완주 ${thirdCount}명 (${rate3rd}%)`,
         benchmarkReason:
-          "한의원에서 3회차 내원은 단순 '경험 환자'가 '우리 동네 단골 주치의 환자'이자 비급여·소개 전환 풀로 넘어가는 임계점(45%↑)입니다.",
+          "① 외래 재활·근골격 연구(Musculoskeletal Science & Practice)상 타지역·물리적 제약 및 단발성 자가호전 등 구조적 비대상군이 약 25~30%(10명 중 3명)이며, ② 보건복지부 한방의료이용실태조사상 내원객의 74% 이상인 근골격·만성질환군은 침 진통 반감기(24~72시간, Vickers et al. IPD 메타분석)와 치료동맹 형성(Horvath & Symonds)을 위해 나머지 7명(70%↑) 전원이 최소 3회 치료를 완주해야 합니다.",
         riskWarning:
-          "2회차 후 조기 종결이 많으면 통증이 조금만 줄어도 환자가 임의 중단하여 재발 시 타 병원으로 이탈합니다.",
+          "2회차 후 통증이 절반 줄었다고 조기 중단(Self-Discharge)하면 속근육·인대 미회복으로 재발 후 타 병원으로 이탈하며 평판 손실이 발생합니다.",
         actionInstruction:
-          "초진 첫날 '급성기(1회) → 회복기(2회) → 안정기(3회)' 3단계 치료 로드맵을 미리 안내해 조기 이탈을 차단하세요.",
+          "초진 첫날 '1회 급성완화 → 2회 원인교정 → 3회 조직안정화' 3회 치료 원칙을 고지하여 유효 환자 10명 중 7명을 3회차까지 완주시키세요.",
         scriptExample:
-          "\"통증이 절반 줄었을 때 멈추면 금방 다시 뭉칩니다. 다음 3회차까지 속근육을 잡아드려야 마무리됩니다.\"",
+          "\"통증이 절반 줄었을 때 멈추면 금방 재발합니다. 최소 3회차까지는 속근육을 잡아드려야 안전하게 마무리됩니다.\"",
         revenueImpactManwon: gain3rdManwon,
       },
     },
