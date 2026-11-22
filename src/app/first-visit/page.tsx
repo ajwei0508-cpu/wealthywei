@@ -8,6 +8,7 @@ import FirstVisitAiReportView from "@/components/first-visit/FirstVisitAiReportV
 import {
   FirstVisitRow,
   FirstVisitWorkspace,
+  FirstVisitTrack,
   MasterMemberSummary,
   SHEET_COLUMNS,
   SheetColumnKey,
@@ -56,6 +57,7 @@ import toast from "react-hot-toast";
 interface ManualEntryDraft {
   visitDate: string;
   patientName: string;
+  gender: string;
   age: string;
   visitType: string;
   insuranceType: string;
@@ -80,6 +82,7 @@ function createInitialDraft(dateISO: string): ManualEntryDraft {
   return {
     visitDate: label,
     patientName: "",
+    gender: "",
     age: "",
     visitType: "초진",
     insuranceType: "건보",
@@ -114,6 +117,7 @@ function shiftDateISO(iso: string, deltaDays: number): string {
 const SINGLE_WORD_COLUMN_LABEL: Record<SheetColumnKey, string> = {
   visitDate: "일자",
   patientName: "이름",
+  gender: "성별",
   age: "나이",
   visitType: "구분",
   insuranceType: "보험",
@@ -188,6 +192,8 @@ function FirstVisitSystemContent() {
 
   // UI & Filter States
   const [activeTab, setActiveTab] = useState<"sheet" | "report" | "history">("sheet");
+  const [activeAnalysisTrack, setActiveAnalysisTrack] = useState<FirstVisitTrack>("insurance");
+  const [sheetColumnMode, setSheetColumnMode] = useState<"all" | FirstVisitTrack>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [visitTypeFilter, setVisitTypeFilter] = useState<string>("all");
@@ -655,6 +661,7 @@ function FirstVisitSystemContent() {
       visitDate: visitLabel,
       visitDateISO: visitISO,
       patientName: manualDraft.patientName.trim(),
+      gender: manualDraft.gender,
       age: manualDraft.age.trim(),
       visitType: manualDraft.visitType,
       insuranceType: manualDraft.insuranceType,
@@ -710,6 +717,7 @@ function FirstVisitSystemContent() {
       visitDate: todayLabel,
       visitDateISO: todayISO,
       patientName: "",
+      gender: "",
       age: "",
       visitType: "초진",
       insuranceType: "",
@@ -798,6 +806,17 @@ function FirstVisitSystemContent() {
   }
 
   const activeDateLabel = formatISOToKoreanMD(fallbackDateInput || getTodayKSTISO());
+
+  const visibleSheetColumns = SHEET_COLUMNS.filter((c) => {
+    if (sheetColumnMode === "all") return true;
+    if (sheetColumnMode === "insurance") return c.track === "insurance";
+    return (
+      c.key === "visitDate" ||
+      c.key === "patientName" ||
+      c.key === "visitRoute" ||
+      c.track === "non_covered"
+    );
+  });
 
   return (
     <DashboardLayout>
@@ -1121,8 +1140,8 @@ function FirstVisitSystemContent() {
 
           {isManualPanelOpen && (
             <div className="mt-4 pt-4 border-t border-white/10 space-y-3.5">
-              {/* 1줄: 기본 정보 */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {/* 1줄: 보험(원장) 기본 정보 (성별 포함) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-white/60">일자</label>
                   <input
@@ -1162,6 +1181,31 @@ function FirstVisitSystemContent() {
                     placeholder="홍길동"
                     className="w-full px-3 py-2 rounded-xl bg-black/30 border border-white/15 text-xs font-bold text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-400"
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-white/60">성별</label>
+                  <div className="grid grid-cols-2 gap-1 bg-black/30 border border-white/15 rounded-xl p-1">
+                    {(["남", "여"] as const).map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            gender: prev.gender === g ? "" : g,
+                          }))
+                        }
+                        className={`py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                          manualDraft.gender === g
+                            ? "bg-amber-400 text-[#031C13]"
+                            : "text-white/60 hover:text-white"
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -1382,7 +1426,7 @@ function FirstVisitSystemContent() {
                   onClick={() => setIsManualDetailExpanded((p) => !p)}
                   className="text-xs font-semibold text-white/55 hover:text-amber-300 flex items-center gap-1 transition cursor-pointer"
                 >
-                  <span>{isManualDetailExpanded ? "비급여·한약 상세 닫기" : "+ 비급여·한약·패키지 추가 입력"}</span>
+                  <span>{isManualDetailExpanded ? "비급여(실장) 항목 닫기" : "+ 비급여(실장) 항목 입력"}</span>
                   {isManualDetailExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
 
@@ -1541,56 +1585,93 @@ function FirstVisitSystemContent() {
           </div>
         )}
 
-        {/* 6. 메인 탭 전환기 (19열 표준 시트 vs AI 분석 리포트 vs 업로드 이력) */}
+        {/* 6. 메인 탭 전환기: [초진 시트] · [보험(원장)] · [비급여(실장)] · [이력] */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10">
+          <div className="flex flex-wrap items-center gap-1.5 bg-white/5 p-1.5 rounded-2xl border border-white/10">
             <button
               type="button"
               onClick={() => setActiveTab("sheet")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
                 activeTab === "sheet"
                   ? "bg-emerald-500 text-[#031C13] shadow-md"
                   : "text-white/65 hover:text-white"
               }`}
             >
-              <FileSpreadsheet size={15} />
-              <span>초진 표준 정리 시트 ({rows.length}명)</span>
+              <FileSpreadsheet size={14} />
+              <span>초진 시트 ({rows.length})</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setActiveTab("report")}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                activeTab === "report"
-                  ? "bg-amber-400 text-[#031C13] shadow-md"
-                  : "text-white/65 hover:text-white"
+              onClick={() => {
+                setActiveTab("report");
+                setActiveAnalysisTrack("insurance");
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                activeTab === "report" && activeAnalysisTrack === "insurance"
+                  ? "bg-white text-[#0F5132] shadow-md"
+                  : "text-white/75 hover:text-white"
               }`}
             >
-              <Sparkles size={15} />
-              <span>원장님 AI 심층 분석 & 7대 경영통계</span>
-              {workspace?.aiReport && (
-                <span className="px-1.5 py-0.5 text-[10px] rounded bg-black/20 font-extrabold">
-                  READY
-                </span>
-              )}
+              <BarChart3 size={14} />
+              <span>보험 (원장)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("report");
+                setActiveAnalysisTrack("non_covered");
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
+                activeTab === "report" && activeAnalysisTrack === "non_covered"
+                  ? "bg-amber-400 text-[#111111] shadow-md"
+                  : "text-white/75 hover:text-white"
+              }`}
+            >
+              <Sparkles size={14} />
+              <span>비급여 (실장)</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
                 activeTab === "history"
                   ? "bg-white/20 text-white shadow-md"
-                  : "text-white/65 hover:text-white"
+                  : "text-white/55 hover:text-white"
               }`}
             >
-              <History size={15} />
-              <span>업로드 이력 ({uploadLogs.length})</span>
+              <History size={14} />
+              <span>이력 ({uploadLogs.length})</span>
             </button>
           </div>
 
           {activeTab === "sheet" && (
             <div className="flex flex-wrap items-center gap-2">
+              {/* 시트 열 보기 스위치: 전체 / 보험(원장) / 비급여(실장) */}
+              <div className="inline-flex items-center bg-black/30 border border-white/15 rounded-xl p-0.5 text-[11px] font-bold">
+                {(
+                  [
+                    { id: "all", label: "전체열" },
+                    { id: "insurance", label: "보험(원장)" },
+                    { id: "non_covered", label: "비급여(실장)" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSheetColumnMode(m.id)}
+                    className={`px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
+                      sheetColumnMode === m.id
+                        ? "bg-amber-400 text-[#031C13] font-black"
+                        : "text-white/65 hover:text-white"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
               <div className="relative">
                 <Search
                   size={14}
@@ -1710,33 +1791,12 @@ function FirstVisitSystemContent() {
               <>
                 <div className="overflow-x-auto max-h-[68vh]">
                   <table className="w-full border-collapse text-xs">
-                    {/* 2번 구글 시트 100% 동일 2단 병합 헤더 */}
                     <thead className="sticky top-0 z-20">
-                      <tr className="bg-[#02140E] border-b border-white/10 text-[11px] font-black">
-                        <th className="py-2 px-2 bg-[#02140E] sticky left-0 z-30 border-r border-white/10" />
-                        <th colSpan={7} className="py-2 px-3 text-left text-white/40 border-r border-white/10">
-                          기본 초진·진료 정보 (클릭하여 개별 수동 기입 가능 · 해당일 [{activeDateLabel}] 자동 적용)
-                        </th>
-                        <th className="py-2 px-3 text-center bg-emerald-900/60 text-emerald-300 border-r border-white/15">
-                          초진일
-                        </th>
-                        <th
-                          colSpan={2}
-                          className="py-2 px-3 text-center bg-amber-900/50 text-amber-300 border-r border-white/15"
-                        >
-                          재내원일 (수동 기입 또는 후속 명부 업로드 시 자동 기입)
-                        </th>
-                        <th colSpan={9} className="py-2 px-3 text-left text-white/45">
-                          유입 경로 · 비급여 · 한약 · 패키지 결제 추적 (개별 수동 기입 및 저장 가능)
-                        </th>
-                        <th className="py-2 px-2 bg-[#02140E]" />
-                      </tr>
-
                       <tr className="bg-[#083022] border-b border-white/15 text-white/90">
                         <th className="py-3 px-2.5 text-center font-black text-white/45 bg-[#083022] sticky left-0 z-30 border-r border-white/10 min-w-[44px]">
                           No
                         </th>
-                        {SHEET_COLUMNS.map((col) => {
+                        {visibleSheetColumns.map((col) => {
                           const isStickyDate = col.key === "visitDate";
                           const isStickyName = col.key === "patientName";
                           return (
@@ -1748,11 +1808,13 @@ function FirstVisitSystemContent() {
                                 isStickyDate
                                   ? "sticky left-[44px] z-30 bg-[#083022]"
                                   : isStickyName
-                                  ? "sticky left-[140px] z-30 bg-[#083022] shadow-[4px_0_8px_rgba(0,0,0,0.25)]"
+                                  ? "sticky left-[136px] z-30 bg-[#083022] shadow-[4px_0_8px_rgba(0,0,0,0.25)]"
                                   : col.groupHeader === "초진일"
                                   ? "bg-emerald-950/90 text-emerald-200 text-center"
                                   : col.groupHeader === "재내원일"
                                   ? "bg-amber-950/80 text-amber-200 text-center"
+                                  : col.track === "non_covered"
+                                  ? "bg-[#10261E] text-amber-100"
                                   : ""
                               }`}
                             >
@@ -1761,7 +1823,7 @@ function FirstVisitSystemContent() {
                           );
                         })}
                         <th className="py-3 px-2.5 text-center font-bold text-white/60 min-w-[92px]">
-                          개별저장/삭제
+                          저장/삭제
                         </th>
                       </tr>
                     </thead>
@@ -1776,7 +1838,7 @@ function FirstVisitSystemContent() {
                             {idx + 1}
                           </td>
 
-                          {SHEET_COLUMNS.map((col) => {
+                          {visibleSheetColumns.map((col) => {
                             const val = row[col.key] || "";
                             const isBlank = !val.trim();
                             const isStickyDate = col.key === "visitDate";
@@ -1794,7 +1856,7 @@ function FirstVisitSystemContent() {
                                   isStickyDate
                                     ? "sticky left-[44px] z-10 bg-[#052319] group-hover:bg-[#093224]"
                                     : isStickyName
-                                    ? "sticky left-[140px] z-10 bg-[#052319] group-hover:bg-[#093224] shadow-[4px_0_8px_rgba(0,0,0,0.2)]"
+                                    ? "sticky left-[136px] z-10 bg-[#052319] group-hover:bg-[#093224] shadow-[4px_0_8px_rgba(0,0,0,0.2)]"
                                     : col.groupHeader === "초진일"
                                     ? "bg-emerald-950/20"
                                     : col.groupHeader === "재내원일"
@@ -1970,6 +2032,8 @@ function FirstVisitSystemContent() {
             isGenerating={isGeneratingAi}
             onGenerateReport={() => handleGenerateAiReport()}
             rows={rows}
+            activeTrack={activeAnalysisTrack}
+            onTrackChange={setActiveAnalysisTrack}
           />
         ) : (
           /* 업로드 이력 탭 */

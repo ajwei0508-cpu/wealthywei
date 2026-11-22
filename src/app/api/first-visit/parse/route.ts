@@ -48,6 +48,7 @@ ${JSON.stringify(maskedSample, null, 2)}
    - birthOrRrn: 생년월일/주민등록번호 (나이 계산 보조용)
    - visitDate: 진료일/수진일/내원일/접수일/일자 (단, 다음예약일이나 생년월일 제외)
    - patientName: 환자명/수진자명/성명/이름 (담당원장/소개자 제외)
+   - gender: 성별/남녀 구분 열
    - age: 나이/만나이/연령/성별나이
    - visitType: 초진/재초진/재진/신환/구환 구분 열
    - insuranceType: 환자구분/보험유형/급여구분/종별/자격 (건보, 자보, 비급여/일반 등)
@@ -79,6 +80,7 @@ ${JSON.stringify(maskedSample, null, 2)}
     "birthOrRrn": [],
     "visitDate": [],
     "patientName": [],
+    "gender": [],
     "age": [],
     "visitType": [],
     "insuranceType": [],

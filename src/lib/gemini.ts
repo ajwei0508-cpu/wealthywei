@@ -39,7 +39,12 @@ const requestOptions: RequestOptions = {
 };
 
 const model = genAI.getGenerativeModel(
-  { model: "gemini-2.5-flash" },
+  { model: "gemini-3.8-flash" },
+  requestOptions
+);
+
+const deepConsultingModel = genAI.getGenerativeModel(
+  { model: "gemini-4-argon" },
   requestOptions
 );
 
@@ -74,4 +79,4 @@ export async function testGeminiConnection() {
   }
 }
 
-export { genAI, model };
+export { genAI, model, deepConsultingModel };

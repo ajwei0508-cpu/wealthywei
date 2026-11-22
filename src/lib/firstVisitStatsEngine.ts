@@ -1,6 +1,9 @@
 "use client";
 
-import * as XLSX from "xlsx";
+import { getSemiAnnualCensusDates } from "./censusUtils";
+import type { FirstVisitRow, FirstVisitTrack } from "@/types/firstVisit";
+
+export { getSemiAnnualCensusDates };
 
 export interface DemographicData {
   regionCode: string;
@@ -12,118 +15,93 @@ export interface DemographicData {
   seniorPopulation: number;
   seniorRatio: number; // %
   source: "SGIS_LIVE" | "GPS_REGIONAL_PRESET" | "MANUAL";
-  censusBaseDate: string;   // 예: "2026년 05월 자료"
-  nextUpdateDate: string;   // 예: "2026년 11월 예정"
-  updateInterval: string;   // 예: "6개월 주기 자동 갱신"
+  censusBaseDate: string;
+  nextUpdateDate: string;
+  updateInterval: string;
   lastUpdatedIso: string;
-}
-
-/**
- * 통계청 및 주민등록 인구통계 6개월(반기) 공표 주기 계산 함수
- * 상반기: 5월 기준 자료 (11월까지 유효)
- * 하반기: 11월 기준 자료 (익년 5월까지 유효)
- */
-export function getSemiAnnualCensusDates(currentDate = new Date()) {
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 1 ~ 12
-
-  let baseYear = currentYear;
-  let baseMonth = 5;
-  let nextYear = currentYear;
-  let nextMonth = 11;
-
-  if (currentMonth >= 5 && currentMonth < 11) {
-    baseYear = currentYear;
-    baseMonth = 5;
-    nextYear = currentYear;
-    nextMonth = 11;
-  } else if (currentMonth >= 11) {
-    baseYear = currentYear;
-    baseMonth = 11;
-    nextYear = currentYear + 1;
-    nextMonth = 5;
-  } else {
-    // 1 ~ 4월
-    baseYear = currentYear - 1;
-    baseMonth = 11;
-    nextYear = currentYear;
-    nextMonth = 5;
-  }
-
-  const censusBaseDate = `${baseYear}년 ${String(baseMonth).padStart(2, "0")}월 자료`;
-  const nextUpdateDate = `${nextYear}년 ${String(nextMonth).padStart(2, "0")}월 예정`;
-  const updateInterval = "6개월 주기 자동 갱신";
-
-  return { censusBaseDate, nextUpdateDate, updateInterval, lastUpdatedIso: currentDate.toISOString() };
 }
 
 export interface ClinicPatientMetrics {
   totalVisits: number;
-  firstVisits: number;      // 순수 초진
-  reFirstVisits: number;    // 재초진
-  revisits: number;         // 기존 재진
-
-  seniorVisits: number;     // 65세 이상
-  under65Visits: number;    // 65세 미만
-
-  maleVisits: number;       // 남성
-  femaleVisits: number;     // 여성
-
+  firstVisits: number;
+  reFirstVisits: number;
+  revisits: number;
+  seniorVisits: number;
+  under65Visits: number;
+  maleVisits: number;
+  femaleVisits: number;
   acquisitionChannels: {
-    organicWalkIn: number;  // 간판/지나가다/인근거주
-    referral: number;       // 소개/지인/가족
-    digitalSearch: number;  // 네이버/플레이스/블로그/지도
-    socialAd: number;       // SNS/인스타/당근/배너광고
-    other: number;          // 기타
+    organicWalkIn: number;
+    referral: number;
+    digitalSearch: number;
+    socialAd: number;
+    other: number;
   };
-
-  nonReimbursableVisits: number;  // 비급여 진료 건수
-  reimbursableOnlyVisits: number; // 순수 급여 진료 건수
-  referralPatients: number;       // 소개 환자 수 (신환 중)
+  nonReimbursableVisits: number;
+  reimbursableOnlyVisits: number;
+  referralPatients: number;
 }
 
-export interface ParsedExcelSummary {
-  fileName: string;
-  mode: "ROW_LIST" | "SUMMARY_TABLE" | "HANCHART_COMPAT";
-  rowCount: number;
-  detectedColumns: string[];
-  missingFields: string[];
-  metrics: ClinicPatientMetrics;
+export type RiskLevel = "HEALTHY" | "WARNING" | "CRITICAL" | "EMPTY";
+
+export type GrowthTier = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "MASTER";
+
+export interface IndicatorModalDetail {
+  exactCounts: string;           // 실제 분자/분모 집계 내역
+  benchmarkReason: string;       // 왜 이 기준점인가 (이론 + 동네 인구 근거)
+  riskWarning: string;           // 미달 시 경영 위험 상황
+  actionInstruction: string;     // 구체적 행동 지시
+  scriptExample: string;         // 현장 1문장 실전 스크립트
+  revenueImpactManwon: number;   // 목표 도달 시 월 예상 추가 매출(만원)
 }
 
-export type RiskLevel = "HEALTHY" | "WARNING" | "CRITICAL";
-
-export interface IndicatorEvaluation {
+export interface DualTrackIndicator {
   id: string;
+  track: FirstVisitTrack;
   order: number;
-  name: string;
-  shortName: string;
-  currentValue: number;
-  displayValue: string;
-  unit: string;
-  benchmarkRange: string;
-  benchmarkTarget: number;
-  gap: number;
-  gapDisplay: string;
+  title: string;                 // 짧은 지표명 (예: "2차 재내원율")
+  subMetric?: string;            // 초간단 보조 수치 (예: "3차 48%")
+  currentValue: number;          // 차트용 수치 (0~100 정규화 가능)
+  valueDisplay: string;          // 메인 숫자 (예: "68.0%")
+  targetValue: number;           // 차트용 기준치
+  targetDisplay: string;         // 기준점 표기 (예: "목표 65%↑")
+  gapDisplay: string;            // 부족/달성 배지 (예: "달성 +3.0%p" / "2명 부족")
   status: RiskLevel;
-  authorityName: string;
-  authorityTheory: string;
-  riskScenario: string;
-  recommendation: string;
+  conclusion: string;            // 핵심 1줄 결론 (글자 최소화!)
+  isGenderCard?: boolean;        // 보험(원장) 성별 입력란 노출 카드 여부
+  modal: IndicatorModalDetail;   // ⓘ 아이콘 클릭 시 상세 안내
 }
 
-export interface ComprehensiveDiagnosis {
-  evaluatedAt: string;
-  region: DemographicData;
-  marketPenetrationIndex: number;   // (순수초진 / 동네인구) * 1000
-  geriatricDistortionIndex: number; // 원내 65세이상% / 동네 65세이상%
-  genderDistortionIndex: number;    // 원내 여성% / 동네 여성%
-  indicators: IndicatorEvaluation[];
-  overallRiskScore: number;         // 0(최상) ~ 100(위험)
+export interface TrackSummary {
+  track: FirstVisitTrack;
+  label: string;                 // "보험 (원장)" | "비급여 (실장)"
+  score: number;                 // 0 ~ 100점
+  tier: GrowthTier;
+  tierLabel: string;             // 예: "GOLD · 지역강자"
+  nextTierGapText: string;       // 예: "예약 +3명 시 PLATINUM 승급"
+  focusMission: string;          // 이번 주 딱 1가지 핵심 미션 (1줄!)
+  focusMissionReason: string;    // ⓘ 클릭 시 미션 선정 이유 및 가이드
+  potentialMonthlyGainManwon: number; // 목표 도달 시 월 잠재 추가매출 합계(만원)
+  potentialBreakdown: { label: string; gainManwon: number; detail: string }[];
   healthyCount: number;
   warningCount: number;
   criticalCount: number;
-  executiveSummary: string;
+  indicators: DualTrackIndicator[];
+}
+
+export interface DualTrackEvaluation {
+  evaluatedAt: string;
+  districtType: string;          // 상권 유형 (예: "고령 밀착형 상권")
+  districtTip: string;           // 상권 1줄 특성
+  mpi: number;                   // 인구 1,000명당 신환 침투율
+  mpiTargetRange: string;        // 예: "1.8 ~ 3.2명"
+  recordedMale: number;
+  recordedFemale: number;
+  unrecordedGender: number;
+  effectiveMale: number;
+  effectiveFemale: number;
+  insurance: TrackSummary;       // 보험 (원장) — 내원경로까지
+  nonCovered: TrackSummary;      // 비급여 (실장) — 내원경로 이후
 }
 
 const initialCensus = getSemiAnnualCensusDates();
@@ -143,130 +121,6 @@ export const DEFAULT_DEMOGRAPHIC: DemographicData = {
   updateInterval: initialCensus.updateInterval,
   lastUpdatedIso: initialCensus.lastUpdatedIso,
 };
-
-/**
- * 기존 초진 시스템 시트 행(FirstVisitRow[])에서 7대 지표용 환자 메트릭 자동 산출
- */
-export function computeMetricsFromRows(rows: {
-  visitType?: string;
-  age?: string;
-  secondVisitDate?: string;
-  thirdVisitDate?: string;
-  visitRoute?: string;
-  insuranceType?: string;
-  treatmentDetail?: string;
-  nonCoveredList?: string;
-  nonCoveredCount?: string;
-  herbalMonthlySummary?: string;
-  packageCount?: string;
-  [key: string]: any;
-}[]): ClinicPatientMetrics {
-  if (!rows || rows.length === 0) {
-    return DEFAULT_CLINIC_METRICS;
-  }
-
-  let firstVisits = 0;
-  let reFirstVisits = 0;
-  let revisits = 0;
-  let seniorVisits = 0;
-  let under65Visits = 0;
-  let maleVisits = 0;
-  let femaleVisits = 0;
-  let nonReimbursableVisits = 0;
-  let referralPatients = 0;
-
-  const channels = {
-    organicWalkIn: 0,
-    referral: 0,
-    digitalSearch: 0,
-    socialAd: 0,
-    other: 0,
-  };
-
-  for (const r of rows) {
-    const vt = (r.visitType || "").trim();
-    if (vt.includes("재초진")) {
-      reFirstVisits++;
-    } else {
-      firstVisits++;
-    }
-
-    // 2회 / 3회 재내원일 기록 시 재진 내원 건수로 누적
-    if (r.secondVisitDate && r.secondVisitDate.trim()) revisits++;
-    if (r.thirdVisitDate && r.thirdVisitDate.trim()) revisits++;
-
-    // 연령대 분석 (65세 이상 / 미만)
-    const ageNum = parseInt(String(r.age || "").replace(/[^0-9]/g, ""), 10);
-    if (!isNaN(ageNum) && ageNum > 0) {
-      if (ageNum >= 65) seniorVisits++;
-      else under65Visits++;
-    }
-
-    // 성별 분석
-    const rawGender = String(r.gender || r.sex || "").trim();
-    if (/남|M|male/i.test(rawGender)) maleVisits++;
-    else if (/여|F|female/i.test(rawGender)) femaleVisits++;
-
-    // 내원 경로 분석
-    const route = (r.visitRoute || "").toLowerCase().replace(/\s+/g, "");
-    if (/소개|지인|가족|추천/.test(route)) {
-      channels.referral++;
-      referralPatients++;
-    } else if (/네이버|플레이스|블로그|검색|지도|홈페이지|구글|웹|인터넷/.test(route)) {
-      channels.digitalSearch++;
-    } else if (/인스타|스레드|유튜브|맘카페|당근|sns|광고|배너/.test(route)) {
-      channels.socialAd++;
-    } else if (/간판|지나가|근처|동네|인근|거주|도보/.test(route)) {
-      channels.organicWalkIn++;
-    } else if (route) {
-      channels.other++;
-    }
-
-    // 비급여 진료 여부
-    const hasNonCovered =
-      (r.insuranceType || "").includes("비급여") ||
-      Boolean(r.nonCoveredList && r.nonCoveredList.trim()) ||
-      parseInt(String(r.nonCoveredCount || "0").replace(/[^0-9]/g, ""), 10) > 0 ||
-      Boolean(r.herbalMonthlySummary && r.herbalMonthlySummary.trim()) ||
-      parseInt(String(r.packageCount || "0").replace(/[^0-9]/g, ""), 10) > 0 ||
-      (r.treatmentDetail || "").includes("비급여") ||
-      (r.treatmentDetail || "").includes("한약") ||
-      (r.treatmentDetail || "").includes("약침");
-
-    if (hasNonCovered) nonReimbursableVisits++;
-  }
-
-  const totalVisits = Math.max(1, firstVisits + reFirstVisits + revisits);
-
-  // 성별 컬럼이 없는 경우 기본 통계 비율(48:52)로 자연스럽게 배분
-  if (maleVisits === 0 && femaleVisits === 0) {
-    femaleVisits = Math.round(totalVisits * 0.52);
-    maleVisits = Math.max(0, totalVisits - femaleVisits);
-  }
-
-  // 나이 미기재 분이 있는 경우 under65 보정
-  if (under65Visits === 0 && seniorVisits === 0) {
-    seniorVisits = Math.round(totalVisits * 0.18);
-    under65Visits = Math.max(0, totalVisits - seniorVisits);
-  } else if (under65Visits === 0 && seniorVisits < rows.length) {
-    under65Visits = Math.max(0, rows.length - seniorVisits);
-  }
-
-  return {
-    totalVisits,
-    firstVisits,
-    reFirstVisits,
-    revisits,
-    seniorVisits,
-    under65Visits,
-    maleVisits,
-    femaleVisits,
-    acquisitionChannels: channels,
-    nonReimbursableVisits,
-    reimbursableOnlyVisits: Math.max(0, totalVisits - nonReimbursableVisits),
-    referralPatients,
-  };
-}
 
 export const DEFAULT_CLINIC_METRICS: ClinicPatientMetrics = {
   totalVisits: 850,
@@ -289,831 +143,1024 @@ export const DEFAULT_CLINIC_METRICS: ClinicPatientMetrics = {
   referralPatients: 48,
 };
 
-function cleanStr(val: unknown): string {
-  return String(val ?? "").trim();
+function clean(v: unknown): string {
+  return v === null || v === undefined ? "" : String(v).trim();
 }
 
-function normKey(val: unknown): string {
-  return String(val ?? "")
-    .toLowerCase()
-    .replace(/[\s_\-\(\)\[\]\/\.]/g, "");
+function extractPositiveCount(v: unknown): number {
+  const s = clean(v);
+  if (!s) return 0;
+  const compact = s.replace(/\s+/g, "").toUpperCase();
+  if (/^(무|없음|X|N|NO|0|0건|미결제|거절|보류)$/.test(compact)) return 0;
+  if (/^(유|예|O|Y|YES|완료|결제|연복|연장)$/.test(compact)) return 1;
+  // 예: "다이어트2 보약1" -> 숫자 합산 3, 일반 텍스트(예: "홍길동 다이어트 결제") -> 1
+  const nums = [...s.matchAll(/\d+/g)].map((m) => Number(m[0])).filter((n) => n > 0 && n < 100);
+  if (nums.length > 0 && s.length <= 20 && !/\d{4}/.test(s)) {
+    return nums.reduce((a, b) => a + b, 0);
+  }
+  return 1;
 }
 
-function parseNum(val: unknown): number {
-  if (typeof val === "number") return isNaN(val) ? 0 : val;
-  const cleaned = String(val ?? "").replace(/[^0-9.\-]/g, "");
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? 0 : n;
+function isAffirmative(v: unknown): boolean {
+  return extractPositiveCount(v) > 0;
 }
 
-/**
- * 생년월일/주민번호/나이 문자열에서 만 나이 추정
- */
-function inferAge(val: unknown): number | null {
-  if (val === null || val === undefined || val === "") return null;
-  if (typeof val === "number") {
-    if (val > 0 && val <= 120) return Math.floor(val);
-    if (val >= 1900 && val <= 2026) return new Date().getFullYear() - Math.floor(val);
-    // YYYYMMDD
-    if (val >= 19000101 && val <= 20261231) {
-      const y = Math.floor(val / 10000);
-      return new Date().getFullYear() - y;
-    }
-    return null;
-  }
+function daysBetweenISO(iso1?: string, iso2?: string): number | null {
+  if (!iso1 || !iso2) return null;
+  const d1 = new Date(iso1);
+  const d2 = new Date(iso2);
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+  const diff = Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0 || diff > 60) return null;
+  return diff;
+}
 
-  const s = String(val).trim();
-  // 예: "67세", "만 42세", "45"
-  const simpleAge = s.match(/^(?:만\s*)?(\d{1,3})\s*세?$/);
-  if (simpleAge) {
-    const a = parseInt(simpleAge[1], 10);
-    if (a >= 0 && a <= 120) return a;
-  }
-
-  // 예: "1958-04-12", "1958.04.12", "19580412"
-  const fullYear = s.match(/(19\d{2}|20\d{2})[-./]?\d{1,2}[-./]?\d{1,2}/);
-  if (fullYear) {
-    return new Date().getFullYear() - parseInt(fullYear[1], 10);
-  }
-
-  // 예: 주민번호 "580412-1******" 또는 "580412"
-  const rrn = s.match(/^(\d{2})(\d{2})(\d{2})(?:[-\s]?(\d))?/);
-  if (rrn) {
-    const yy = parseInt(rrn[1], 10);
-    const genderDigit = rrn[4] ? parseInt(rrn[4], 10) : null;
-    const currentYear = new Date().getFullYear();
-    let birthYear: number;
-    if (genderDigit === 1 || genderDigit === 2 || genderDigit === 5 || genderDigit === 6) {
-      birthYear = 1900 + yy;
-    } else if (genderDigit === 3 || genderDigit === 4 || genderDigit === 7 || genderDigit === 8) {
-      birthYear = 2000 + yy;
-    } else {
-      birthYear = yy <= currentYear % 100 ? 2000 + yy : 1900 + yy;
-    }
-    const age = currentYear - birthYear;
-    if (age >= 0 && age <= 120) return age;
-  }
-
-  return null;
+function scoreToTier(score: number): { tier: GrowthTier; label: string; nextTier: string; nextCut: number } {
+  if (score >= 92) return { tier: "MASTER", label: "MASTER · 상위 1%", nextTier: "최고 등급 달성", nextCut: 100 };
+  if (score >= 80) return { tier: "PLATINUM", label: "PLATINUM · 상권 1위", nextTier: "MASTER", nextCut: 92 };
+  if (score >= 65) return { tier: "GOLD", label: "GOLD · 지역강자", nextTier: "PLATINUM", nextCut: 80 };
+  if (score >= 48) return { tier: "SILVER", label: "SILVER · 안정궤도", nextTier: "GOLD", nextCut: 65 };
+  return { tier: "BRONZE", label: "BRONZE · 기반구축", nextTier: "SILVER", nextCut: 48 };
 }
 
 /**
- * 성별 문자열 또는 주민번호 뒷자리에서 성별 판별
+ * 상권 자동 분류 (전국 3,905개 읍·면·동 실제 인구 연동)
  */
-function inferGender(genderVal: unknown, rrnVal?: unknown): "M" | "F" | null {
-  const g = cleanStr(genderVal).toUpperCase();
-  if (g) {
-    if (g.includes("여") || g === "F" || g === "FEMALE" || g === "W" || g === "2" || g === "4") {
-      return "F";
-    }
-    if (g.includes("남") || g === "M" || g === "MALE" || g === "1" || g === "3") {
-      return "M";
-    }
-  }
-  if (rrnVal) {
-    const r = cleanStr(rrnVal);
-    const m = r.match(/^\d{6}[-\s]?(\d)/);
-    if (m) {
-      const digit = parseInt(m[1], 10);
-      if ([1, 3, 5, 7].includes(digit)) return "M";
-      if ([2, 4, 6, 8].includes(digit)) return "F";
-    }
-  }
-  return null;
-}
-
-/**
- * 내원 경로 문자열 자동 분류
- */
-function classifyChannel(raw: string): keyof ClinicPatientMetrics["acquisitionChannels"] {
-  const s = raw.toLowerCase().replace(/\s+/g, "");
-  if (!s) return "other";
-  if (/소개|지인|가족|친구|추천|부모|배우자|동료|원장/.test(s)) return "referral";
-  if (/네이버|플레이스|블로그|검색|지도|카페|웹|홈페이지|인터넷|포털|구글|다음|카카오맵/.test(s)) return "digitalSearch";
-  if (/인스타|유튜브|당근|sns|광고|배너|페이스북|틱톡|파워링크|전단|현수막/.test(s)) return "socialAd";
-  if (/간판|지나가|근처|동네|거주|도보|건물|인근|가까|직접|방문|오프라인/.test(s)) return "organicWalkIn";
-  return "other";
-}
-
-/**
- * 엑셀 통계표 (.xlsx, .xls, .csv) 지능형 자동 파싱
- * - 모드 1: 환자별 내원 명단 (행 단위 로우 데이터)
- * - 모드 2: 요약 통계표 (항목명 + 수치 형태)
- * - 모드 3: 기존 바른컨설팅 한차트 통계표 호환 ("초진(120)" 등)
- */
-export async function parseFirstVisitExcel(file: File): Promise<ParsedExcelSummary> {
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
-    throw new Error("엑셀 파일에 유효한 시트가 없습니다.");
-  }
-
-  const sheet = workbook.Sheets[firstSheetName];
-  const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const nonEmptyRows = rawRows.filter((row) =>
-    Array.isArray(row) && row.some((cell) => cleanStr(cell) !== "")
-  );
-
-  if (nonEmptyRows.length === 0) {
-    throw new Error("엑셀 파일에 데이터가 비어 있습니다.");
-  }
-
-  // 1) 헤더 행 탐색 (상위 15행 중 가장 많은 키워드가 매칭되는 행)
-  const headerKeywords = [
-    "초재진", "초진", "재진", "구분", "진료구분", "내원구분", "방문구분",
-    "성별", "남녀", "나이", "연령", "생년월일", "주민",
-    "내원경로", "방문경로", "유입경로", "인지경로", "경로",
-    "비급여", "비보험", "소개", "추천", "환자", "차트"
-  ];
-
-  let headerIdx = -1;
-  let bestScore = 0;
-  for (let i = 0; i < Math.min(15, nonEmptyRows.length); i++) {
-    const row = nonEmptyRows[i];
-    let score = 0;
-    for (const cell of row) {
-      const k = normKey(cell);
-      if (!k) continue;
-      if (headerKeywords.some((kw) => k.includes(kw))) score++;
-    }
-    if (score > bestScore) {
-      bestScore = score;
-      headerIdx = i;
-    }
-  }
-
-  // 컬럼 인덱스 매핑
-  const colIdx = {
-    visitType: -1,
-    age: -1,
-    birthOrRrn: -1,
-    gender: -1,
-    channel: -1,
-    nonReim: -1,
-    nonReimFlag: -1,
-    referral: -1,
-  };
-
-  const detectedColumns: string[] = [];
-
-  if (headerIdx !== -1 && bestScore >= 2) {
-    const headers = nonEmptyRows[headerIdx];
-    headers.forEach((cell, idx) => {
-      const orig = cleanStr(cell);
-      const k = normKey(cell);
-      if (!k) return;
-
-      if (colIdx.visitType === -1 && /초재진|초진구분|초진여부|진료구분|내원구분|방문구분|구분|종별/.test(k)) {
-        colIdx.visitType = idx;
-        detectedColumns.push(`초/재진(${orig})`);
-      } else if (colIdx.age === -1 && /^(만)?(나이|연령|age)$|나이|연령/.test(k)) {
-        colIdx.age = idx;
-        detectedColumns.push(`연령(${orig})`);
-      } else if (colIdx.birthOrRrn === -1 && /생년월일|주민|출생|birth/.test(k)) {
-        colIdx.birthOrRrn = idx;
-        detectedColumns.push(`생년월일(${orig})`);
-      } else if (colIdx.gender === -1 && /성별|남녀|gender|sex/.test(k)) {
-        colIdx.gender = idx;
-        detectedColumns.push(`성별(${orig})`);
-      } else if (colIdx.channel === -1 && /내원경로|방문경로|유입경로|인지경로|알게된|경로|channel|source/.test(k)) {
-        colIdx.channel = idx;
-        detectedColumns.push(`내원경로(${orig})`);
-      } else if (colIdx.nonReimFlag === -1 && /비급여여부|비보험여부|급여구분|진료유형/.test(k)) {
-        colIdx.nonReimFlag = idx;
-        detectedColumns.push(`비급여여부(${orig})`);
-      } else if (colIdx.nonReim === -1 && /비급여|비보험|비과세|과세|일반수가|한약|비급여액/.test(k)) {
-        colIdx.nonReim = idx;
-        detectedColumns.push(`비급여(${orig})`);
-      } else if (colIdx.referral === -1 && /소개|추천인|지인/.test(k)) {
-        colIdx.referral = idx;
-        detectedColumns.push(`소개(${orig})`);
-      }
-    });
-  }
-
-  // 한차트 매출 통계표 호환 감지 ("초진(120)" 같은 패턴이 열에 존재할 때)
-  const isHanchartPattern = nonEmptyRows.some((row) =>
-    row.some((cell) => /^(초진|재진|신환|재초진)\s*\(\s*\d+\s*\)/.test(cleanStr(cell)))
-  );
-
-  if (isHanchartPattern) {
-    let firstVisits = 0;
-    let reFirstVisits = 0;
-    let revisits = 0;
-    let totalVisits = 0;
-    let nonReimRevenue = 0;
-    let totalRevenue = 0;
-
-    for (const row of nonEmptyRows) {
-      const typeCell = row.find((c) => /^(초진|재진|신환|재초진)\s*\(\s*\d+\s*\)/.test(cleanStr(c)));
-      if (!typeCell) continue;
-      const typeStr = cleanStr(typeCell);
-      const countMatch = typeStr.match(/\(\s*(\d+)\s*\)/);
-      const cnt = countMatch ? parseInt(countMatch[1], 10) : 0;
-      totalVisits += cnt;
-      if (typeStr.startsWith("재초진")) reFirstVisits += cnt;
-      else if (typeStr.startsWith("초진") || typeStr.startsWith("신환")) firstVisits += cnt;
-      else revisits += cnt;
-
-      // 금액 추정 (비과세/과세/총매출)
-      const nums = row.map(parseNum).filter((n) => n > 1000);
-      if (nums.length >= 2) {
-        nonReimRevenue += nums[0];
-        totalRevenue += Math.max(...nums);
-      }
-    }
-
-    const nonReimRatioEst = totalRevenue > 0 ? Math.min(0.85, nonReimRevenue / totalRevenue) : 0.25;
-    const nonReimbursableVisits = Math.round(totalVisits * nonReimRatioEst);
-
+function classifyDistrict(demo: DemographicData) {
+  const sr = demo.seniorRatio || 16;
+  if (sr >= 22) {
     return {
-      fileName: file.name,
-      mode: "HANCHART_COMPAT",
-      rowCount: nonEmptyRows.length,
-      detectedColumns: ["한차트 초/재진 집계표 자동 호환"],
-      missingFields: ["연령(65세 이상)", "성별(남/여)", "내원경로", "소개환자"],
-      metrics: {
-        totalVisits: totalVisits || 1,
-        firstVisits,
-        reFirstVisits,
-        revisits,
-        seniorVisits: Math.round(totalVisits * 0.2),
-        under65Visits: Math.max(0, totalVisits - Math.round(totalVisits * 0.2)),
-        maleVisits: Math.round(totalVisits * 0.42),
-        femaleVisits: Math.max(0, totalVisits - Math.round(totalVisits * 0.42)),
-        acquisitionChannels: {
-          organicWalkIn: Math.round((firstVisits + reFirstVisits) * 0.35),
-          referral: Math.round((firstVisits + reFirstVisits) * 0.25),
-          digitalSearch: Math.round((firstVisits + reFirstVisits) * 0.3),
-          socialAd: Math.round((firstVisits + reFirstVisits) * 0.1),
-          other: 0,
-        },
-        nonReimbursableVisits,
-        reimbursableOnlyVisits: Math.max(0, totalVisits - nonReimbursableVisits),
-        referralPatients: Math.round((firstVisits + reFirstVisits) * 0.25),
-      },
+      type: "고령 밀착형 상권",
+      tip: `65세↑ 고령 비율(${sr}%)이 높아 급여 신뢰 후 약침·관절보약 연계가 유리합니다.`,
+      mpiMin: 2.0,
+      mpiMax: 3.5,
+      nonCovTarget: 32,
+      herbalTarget: 18,
     };
   }
-
-  // 모드 1: 환자별 로우 리스트 파싱 (데이터 행이 충분하고 핵심 컬럼이 2개 이상 감지된 경우)
-  const dataRows = headerIdx >= 0 ? nonEmptyRows.slice(headerIdx + 1) : [];
-  const hasRowListStructure =
-    headerIdx >= 0 &&
-    dataRows.length >= 2 &&
-    (colIdx.visitType !== -1 || colIdx.age !== -1 || colIdx.gender !== -1 || colIdx.channel !== -1);
-
-  if (hasRowListStructure) {
-    let totalVisits = 0;
-    let firstVisits = 0;
-    let reFirstVisits = 0;
-    let revisits = 0;
-    let seniorVisits = 0;
-    let under65Visits = 0;
-    let maleVisits = 0;
-    let femaleVisits = 0;
-    let nonReimbursableVisits = 0;
-    let referralPatients = 0;
-
-    const channels = {
-      organicWalkIn: 0,
-      referral: 0,
-      digitalSearch: 0,
-      socialAd: 0,
-      other: 0,
-    };
-
-    for (const row of dataRows) {
-      // 합계/소계 행 제외
-      const joined = row.map(cleanStr).join(" ");
-      if (!joined.trim() || /^(합계|총계|소계|평균|total|sum)/i.test(cleanStr(row[0]))) continue;
-
-      totalVisits++;
-
-      // 1) 초진 / 재초진 / 재진 분류
-      let isNewRow = false;
-      if (colIdx.visitType !== -1) {
-        const vt = cleanStr(row[colIdx.visitType]);
-        if (/재초진|재신환|신초/.test(vt)) {
-          reFirstVisits++;
-          isNewRow = true;
-        } else if (/초진|신환|신규|new/i.test(vt)) {
-          firstVisits++;
-          isNewRow = true;
-        } else if (/재진|구환|계속|revisit/i.test(vt)) {
-          revisits++;
-        } else {
-          revisits++;
-        }
-      }
-
-      // 2) 연령 (65세 이상 / 이하)
-      const ageVal =
-        colIdx.age !== -1
-          ? inferAge(row[colIdx.age])
-          : colIdx.birthOrRrn !== -1
-          ? inferAge(row[colIdx.birthOrRrn])
-          : null;
-      if (ageVal !== null) {
-        if (ageVal >= 65) seniorVisits++;
-        else under65Visits++;
-      }
-
-      // 3) 성별 (남 / 여)
-      const g = inferGender(
-        colIdx.gender !== -1 ? row[colIdx.gender] : "",
-        colIdx.birthOrRrn !== -1 ? row[colIdx.birthOrRrn] : ""
-      );
-      if (g === "M") maleVisits++;
-      else if (g === "F") femaleVisits++;
-
-      // 4) 내원 경로 & 6) 소개 환자
-      let countedAsReferral = false;
-      if (colIdx.channel !== -1) {
-        const chRaw = cleanStr(row[colIdx.channel]);
-        if (chRaw) {
-          const chKey = classifyChannel(chRaw);
-          channels[chKey]++;
-          if (chKey === "referral") {
-            countedAsReferral = true;
-          }
-        }
-      }
-
-      if (colIdx.referral !== -1) {
-        const refVal = cleanStr(row[colIdx.referral]);
-        if (refVal && !/^(n|no|x|없음|무|0|-|미해당|해당없음)$/i.test(refVal)) {
-          if (!countedAsReferral) {
-            channels.referral++;
-            countedAsReferral = true;
-          }
-        }
-      }
-
-      if (countedAsReferral) {
-        referralPatients++;
-      } else if (isNewRow && colIdx.channel === -1 && colIdx.referral === -1) {
-        // 경로/소개 컬럼 자체가 없는 경우는 missingFields로 안내
-      }
-
-      // 5) 비급여 여부
-      let isNonReim = false;
-      if (colIdx.nonReimFlag !== -1) {
-        const nf = cleanStr(row[colIdx.nonReimFlag]);
-        if (/비급여|비보험|일반|y|o|yes|유|1|해당|한약|도수|약침/i.test(nf) && !/^(순수)?급여$|^(n|no|x|없음|무|0)$/i.test(nf)) {
-          isNonReim = true;
-        }
-      }
-      if (!isNonReim && colIdx.nonReim !== -1) {
-        const nv = row[colIdx.nonReim];
-        const num = parseNum(nv);
-        const str = cleanStr(nv);
-        if (num > 0 || (/비급여|비보험|y|o|yes|유/i.test(str) && !/^(n|no|x|없음|무|0)$/i.test(str))) {
-          isNonReim = true;
-        }
-      }
-      if (isNonReim) nonReimbursableVisits++;
-    }
-
-    const missingFields: string[] = [];
-    if (colIdx.visitType === -1) missingFields.push("초/재진 구분");
-    if (colIdx.age === -1 && colIdx.birthOrRrn === -1) missingFields.push("연령(65세 이상/이하)");
-    if (colIdx.gender === -1 && colIdx.birthOrRrn === -1) missingFields.push("성별(남/여)");
-    if (colIdx.channel === -1) missingFields.push("내원경로");
-    if (colIdx.nonReim === -1 && colIdx.nonReimFlag === -1) missingFields.push("비급여 여부");
-    if (colIdx.referral === -1 && colIdx.channel === -1) missingFields.push("소개 환자");
-
+  if (sr <= 13) {
     return {
-      fileName: file.name,
-      mode: "ROW_LIST",
-      rowCount: totalVisits,
-      detectedColumns,
-      missingFields,
-      metrics: {
-        totalVisits,
-        firstVisits,
-        reFirstVisits,
-        revisits,
-        seniorVisits,
-        under65Visits: under65Visits || Math.max(0, totalVisits - seniorVisits),
-        maleVisits,
-        femaleVisits,
-        acquisitionChannels: channels,
-        nonReimbursableVisits,
-        reimbursableOnlyVisits: Math.max(0, totalVisits - nonReimbursableVisits),
-        referralPatients,
-      },
+      type: "젊은 가족·오피스 상권",
+      tip: `청장년 비중(${(100 - sr).toFixed(1)}%)이 높아 빠른 예약관리와 추나·다이어트·패키지 집중이 핵심입니다.`,
+      mpiMin: 1.4,
+      mpiMax: 2.6,
+      nonCovTarget: 42,
+      herbalTarget: 22,
     };
   }
-
-  // 모드 2: 요약 통계표 (Key-Value 형태: "항목명 | 값")
-  const summary: ClinicPatientMetrics = {
-    totalVisits: 0,
-    firstVisits: 0,
-    reFirstVisits: 0,
-    revisits: 0,
-    seniorVisits: 0,
-    under65Visits: 0,
-    maleVisits: 0,
-    femaleVisits: 0,
-    acquisitionChannels: {
-      organicWalkIn: 0,
-      referral: 0,
-      digitalSearch: 0,
-      socialAd: 0,
-      other: 0,
-    },
-    nonReimbursableVisits: 0,
-    reimbursableOnlyVisits: 0,
-    referralPatients: 0,
-  };
-
-  const matchedSummaryCols: string[] = [];
-
-  for (const row of nonEmptyRows) {
-    const label = normKey(row[0]);
-    const valCell = row.slice(1).find((c) => cleanStr(c) !== "" && !isNaN(parseNum(c)));
-    const val = parseNum(valCell);
-    if (!label || val < 0) continue;
-
-    if (/총내원|전체내원|총환자|전체환자|연인원/.test(label)) {
-      summary.totalVisits = val;
-      matchedSummaryCols.push("총내원수");
-    } else if (/재초진|재신환/.test(label)) {
-      summary.reFirstVisits = val;
-      matchedSummaryCols.push("재초진");
-    } else if (/순수초진|초진|신환/.test(label)) {
-      summary.firstVisits = val;
-      matchedSummaryCols.push("초진");
-    } else if (/재진|구환/.test(label)) {
-      summary.revisits = val;
-      matchedSummaryCols.push("재진");
-    } else if (/65세이상|고령|노인/.test(label)) {
-      summary.seniorVisits = val;
-      matchedSummaryCols.push("65세이상");
-    } else if (/65세미만|65세이하/.test(label)) {
-      summary.under65Visits = val;
-      matchedSummaryCols.push("65세미만");
-    } else if (/여성|여자/.test(label)) {
-      summary.femaleVisits = val;
-      matchedSummaryCols.push("여성");
-    } else if (/남성|남자/.test(label)) {
-      summary.maleVisits = val;
-      matchedSummaryCols.push("남성");
-    } else if (/소개|지인|추천/.test(label)) {
-      summary.referralPatients = val;
-      summary.acquisitionChannels.referral = val;
-      matchedSummaryCols.push("소개환자");
-    } else if (/간판|지나가|도보|오가닉|지역|인근/.test(label)) {
-      summary.acquisitionChannels.organicWalkIn = val;
-      matchedSummaryCols.push("오프라인/간판");
-    } else if (/네이버|검색|블로그|플레이스|지도/.test(label)) {
-      summary.acquisitionChannels.digitalSearch = val;
-      matchedSummaryCols.push("네이버/검색");
-    } else if (/sns|광고|인스타|유튜브|당근/.test(label)) {
-      summary.acquisitionChannels.socialAd = val;
-      matchedSummaryCols.push("SNS/광고");
-    } else if (/비급여|비보험/.test(label)) {
-      summary.nonReimbursableVisits = val;
-      matchedSummaryCols.push("비급여");
-    }
-  }
-
-  if (summary.totalVisits === 0) {
-    summary.totalVisits = summary.firstVisits + summary.reFirstVisits + summary.revisits;
-  }
-  if (summary.under65Visits === 0 && summary.totalVisits > 0) {
-    summary.under65Visits = Math.max(0, summary.totalVisits - summary.seniorVisits);
-  }
-  summary.reimbursableOnlyVisits = Math.max(0, summary.totalVisits - summary.nonReimbursableVisits);
-
-  if (summary.totalVisits === 0 && matchedSummaryCols.length === 0) {
-    throw new Error(
-      "엑셀 컬럼을 자동 인식하지 못했습니다. 샘플 양식을 다운로드하여 컬럼명(초재진, 연령, 성별, 내원경로, 비급여, 소개여부)을 확인해 주세요."
-    );
-  }
-
   return {
-    fileName: file.name,
-    mode: "SUMMARY_TABLE",
-    rowCount: nonEmptyRows.length,
-    detectedColumns: matchedSummaryCols,
-    missingFields: [],
-    metrics: summary,
+    type: "균형 주거형 상권",
+    tip: `전 연령이 고르게 거주(고령 ${sr}%)하여 가족 소개 및 재초진 주치의 전략이 가장 강력합니다.`,
+    mpiMin: 1.6,
+    mpiMax: 3.0,
+    nonCovTarget: 35,
+    herbalTarget: 20,
   };
 }
 
 /**
- * 표준 초진통계 엑셀 샘플 양식 다운로드 (.xlsx)
+ * [핵심 엔진] 보험(원장) & 비급여(실장) 2대 트랙 정밀 평가 + 동기부여 시뮬레이터
  */
-export function downloadFirstVisitTemplate() {
-  const sampleRows = [
-    ["내원일", "차트번호", "초재진구분", "연령", "성별", "내원경로", "비급여여부", "비급여금액", "소개여부"],
-    ["2026-11-01", "P001", "초진", 34, "여", "지인소개", "Y", 180000, "Y"],
-    ["2026-11-01", "P002", "재진", 68, "남", "간판/지나가다", "N", 0, "N"],
-    ["2026-11-01", "P003", "재초진", 47, "여", "네이버 플레이스", "Y", 250000, "N"],
-    ["2026-11-02", "P004", "재진", 52, "여", "가족소개", "Y", 120000, "Y"],
-    ["2026-11-02", "P005", "초진", 29, "남", "인스타그램 광고", "N", 0, "N"],
-    ["2026-11-02", "P006", "재진", 71, "여", "인근거주", "N", 0, "N"],
-    ["2026-11-03", "P007", "재진", 41, "여", "지인소개", "Y", 320000, "Y"],
-    ["2026-11-03", "P008", "재진", 38, "남", "네이버 지도", "N", 0, "N"],
-    ["2026-11-04", "P009", "재초진", 63, "여", "간판/지나가다", "Y", 90000, "N"],
-    ["2026-11-04", "P010", "재진", 55, "남", "인근거주", "N", 0, "N"],
-  ];
+export function evaluateDualTrackStats(
+  rows: FirstVisitRow[],
+  demographic: DemographicData,
+  genderOverride?: { male?: number | null; female?: number | null }
+): DualTrackEvaluation {
+  const district = classifyDistrict(demographic);
+  const totalPatients = rows.length;
+  const safeTotal = Math.max(1, totalPatients);
 
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(sampleRows);
-  ws["!cols"] = [
-    { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 },
-    { wch: 8 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 10 }
-  ];
-  XLSX.utils.book_append_sheet(wb, ws, "초진통계_환자명단");
+  // --- 기본 집계 ---
+  let pureFirst = 0;
+  let reFirst = 0;
+  let secondCount = 0;
+  let thirdCount = 0;
 
-  const summaryRows = [
-    ["항목", "수치(명/건)", "비고"],
-    ["총내원수", 850, "월간 전체 내원 환자수"],
-    ["순수초진", 110, "최초 내원 신환"],
-    ["재초진", 45, "과거 내원 후 재발/새 상병 방문"],
-    ["재진", 695, "기존 연속 치료 환자"],
-    ["65세이상", 140, "만 65세 이상 내원수"],
-    ["남성", 340, "남성 환자수"],
-    ["여성", 510, "여성 환자수"],
-    ["간판/인근", 45, "오프라인/지나가다 유입"],
-    ["소개환자", 48, "지인/가족 추천 유입"],
-    ["네이버/검색", 42, "네이버 플레이스/블로그/지도"],
-    ["SNS/광고", 15, "인스타/당근/유료광고"],
-    ["비급여", 220, "비급여 진료 포함 건수"],
-  ];
-  const ws2 = XLSX.utils.aoa_to_sheet(summaryRows);
-  ws2["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 28 }];
-  XLSX.utils.book_append_sheet(wb, ws2, "요약통계표_양식");
+  let resvYes = 0;
+  let resvNo = 0;
+  let resvYes2nd = 0;
+  let resvNo2nd = 0;
 
-  XLSX.writeFile(wb, "바른컨설팅_초진통계_표준양식.xlsx");
-}
+  const intervals: number[] = [];
 
-/**
- * 7대 핵심 지표 진단 및 세계적 경영·통계 권위자 이론 기반 리스크 평가
- */
-export function evaluateFirstVisitStats(
-  clinic: ClinicPatientMetrics,
-  demographic: DemographicData
-): ComprehensiveDiagnosis {
-  const total = Math.max(1, clinic.totalVisits);
-  const newPatients = clinic.firstVisits + clinic.reFirstVisits;
+  let senior65 = 0;
+  let knownAge = 0;
 
-  // 1. 재진율
-  const revisitRate = (clinic.revisits / total) * 100;
-  const revisitTarget = 75.0;
-  const revisitGap = revisitRate - revisitTarget;
-  const revisitStatus: RiskLevel =
-    revisitRate >= 70 ? "HEALTHY" : revisitRate >= 60 ? "WARNING" : "CRITICAL";
+  let recordedMale = 0;
+  let recordedFemale = 0;
 
-  // 2. 초진 및 재초진 분포율 (신환 중 재초진 비중)
-  const reFirstRatioInNew = newPatients > 0 ? (clinic.reFirstVisits / newPatients) * 100 : 0;
-  const newShareOfTotal = (newPatients / total) * 100;
-  const reFirstTarget = 35.0;
-  const reFirstGap = reFirstRatioInNew - reFirstTarget;
-  const reFirstStatus: RiskLevel =
-    reFirstRatioInNew >= 30 ? "HEALTHY" : reFirstRatioInNew >= 20 ? "WARNING" : "CRITICAL";
+  let routeRecorded = 0;
+  let routeReferral = 0;
+  let routeOrganicWalk = 0;
+  let routeDigital = 0;
 
-  // 3. 연령 65세 이상/이하 분포율 & 고령화 왜곡 지수 (GDI)
-  const seniorRatio = (clinic.seniorVisits / total) * 100;
-  const regionalSeniorRatio = demographic.seniorRatio || 15.0;
-  const gdi = regionalSeniorRatio > 0 ? seniorRatio / regionalSeniorRatio : 1.0;
-  const seniorGap = seniorRatio - regionalSeniorRatio;
-  let seniorStatus: RiskLevel = "HEALTHY";
-  if (gdi > 1.6 || gdi < 0.5 || seniorRatio > 50) seniorStatus = "CRITICAL";
-  else if (gdi > 1.3 || gdi < 0.7) seniorStatus = "WARNING";
+  // --- 비급여(실장) 집계 ---
+  let nonCovPatientCount = 0;
+  let immediatePayPatients = 0;
+  let delayedPayPatients = 0;
+  let herbalPatients = 0;
+  let herbalFollowupYes = 0;
+  let packagePatients = 0;
+  let packageRenewYes = 0;
 
-  // 4. 남녀 성별 분포율 & 성별 왜곡 지수 (Gender DI)
-  const genderSum = Math.max(1, clinic.femaleVisits + clinic.maleVisits);
-  const femaleRatio = (clinic.femaleVisits / genderSum) * 100;
-  const maleRatio = (clinic.maleVisits / genderSum) * 100;
-  const regionalFemaleRatio = demographic.femaleRatio || 50.5;
-  const genderDI = regionalFemaleRatio > 0 ? femaleRatio / regionalFemaleRatio : 1.0;
-  const femaleTarget = Math.min(65.0, Math.max(55.0, Number((regionalFemaleRatio + 8.0).toFixed(1))));
-  const femaleGap = femaleRatio - femaleTarget;
-  let genderStatus: RiskLevel = "HEALTHY";
-  if (femaleRatio < 45 || femaleRatio > 80) genderStatus = "CRITICAL";
-  else if (femaleRatio < 52 || femaleRatio > 72) genderStatus = "WARNING";
+  for (const r of rows) {
+    const vt = clean(r.visitType);
+    if (vt.includes("재초진")) reFirst++;
+    else pureFirst++;
 
-  // 5. 내원 경로 건전성 (오가닉/지역 기반 비중)
-  const ch = clinic.acquisitionChannels;
-  const chTotal = Math.max(
-    1,
-    ch.organicWalkIn + ch.referral + ch.digitalSearch + ch.socialAd + ch.other
-  );
-  const organicRatio = ((ch.organicWalkIn + ch.referral) / chTotal) * 100;
-  const organicTarget = 60.0;
-  const organicGap = organicRatio - organicTarget;
-  const channelStatus: RiskLevel =
-    organicRatio >= 60 ? "HEALTHY" : organicRatio >= 45 ? "WARNING" : "CRITICAL";
+    const has2 = Boolean(clean(r.secondVisitDate));
+    const has3 = Boolean(clean(r.thirdVisitDate));
+    if (has2) secondCount++;
+    if (has3) thirdCount++;
 
-  // 6. 비급여 진료 비중
-  const nonReimRatio = (clinic.nonReimbursableVisits / total) * 100;
-  const nonReimTarget = 25.0;
-  const nonReimGap = nonReimRatio - nonReimTarget;
-  const nonReimStatus: RiskLevel =
-    nonReimRatio >= 20 ? "HEALTHY" : nonReimRatio >= 12 ? "WARNING" : "CRITICAL";
+    const diff = daysBetweenISO(r.firstVisitISO || r.visitDateISO, r.secondVisitISO);
+    if (diff !== null) intervals.push(diff);
 
-  // 7. 소개 환자 비율 (신환 중 소개 비중)
-  const effectiveReferral = Math.max(clinic.referralPatients, ch.referral);
-  const referralRatio = newPatients > 0 ? (effectiveReferral / newPatients) * 100 : 0;
-  const referralTarget = 30.0;
-  const referralGap = referralRatio - referralTarget;
-  const referralStatus: RiskLevel =
-    referralRatio >= 25 ? "HEALTHY" : referralRatio >= 15 ? "WARNING" : "CRITICAL";
+    const rv = clean(r.nextReservation);
+    if (rv === "유") {
+      resvYes++;
+      if (has2) resvYes2nd++;
+    } else if (rv === "무") {
+      resvNo++;
+      if (has2) resvNo2nd++;
+    }
 
-  // 배후 인구 대비 월간 순수 초진 침투율 (MPI)
+    const ageNum = parseInt(clean(r.age).replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(ageNum) && ageNum > 0) {
+      knownAge++;
+      if (ageNum >= 65) senior65++;
+    }
+
+    const g = clean(r.gender);
+    if (/^(남|남자|남성|M)$/i.test(g)) recordedMale++;
+    else if (/^(여|여자|여성|F)$/i.test(g)) recordedFemale++;
+
+    const rt = clean(r.visitRoute).toLowerCase().replace(/\s+/g, "");
+    if (rt) {
+      routeRecorded++;
+      if (/소개|지인|가족|추천/.test(rt)) routeReferral++;
+      else if (/간판|지나가|근처|동네|인근|거주|도보/.test(rt)) routeOrganicWalk++;
+      else routeDigital++;
+    }
+
+    // 비급여(실장) 판별
+    const detail = clean(r.treatmentDetail);
+    const hasNonCovItem =
+      clean(r.insuranceType) === "비급여" ||
+      Boolean(clean(r.nonCoveredList)) ||
+      extractPositiveCount(r.nonCoveredCount) > 0 ||
+      isAffirmative(r.immediatePaymentCount) ||
+      Boolean(clean(r.herbalMonthlySummary)) ||
+      extractPositiveCount(r.packageCount) > 0 ||
+      isAffirmative(r.delayedPaymentWithinMonth) ||
+      /약침|봉침|추나|한약|첩약|비급여|공진단|경옥고|다이어트/.test(detail);
+
+    if (hasNonCovItem) nonCovPatientCount++;
+    if (isAffirmative(r.immediatePaymentCount)) immediatePayPatients++;
+    if (isAffirmative(r.delayedPaymentWithinMonth)) delayedPayPatients++;
+
+    const isHerbal =
+      Boolean(clean(r.herbalMonthlySummary)) ||
+      isAffirmative(r.herbalFollowupPayment) ||
+      /한약|첩약|보약|녹용|다이어트한약/.test(detail) ||
+      /한약|보약|녹용|다이어트/.test(clean(r.nonCoveredList));
+    if (isHerbal) herbalPatients++;
+    if (isAffirmative(r.herbalFollowupPayment)) herbalFollowupYes++;
+
+    const isPkg =
+      extractPositiveCount(r.packageCount) > 0 ||
+      isAffirmative(r.packageRenewal) ||
+      /패키지/.test(clean(r.nonCoveredList));
+    if (isPkg) packagePatients++;
+    if (isAffirmative(r.packageRenewal)) packageRenewYes++;
+  }
+
+  const unrecordedGender = Math.max(0, totalPatients - recordedMale - recordedFemale);
+  const effectiveMale =
+    genderOverride?.male !== undefined && genderOverride?.male !== null
+      ? Math.max(0, genderOverride.male)
+      : recordedMale;
+  const effectiveFemale =
+    genderOverride?.female !== undefined && genderOverride?.female !== null
+      ? Math.max(0, genderOverride.female)
+      : recordedFemale;
+
+  const pct = (n: number, d: number) => (d > 0 ? Number(((n / d) * 100).toFixed(1)) : 0);
+  const neededCount = (cur: number, den: number, targetPct: number) =>
+    Math.max(0, Math.ceil((den * targetPct) / 100 - cur));
+
+  // =========================================================================
+  // TRACK 1: 보험 (원장) — 내원경로까지 7대 핵심 지표
+  // =========================================================================
+  const rate2nd = pct(secondCount, safeTotal);
+  const target2nd = 65;
+  const need2nd = neededCount(secondCount, totalPatients, target2nd);
+  const gain2ndManwon = Math.round(need2nd * 2.5 * 3.5); // 정착 1명당 평균 후속 2.5회 * 3.5만원
+
+  const rate3rd = pct(thirdCount, safeTotal);
+  const target3rd = 45;
+  const need3rd = neededCount(thirdCount, totalPatients, target3rd);
+  const gain3rdManwon = Math.round(need3rd * 3.0 * 3.8);
+
+  const avgInterval =
+    intervals.length > 0
+      ? Number((intervals.reduce((a, b) => a + b, 0) / intervals.length).toFixed(1))
+      : 0;
+  const intervalStatus: RiskLevel =
+    intervals.length === 0
+      ? "EMPTY"
+      : avgInterval <= 4.5
+      ? "HEALTHY"
+      : avgInterval <= 7.0
+      ? "WARNING"
+      : "CRITICAL";
+
+  const resvDenom = resvYes + resvNo > 0 ? resvYes + resvNo : safeTotal;
+  const resvRate = pct(resvYes, resvDenom);
+  const targetResv = 85;
+  const needResv = neededCount(resvYes, resvDenom, targetResv);
+  const resvLiftYes = pct(resvYes2nd, resvYes);
+  const resvLiftNo = pct(resvNo2nd, resvNo);
+  const gainResvManwon = Math.round(needResv * 0.5 * 7); // 예약 확정 시 절반 이상 추가 내원
+
+  const reFirstRate = pct(reFirst, safeTotal);
+  const targetReFirst = 30;
+  const needReFirst = neededCount(reFirst, totalPatients, targetReFirst);
+
+  const seniorRate = knownAge > 0 ? pct(senior65, knownAge) : 0;
+  const regSenior = demographic.seniorRatio || 16;
+  const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
+  const gdiStatus: RiskLevel =
+    knownAge === 0
+      ? "EMPTY"
+      : gdi >= 0.8 && gdi <= 1.35
+      ? "HEALTHY"
+      : gdi >= 0.6 && gdi <= 1.65
+      ? "WARNING"
+      : "CRITICAL";
+
+  const genderSum = effectiveMale + effectiveFemale;
+  const femaleRate = genderSum > 0 ? pct(effectiveFemale, genderSum) : 0;
+  const genderStatus: RiskLevel =
+    genderSum === 0
+      ? "EMPTY"
+      : femaleRate >= 52 && femaleRate <= 70
+      ? "HEALTHY"
+      : femaleRate >= 45 && femaleRate <= 78
+      ? "WARNING"
+      : "CRITICAL";
+
+  const organicShare = routeRecorded > 0 ? pct(routeReferral + routeOrganicWalk, routeRecorded) : 0;
+  const referralRate = pct(routeReferral, routeRecorded || safeTotal);
+  const targetReferral = 25;
+  const needReferral = neededCount(routeReferral, routeRecorded || totalPatients, targetReferral);
   const mpi =
     demographic.totalPopulation > 0
-      ? (clinic.firstVisits / demographic.totalPopulation) * 1000
+      ? Number(((pureFirst / demographic.totalPopulation) * 1000).toFixed(2))
       : 0;
+  const gainReferralManwon = Math.round(needReferral * 12); // 소개 신환 1명 평균 기대가치 12만원
 
-  const indicators: IndicatorEvaluation[] = [
+  const insIndicators: DualTrackIndicator[] = [
     {
-      id: "revisit_rate",
+      id: "ins_second_visit",
+      track: "insurance",
       order: 1,
-      name: "재진율 (Patient Retention Rate)",
-      shortName: "재진율",
-      currentValue: Number(revisitRate.toFixed(1)),
-      displayValue: `${revisitRate.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: "70% ~ 80% 이상",
-      benchmarkTarget: revisitTarget,
-      gap: Number(revisitGap.toFixed(1)),
-      gapDisplay: `${revisitGap >= 0 ? "+" : ""}${revisitGap.toFixed(1)}%p`,
-      status: revisitStatus,
-      authorityName: "Fred Reichheld (HBR) · Avedis Donabedian",
-      authorityTheory:
-        "베인앤컴퍼니 Fred Reichheld의 충성도 효과(고객 유지율 5% 개선 시 순이익 25~95% 증가)와 Donabedian 의료 질 평가 모델에 따라, 진료 과정의 신뢰가 높을수록 자발적 재방문이 확립됩니다.",
-      riskScenario:
-        "밑 빠진 독(Leaky Bucket) 증후군: 신환을 모으기 위해 광고비를 계속 투입해야 하므로 CAC(환자획득비용)가 급증하고 영업이익률이 급락합니다. 진료 설명·대기 관리·치료 효과성에 누수가 있음을 뜻합니다.",
-      recommendation:
-        "치료 종결 전 차기 예약 확정 프로토콜 도입, 초진 24시간 내 해피콜/알림톡 발송, 재내원 시스템 연계 관리.",
+      title: "2차 재내원율",
+      subMetric: `${secondCount}/${totalPatients}명`,
+      currentValue: rate2nd,
+      valueDisplay: totalPatients === 0 ? "-" : `${rate2nd}%`,
+      targetValue: target2nd,
+      targetDisplay: `목표 ${target2nd}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : need2nd === 0
+          ? `달성 +${(rate2nd - target2nd).toFixed(1)}%p`
+          : `${need2nd}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : rate2nd >= target2nd
+          ? "HEALTHY"
+          : rate2nd >= 50
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        totalPatients === 0
+          ? "환자 시트를 업로드하세요"
+          : need2nd === 0
+          ? "초진 안착률 우수 유지"
+          : `초진 ${need2nd}명 더 2회차 예약 고정`,
+      modal: {
+        exactCounts: `전체 신환 ${totalPatients}명 중 2회 내원 ${secondCount}명 (${rate2nd}%)`,
+        benchmarkReason:
+          "Fred Reichheld 충성도 이론 및 한의 통증 임상 기준상, 초진 환자의 최소 65% 이상이 2회차에 내원해야 라포(신뢰)가 형성되고 치료 효과가 발현됩니다.",
+        riskWarning:
+          "50% 미만 시 '밑 빠진 독(Leaky Bucket)' 구조에 빠져 매달 광고비로만 신환을 채워야 하며 원장님 피로도가 급증합니다.",
+        actionInstruction:
+          "초진 진료 마지막 30초에 반드시 '오늘 치료 후 내일 모레 반응 확인이 가장 중요합니다'라고 원장님이 직접 2차 내원일을 못 박아 주세요.",
+        scriptExample:
+          "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 경과를 봐야 재발을 막을 수 있어요.\"",
+        revenueImpactManwon: gain2ndManwon,
+      },
     },
     {
-      id: "refirst_ratio",
+      id: "ins_third_visit",
+      track: "insurance",
       order: 2,
-      name: `초진 및 재초진 분포율 (전체 신환 ${newShareOfTotal.toFixed(1)}%)`,
-      shortName: "초진·재초진",
-      currentValue: Number(reFirstRatioInNew.toFixed(1)),
-      displayValue: `${reFirstRatioInNew.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: "신환 중 재초진 30% ~ 40% 이상",
-      benchmarkTarget: reFirstTarget,
-      gap: Number(reFirstGap.toFixed(1)),
-      gapDisplay: `${reFirstGap >= 0 ? "+" : ""}${reFirstGap.toFixed(1)}%p`,
-      status: reFirstStatus,
-      authorityName: "Peter Fader (Wharton CLV) · BCG Matrix",
-      authorityTheory:
-        "와튼스쿨 Peter Fader의 고객생애가치(CLV) 모델과 BCG 지속성장 매트릭스에서 재초진은 1차 치료에 만족한 환자가 질환 재발 시 우리 의원을 최우선 상기도(Top-of-Mind)로 재선택한 브랜드 자산 지표입니다.",
-      riskScenario:
-        "재초진 부족은 1회성 진료 후 타 의원으로 이탈(Brand Churn)하고 있음을 의미하며, 순수 초진 부족은 자연 이탈률(연 10~15%)을 보충하지 못해 병원의 급격한 노쇠화를 초래합니다.",
-      recommendation:
-        "계절성·만성 질환 정기 리콜 알림, 완치 후 3~6개월 추적 안부 메시지 및 건강 가이드 발송.",
+      title: "3차 정착률",
+      subMetric: `${thirdCount}/${totalPatients}명`,
+      currentValue: rate3rd,
+      valueDisplay: totalPatients === 0 ? "-" : `${rate3rd}%`,
+      targetValue: target3rd,
+      targetDisplay: `목표 ${target3rd}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : need3rd === 0
+          ? `달성 +${(rate3rd - target3rd).toFixed(1)}%p`
+          : `${need3rd}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : rate3rd >= target3rd
+          ? "HEALTHY"
+          : rate3rd >= 32
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        totalPatients === 0
+          ? "환자 시트를 업로드하세요"
+          : need3rd === 0
+          ? "주치의 정착 흐름 탄탄"
+          : `2회차에 3회 치료계획 고지 (+${need3rd}명)`,
+      modal: {
+        exactCounts: `전체 신환 ${totalPatients}명 중 3회 이상 안착 ${thirdCount}명 (${rate3rd}%)`,
+        benchmarkReason:
+          "한의원에서 3회차 내원은 단순 '경험 환자'가 '우리 동네 단골 주치의 환자'이자 비급여·소개 전환 풀로 넘어가는 임계점(45%↑)입니다.",
+        riskWarning:
+          "2회차 후 조기 종결이 많으면 통증이 조금만 줄어도 환자가 임의 중단하여 재발 시 타 병원으로 이탈합니다.",
+        actionInstruction:
+          "초진 첫날 '급성기(1회) → 회복기(2회) → 안정기(3회)' 3단계 치료 로드맵을 미리 안내해 조기 이탈을 차단하세요.",
+        scriptExample:
+          "\"통증이 절반 줄었을 때 멈추면 금방 다시 뭉칩니다. 다음 3회차까지 속근육을 잡아드려야 마무리됩니다.\"",
+        revenueImpactManwon: gain3rdManwon,
+      },
     },
     {
-      id: "geriatric_distortion",
+      id: "ins_golden_interval",
+      track: "insurance",
       order: 3,
-      name: `연령 65세 이상 분포율 (GDI ${gdi.toFixed(2)})`,
-      shortName: "65세 연령비",
-      currentValue: Number(seniorRatio.toFixed(1)),
-      displayValue: `${seniorRatio.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: `동네 고령화율(${regionalSeniorRatio}%) ±5%p (GDI 0.7~1.3)`,
-      benchmarkTarget: regionalSeniorRatio,
-      gap: Number(seniorGap.toFixed(1)),
-      gapDisplay: `${seniorGap >= 0 ? "+" : ""}${seniorGap.toFixed(1)}%p`,
-      status: seniorStatus,
-      authorityName: "Michael Porter (VBHC) · Philip Kotler",
-      authorityTheory:
-        "Michael Porter의 가치 기반 헬스케어(VBHC)와 Philip Kotler의 인구통계학적 세분화 이론에 따라, 급여 중심 고령층과 비급여 수용성이 높은 65세 미만 경제활동인구의 균형 믹스가 수익성을 결정합니다.",
-      riskScenario:
-        "고령층 과편중(GDI > 1.6) 시 대기실 노령화로 30~50대 직장인 환자가 기피하는 '환자 구축 효과(Crowding-Out)'가 발생해 진료 피로도는 치솟고 객단가는 급락합니다.",
-      recommendation:
-        "30~50대 경제활동층 대상 야간·토요일 특화 진료 슬롯 확대 및 통증·기능의학·자세교정 프로그램 강화.",
+      title: "재내원 골든타임",
+      subMetric: intervals.length > 0 ? `${intervals.length}명 측정` : "2회일 필요",
+      currentValue: intervals.length > 0 ? Math.max(10, Math.min(100, Math.round((4.5 / Math.max(1, avgInterval)) * 75))) : 0,
+      valueDisplay: intervals.length > 0 ? `${avgInterval}일` : "-",
+      targetValue: 75,
+      targetDisplay: "목표 4.5일 이내",
+      gapDisplay:
+        intervals.length === 0
+          ? "재내원 집계전"
+          : avgInterval <= 4.5
+          ? "골든타임 합격"
+          : `+${(avgInterval - 4.5).toFixed(1)}일 지연`,
+      status: intervalStatus,
+      conclusion:
+        intervals.length === 0
+          ? "2회 방문일 누적 시 자동 산출"
+          : avgInterval <= 4.5
+          ? "초기 집중 치료 주기 이상적"
+          : "초진 후 3일 이내 2차 예약 당기기",
+      modal: {
+        exactCounts:
+          intervals.length > 0
+            ? `2회 내원자 ${intervals.length}명의 1→2회 평균 방문 간격 ${avgInterval}일`
+            : "아직 1회·2회 날짜가 모두 기입된 환자가 없습니다.",
+        benchmarkReason:
+          "초진 후 72~96시간(3~4.5일) 이내가 침·약침 자극 반응이 유지되고 치료 동기가 살아있는 골든타임입니다.",
+        riskWarning:
+          "첫 방문 후 일주일 이상 간격이 벌어지면 환자의 치료 의지가 식어 노쇼 및 영구 이탈 확률이 2.4배 높아집니다.",
+        actionInstruction:
+          "초진 환자에게 '일주일 뒤에 오세요' 대신 무조건 2~4일 내 다음 내원 날짜를 먼저 제시하세요.",
+        scriptExample:
+          "\"초기 염증기에는 간격이 벌어지면 다시 원점으로 돌아갑니다. 이틀 뒤 수요일이나 목요일 중 언제가 괜찮으세요?\"",
+        revenueImpactManwon: avgInterval > 4.5 ? 60 : 0,
+      },
     },
     {
-      id: "gender_distribution",
+      id: "ins_reservation",
+      track: "insurance",
       order: 4,
-      name: `남녀 성별 분포율 (여 ${femaleRatio.toFixed(1)}% / 남 ${maleRatio.toFixed(1)}%)`,
-      shortName: "남녀 성별비",
-      currentValue: Number(femaleRatio.toFixed(1)),
-      displayValue: `여 ${femaleRatio.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: `여성 55% ~ 65% (동네 ${regionalFemaleRatio}% 대비 +5~15%p)`,
-      benchmarkTarget: femaleTarget,
-      gap: Number(femaleGap.toFixed(1)),
-      gapDisplay: `${femaleGap >= 0 ? "+" : ""}${femaleGap.toFixed(1)}%p`,
-      status: genderStatus,
-      authorityName: "Ronald Andersen · Martha Barletta (HBR)",
-      authorityTheory:
-        "Andersen 보건의료 이용 행태론과 CDC/OECD·심평원 통계에 따르면 여성은 외래 이용률이 남성 대비 1.3~1.5배 높으며, 가구 내 의료 의사결정의 약 80%(Chief Medical Officer of the Household)를 주도합니다.",
-      riskScenario:
-        femaleRatio > 72
-          ? "남성 직장인/가장 계층의 유입 단절: 야간·주말 접근성 부족이나 남성 만성·통증 케어 포지셔닝 미흡으로 배후 시장의 절반을 놓치고 있습니다."
-          : "여성 비율 45% 미만 저하는 가구 의료 결정권자 이탈로 가족 연쇄 유입(Family LTV)이 붕괴됨을 뜻하며, 병원 청결도·공간 감성·데스크 친절도·공감 설명의 적신호입니다.",
-      recommendation:
-        femaleRatio > 72
-          ? "직장인 남성 대상 야간/주말 예약 슬롯 및 만성피로·대사·근골격 통증 케어 강화."
-          : "대기실 청결·프라이버시 동선 개선, 여성 환자 공감형 설명 프로토콜 및 가족 동반 케어 활성화.",
+      title: "다음 예약 확정률",
+      subMetric: `예약 ${resvYes}명`,
+      currentValue: resvRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${resvRate}%`,
+      targetValue: targetResv,
+      targetDisplay: `목표 ${targetResv}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : needResv === 0
+          ? "목표 달성"
+          : `${needResv}명 미예약`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : resvRate >= targetResv
+          ? "HEALTHY"
+          : resvRate >= 65
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        totalPatients === 0
+          ? "예약 유/무를 체크하세요"
+          : needResv === 0
+          ? "데스크 예약 클로징 우수"
+          : `퇴실 전 양자택일 예약 (+${needResv}명)`,
+      modal: {
+        exactCounts: `예약 '유' ${resvYes}명 (2차 내원율 ${resvLiftYes}%) vs 예약 '무' ${resvNo}명 (2차 내원율 ${resvLiftNo}%)`,
+        benchmarkReason:
+          "행동경제학 디폴트 효과(Default Effect)에 따라, 수납 시 다음 예약 시간을 확정하는 것만으로 2차 내원율이 평균 2~3배 상승합니다.",
+        riskWarning:
+          "데스크에서 '시간 되실 때 오세요'라고 보내면 환자는 일상 복귀 후 재방문을 미루다 이탈합니다.",
+        actionInstruction:
+          "데스크 수납 표준 멘트를 '예약하시겠어요?(Yes/No)'에서 '목요일 오전/오후 중 언제가 편하세요?(양자택일)'로 즉시 변경하세요.",
+        scriptExample:
+          "\"원장님께서 금요일쯤 경과 체크 말씀하셨는데, 오전 11시와 오후 3시 중 어느 시간이 편하실까요?\"",
+        revenueImpactManwon: gainResvManwon,
+      },
     },
     {
-      id: "acquisition_channels",
+      id: "ins_refirst",
+      track: "insurance",
       order: 5,
-      name: "내원 경로 건전성 (오가닉·지역 유입 비중)",
-      shortName: "내원 경로",
-      currentValue: Number(organicRatio.toFixed(1)),
-      displayValue: `${organicRatio.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: "오가닉·소개 60% 이상 (단일광고 30% 이하)",
-      benchmarkTarget: organicTarget,
-      gap: Number(organicGap.toFixed(1)),
-      gapDisplay: `${organicGap >= 0 ? "+" : ""}${organicGap.toFixed(1)}%p`,
-      status: channelStatus,
-      authorityName: "Harry Markowitz (노벨경제학상 MPT)",
-      authorityTheory:
-        "노벨경제학상 Harry Markowitz의 현대 포트폴리오 이론(MPT)에 근거하여, 환자 유입 경로를 오프라인 입지·소개·디지털 검색으로 분산해야 플랫폼 변동성 리스크를 방어할 수 있습니다.",
-      riskScenario:
-        "광고 중독(Ad Addiction): 네이버 플레이스 순위나 특정 유료 광고 의존도가 과도하면 알고리즘 변경·클릭 단가 상승 시 신환 수와 순이익이 즉각 직격탄을 맞습니다.",
-      recommendation:
-        "외부 간판·시인성 개선, 지역 생활권 제휴 및 기존 환자 구전(소개) 비중을 60% 이상으로 끌어올리십시오.",
+      title: "재초진 복귀율",
+      subMetric: `재초진 ${reFirst}명`,
+      currentValue: reFirstRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${reFirstRate}%`,
+      targetValue: targetReFirst,
+      targetDisplay: `목표 ${targetReFirst}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : needReFirst === 0
+          ? `달성 +${(reFirstRate - targetReFirst).toFixed(1)}%p`
+          : `${needReFirst}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : reFirstRate >= targetReFirst
+          ? "HEALTHY"
+          : reFirstRate >= 18
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        totalPatients === 0
+          ? "초진/재초진 구분을 확인하세요"
+          : needReFirst === 0
+          ? "구환 재방문 브랜드 자산 우수"
+          : "기존 환자 계절·안부 리콜 가동",
+      modal: {
+        exactCounts: `전체 신환 ${totalPatients}명 중 순수초진 ${pureFirst}명 · 재초진 ${reFirst}명 (${reFirstRate}%)`,
+        benchmarkReason:
+          "과거 치료에 만족했던 구환이 새로운 증상이나 환절기에 다시 찾는 비율(30%↑)은 마케팅 비용 0원의 순수 브랜드 자산입니다.",
+        riskWarning:
+          "재초진 비중이 18% 미만이면 과거 환자들이 우리 한의원을 잊었거나 타 한의원으로 이동하고 있다는 신호입니다.",
+        actionInstruction:
+          "최근 6개월~1년 내 내원 중단 구환에게 환절기 건강 관리 문자나 카카오톡 채널 소식을 월 1회 발송하세요.",
+        scriptExample:
+          "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
+        revenueImpactManwon: needReFirst * 9,
+      },
     },
     {
-      id: "non_reimbursable_ratio",
+      id: "ins_gender_age",
+      track: "insurance",
       order: 6,
-      name: "비급여 진료 비중 (Non-reimbursable Ratio)",
-      shortName: "비급여 비중",
-      currentValue: Number(nonReimRatio.toFixed(1)),
-      displayValue: `${nonReimRatio.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: "일반의원 20~35% (통증/한의 35~50%)",
-      benchmarkTarget: nonReimTarget,
-      gap: Number(nonReimGap.toFixed(1)),
-      gapDisplay: `${nonReimGap >= 0 ? "+" : ""}${nonReimGap.toFixed(1)}%p`,
-      status: nonReimStatus,
-      authorityName: "Michael Porter (차별화 전략) · DuPont 분석",
-      authorityTheory:
-        "Michael Porter의 차별화 전략 및 DuPont 마진 분석상, 원가보상률이 낮은 급여 수가 구조에서 병원의 고정비(인건비·임대료) 상승을 방어하고 재투자 여력을 만드는 핵심 완충재는 비급여 가치 진료입니다.",
-      riskScenario:
-        "마진 압박(Margin Squeeze): 급여 위주 운영 시 손익분기점 방어를 위해 하루 80~100명 이상의 박리다매 3분 진료를 강요당하며 의료진 번아웃과 의료 분쟁 위험이 급증합니다.",
-      recommendation:
-        "환자 상태별 근거 기반 비급여 치료(한약·약침·도수·정밀검사 등) 설명 시각화 및 상담 실장 프로토콜 표준화.",
+      title: "성별 · 고령 균형",
+      subMetric: `동네고령 ${regSenior}%`,
+      currentValue: genderSum > 0 ? femaleRate : seniorRate,
+      valueDisplay:
+        genderSum > 0 ? `여 ${femaleRate}%` : knownAge > 0 ? `65세↑ ${seniorRate}%` : "성별 미입력",
+      targetValue: 58,
+      targetDisplay: `여 54~66% · GDI 1.0`,
+      gapDisplay:
+        genderSum === 0
+          ? "성별 입력 필요"
+          : gdi > 0
+          ? `고령지수 ${gdi}배`
+          : `남${effectiveMale}·여${effectiveFemale}`,
+      status: genderSum === 0 ? "WARNING" : genderStatus === "CRITICAL" || gdiStatus === "CRITICAL" ? "CRITICAL" : genderStatus === "WARNING" || gdiStatus === "WARNING" ? "WARNING" : "HEALTHY",
+      conclusion:
+        genderSum === 0
+          ? "하단 성별란에 남/여 인원 입력"
+          : gdi > 1.5
+          ? "고령 편중 · 3040 직장인 유입 보강"
+          : femaleRate < 50
+          ? "여성·가족 친화 진료프로그램 보강"
+          : "동네 인구 대비 성별·연령 균형 양호",
+      isGenderCard: true,
+      modal: {
+        exactCounts: `성별: 남성 ${effectiveMale}명 · 여성 ${effectiveFemale}명 (미기입 ${unrecordedGender}명) / 65세↑ 고령: ${senior65}명 (${seniorRate}%, 동네 ${regSenior}% 대비 GDI ${gdi || "-"}배)`,
+        benchmarkReason:
+          `${demographic.regionName} 실제 인구(여성 ${demographic.femaleRatio}%, 65세↑ ${regSenior}%) 대비 한의원 적정 여성 비율은 54~66%(가계 의료 결정권자), 고령화 왜곡지수(GDI)는 0.8~1.3배입니다.`,
+        riskWarning:
+          "GDI가 1.6배를 넘으면 노인 급여 침 위주로 고착되어 객단가가 하락하고, 여성 비율이 50% 미만이면 가족 연쇄 소개 및 비급여 확장성이 크게 떨어집니다.",
+        actionInstruction:
+          "차트나 시트에 성별을 기입(또는 카드에서 즉시 입력)하여 동네 인구 구조와 우리 한의원 환자층의 괴리를 상시 점검하세요.",
+        scriptExample:
+          "\"어머님 치료 오실 때 따님이나 아드님 거북목·보약 상담도 편하게 같이 말씀해 주세요.\"",
+        revenueImpactManwon: genderStatus !== "HEALTHY" || gdiStatus !== "HEALTHY" ? 80 : 0,
+      },
     },
     {
-      id: "referral_ratio",
+      id: "ins_route_referral",
+      track: "insurance",
       order: 7,
-      name: "소개 환자 비율 (Word-of-Mouth Referral)",
-      shortName: "소개 환자",
-      currentValue: Number(referralRatio.toFixed(1)),
-      displayValue: `${referralRatio.toFixed(1)}%`,
-      unit: "%",
-      benchmarkRange: "신환 중 25% ~ 35% 이상 (우수 40%↑)",
-      benchmarkTarget: referralTarget,
-      gap: Number(referralGap.toFixed(1)),
-      gapDisplay: `${referralGap >= 0 ? "+" : ""}${referralGap.toFixed(1)}%p`,
-      status: referralStatus,
-      authorityName: "Fred Reichheld (NPS) · Eric Ries (K-factor)",
-      authorityTheory:
-        "순고객추천지수(NPS) 창시자 Reichheld와 Eric Ries의 바이럴 계수(K-factor) 연구에 따르면, 소개 환자는 광고 유입 대비 초진 이탈률이 50% 낮고 비급여 동의율은 2배 이상 높습니다.",
-      riskScenario:
-        "침묵의 평판 붕괴(Word-of-Mouth Drought): 소개율 10% 미만은 환자들이 치료를 받고도 주변에 추천하지 않는다는 뜻으로, 과잉진료 의심·불친절·라포 부족이 수면 아래 누적된 치명적 경고입니다.",
-      recommendation:
-        "소개자·피소개자 감사 인사 프로세스 구축, 진료실 경청·공감 상담 강화로 자발적 추천(Promoter) 전환.",
+      title: "소개 · 자생 유입률",
+      subMetric: `MPI ${mpi}‰`,
+      currentValue: referralRate,
+      valueDisplay: routeRecorded === 0 ? "경로 미기입" : `소개 ${referralRate}%`,
+      targetValue: targetReferral,
+      targetDisplay: `소개 ${targetReferral}%↑ (자생 55%↑)`,
+      gapDisplay:
+        routeRecorded === 0
+          ? "경로 체크 필요"
+          : needReferral === 0
+          ? `자생력 ${organicShare}%`
+          : `소개 ${needReferral}명 부족`,
+      status:
+        routeRecorded === 0
+          ? "WARNING"
+          : referralRate >= targetReferral && organicShare >= 50
+          ? "HEALTHY"
+          : referralRate >= 15
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        routeRecorded === 0
+          ? "접수 시 내원경로 단축키 필수 체크"
+          : needReferral === 0
+          ? "입소문·자생 유입 포트폴리오 탄탄"
+          : `소개 감사인사 강화 (+${needReferral}명 목표)`,
+      modal: {
+        exactCounts: `경로 기록 ${routeRecorded}명 중 소개 ${routeReferral}명(${referralRate}%), 간판·인근 ${routeOrganicWalk}명, 온라인·검색 ${routeDigital}명 | 동네 인구(${demographic.totalPopulation.toLocaleString()}명) 대비 월 침투율 MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`,
+        benchmarkReason:
+          "Markowitz 포트폴리오 이론 및 NPS 연구상, 소개 환자(25%↑)와 오가닉 유입(55%↑)이 뒷받침되어야 네이버·광고 알고리즘 변동에도 매출이 흔들리지 않습니다.",
+        riskWarning:
+          "소개율 15% 미만 또는 유료 광고 편중 시 마케팅 비용이 순이익을 잠식하며 초진 이탈률이 급증합니다.",
+        actionInstruction:
+          "접수 시 내원경로 기록률을 90% 이상으로 올리고, 소개로 오신 환자와 소개해 주신 기존 환자 모두에게 원장님이 직접 감사 인사를 전하세요.",
+        scriptExample:
+          "\"OOO님 소개로 오셨군요! 믿고 소개해 주신 만큼 제가 더 세심하게 진료해 드리겠습니다.\"",
+        revenueImpactManwon: gainReferralManwon,
+      },
     },
   ];
 
-  const healthyCount = indicators.filter((i) => i.status === "HEALTHY").length;
-  const warningCount = indicators.filter((i) => i.status === "WARNING").length;
-  const criticalCount = indicators.filter((i) => i.status === "CRITICAL").length;
+  // =========================================================================
+  // TRACK 2: 비급여 (실장) — 내원경로 이후 패키지·한약·비급여 6대 핵심 지표
+  // =========================================================================
+  const nonCovRate = pct(nonCovPatientCount, safeTotal);
+  const targetNonCov = district.nonCovTarget;
+  const needNonCov = neededCount(nonCovPatientCount, totalPatients, targetNonCov);
+  const gainNonCovManwon = needNonCov * 18; // 비급여 전환 1건당 평균 18만원 가정
 
-  const rawRisk = criticalCount * 2 + warningCount * 1;
-  const overallRiskScore = Math.min(100, Math.round((rawRisk / (indicators.length * 2)) * 100));
+  const immBase = nonCovPatientCount > 0 ? nonCovPatientCount : safeTotal;
+  const immRate = nonCovPatientCount > 0 ? pct(immediatePayPatients, nonCovPatientCount) : pct(immediatePayPatients, safeTotal);
+  const targetImm = nonCovPatientCount > 0 ? 45 : 20;
+  const needImm = neededCount(immediatePayPatients, immBase, targetImm);
+  const gainImmManwon = needImm * 22;
 
-  let executiveSummary = "";
-  if (overallRiskScore <= 20) {
-    executiveSummary =
-      "전반적인 환자 순환, 성별·연령 포트폴리오 및 배후 인구 대비 유입 구조가 매우 건전합니다. 현재의 진료 신뢰와 소개 네트워크를 지속 유지하십시오.";
-  } else if (overallRiskScore <= 50) {
-    executiveSummary =
-      "일부 핵심 경영 지표에서 기준치 대비 갭(Gap)이 감지되었습니다. 주의·위험 항목을 중심으로 재진 전환과 오가닉·소개 유입 구조를 보강해야 합니다.";
-  } else {
-    executiveSummary =
-      "경영 구조상 다수의 임계 위험 신호가 감지되었습니다. 신환 이탈(Leaky Bucket), 인구 구조 왜곡 또는 수익성 압박을 해소하기 위한 즉각적인 프로세스 개선이 필요합니다.";
-  }
+  const herbalRate = pct(herbalPatients, safeTotal);
+  const targetHerbal = district.herbalTarget;
+  const needHerbal = neededCount(herbalPatients, totalPatients, targetHerbal);
+  const gainHerbalManwon = needHerbal * 35; // 한약 1제 평균 35만원 가정
+
+  const followupRate = herbalPatients > 0 ? pct(herbalFollowupYes, herbalPatients) : 0;
+  const targetFollowup = 35;
+  const needFollowup = herbalPatients > 0 ? neededCount(herbalFollowupYes, herbalPatients, targetFollowup) : 1;
+  const gainFollowupManwon = needFollowup * 32;
+
+  const pkgRate = pct(packagePatients, safeTotal);
+  const pkgRenewRate = packagePatients > 0 ? pct(packageRenewYes, packagePatients) : 0;
+  const targetPkgRenew = 30;
+  const needPkgRenew = packagePatients > 0 ? neededCount(packageRenewYes, packagePatients, targetPkgRenew) : neededCount(packagePatients, totalPatients, 15);
+  const gainPkgManwon = needPkgRenew * 20;
+
+  const pendingPool = Math.max(1, totalPatients - immediatePayPatients);
+  const delayedRate = pct(delayedPayPatients, pendingPool);
+  const targetDelayed = 15;
+  const needDelayed = neededCount(delayedPayPatients, pendingPool, targetDelayed);
+  const gainDelayedManwon = needDelayed * 25;
+
+  const ncIndicators: DualTrackIndicator[] = [
+    {
+      id: "nc_conversion",
+      track: "non_covered",
+      order: 1,
+      title: "비급여 전환율",
+      subMetric: `${nonCovPatientCount}/${totalPatients}명`,
+      currentValue: nonCovRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${nonCovRate}%`,
+      targetValue: targetNonCov,
+      targetDisplay: `목표 ${targetNonCov}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : needNonCov === 0
+          ? `달성 +${(nonCovRate - targetNonCov).toFixed(1)}%p`
+          : `${needNonCov}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : nonCovRate >= targetNonCov
+          ? "HEALTHY"
+          : nonCovRate >= 20
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        totalPatients === 0
+          ? "비급여 내역을 시트에 기입하세요"
+          : needNonCov === 0
+          ? "상권 맞춤 비급여 수익구조 우수"
+          : `급여 통증환자 약침·한약 +${needNonCov}명 연계`,
+      modal: {
+        exactCounts: `전체 신환 ${totalPatients}명 중 비급여(약침·추나·한약·패키지) 포함 ${nonCovPatientCount}명 (${nonCovRate}%)`,
+        benchmarkReason: `${district.type} 기준 고정비 상승을 방어하고 적정 순이익률을 확보하기 위한 권장 비급여 전환 기준점은 ${targetNonCov}% 이상입니다.`,
+        riskWarning:
+          "비급여 비중이 20% 미만이면 건보 청구액에만 의존하는 박리다매 구조가 되어 원장님과 직원 모두 번아웃에 빠집니다.",
+        actionInstruction:
+          "단순 침 치료 환자에게 증상별 '약침 1회 체험' 또는 '맞춤 치료계획표'를 실장님이 브릿지 상담으로 연결하세요.",
+        scriptExample:
+          "\"오늘 침 치료에 염증을 빠르게 잡는 약침이 함께 들어가면 회복 기간이 절반으로 줄어듭니다.\"",
+        revenueImpactManwon: gainNonCovManwon,
+      },
+    },
+    {
+      id: "nc_immediate_pay",
+      track: "non_covered",
+      order: 2,
+      title: "당일 즉시 결제율",
+      subMetric: `즉시 ${immediatePayPatients}건`,
+      currentValue: immRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${immRate}%`,
+      targetValue: targetImm,
+      targetDisplay: `목표 ${targetImm}%↑`,
+      gapDisplay:
+        immediatePayPatients === 0
+          ? "기입/성사 필요"
+          : needImm === 0
+          ? "클로징 우수"
+          : `${needImm}건 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : immRate >= targetImm
+          ? "HEALTHY"
+          : immRate >= 25
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        immediatePayPatients === 0
+          ? "당일 결제 혜택·분할 제안 가동"
+          : needImm === 0
+          ? "상담실 당일 클로징 파워 탁월"
+          : `초진 당일 시작 혜택 안내 (+${needImm}건)`,
+      modal: {
+        exactCounts: `비급여 관여 ${nonCovPatientCount}명 중 상담 당일 즉시결제 ${immediatePayPatients}명 (${immRate}%)`,
+        benchmarkReason:
+          "환자의 치료 결심 에너지는 초진 당일 통증이 가장 심할 때 최고조입니다. 문을 나서는 순간 결제 확률은 1/4로 급락합니다.",
+        riskWarning:
+          "'집에 가서 상의해 볼게요' 비율이 높을수록 상담 시간만 소모되고 실제 매출 전환은 누수됩니다.",
+        actionInstruction:
+          "원장님 진료실 티업(처방 필요성 고지) 직후 상담실로 연결하고, 당일 시작 시 1회 케어 추가 등 명확한 당일 결정 명분을 제시하세요.",
+        scriptExample:
+          "\"오늘 바로 원장님 처방대로 시작하시면 진맥 후 탕전 일정이 내일 바로 배정되어 금요일부터 복용하실 수 있어요.\"",
+        revenueImpactManwon: gainImmManwon,
+      },
+    },
+    {
+      id: "nc_herbal",
+      track: "non_covered",
+      order: 3,
+      title: "한약 처방 전환율",
+      subMetric: `한약 ${herbalPatients}명`,
+      currentValue: herbalRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${herbalRate}%`,
+      targetValue: targetHerbal,
+      targetDisplay: `목표 ${targetHerbal}%↑`,
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : needHerbal === 0
+          ? `달성 +${(herbalRate - targetHerbal).toFixed(1)}%p`
+          : `${needHerbal}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : herbalRate >= targetHerbal
+          ? "HEALTHY"
+          : herbalRate >= 10
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        herbalPatients === 0
+          ? "3회차 통증·피로 환자 한약 티업"
+          : needHerbal === 0
+          ? "한약 주력 매출 엔진 순항 중"
+          : `만성·재발 환자 한약 상담 +${needHerbal}명`,
+      modal: {
+        exactCounts: `전체 신환 ${totalPatients}명 중 한약 처방 기록 ${herbalPatients}명 (${herbalRate}%)`,
+        benchmarkReason:
+          "동네 한의원 객단가(ATV)와 영업이익률을 지탱하는 핵심 기둥은 침 환자의 자연스러운 탕약(통증·보약·다이어트) 전환입니다.",
+        riskWarning:
+          "한약 전환율이 10% 미만이면 계절 비수기마다 매출 변동폭이 커져 경영 안정성이 흔들립니다.",
+        actionInstruction:
+          "초진 첫날 무리한 권유보다, 2~3회차에 침 치료 호전을 확인한 환자에게 '속근육·기혈 회복용 15일/1제 한약'을 제안하세요.",
+        scriptExample:
+          "\"침으로 겉의 급한 불은 껐는데, 진액이 부족해 자꾸 재발하는 상태라 2주간 회복 한약을 같이 드시면 훨씬 덜 아픕니다.\"",
+        revenueImpactManwon: gainHerbalManwon,
+      },
+    },
+    {
+      id: "nc_herbal_followup",
+      track: "non_covered",
+      order: 4,
+      title: "1제 후 연복률",
+      subMetric: herbalPatients > 0 ? `${herbalFollowupYes}/${herbalPatients}명` : "한약 모수 대기",
+      currentValue: followupRate,
+      valueDisplay: herbalPatients === 0 ? "-" : `${followupRate}%`,
+      targetValue: targetFollowup,
+      targetDisplay: `목표 ${targetFollowup}%↑`,
+      gapDisplay:
+        herbalPatients === 0
+          ? "한약 처방 후 집계"
+          : needFollowup === 0
+          ? "연복 목표 달성"
+          : `${needFollowup}명 더 연복`,
+      status:
+        herbalPatients === 0
+          ? "EMPTY"
+          : followupRate >= targetFollowup
+          ? "HEALTHY"
+          : followupRate >= 20
+          ? "WARNING"
+          : "CRITICAL",
+      conclusion:
+        herbalPatients === 0
+          ? "한약 건수·연복 유무를 기록하세요"
+          : needFollowup === 0
+          ? "복약 관리 및 연복 설계 우수"
+          : "복용 10일차 중간점검 콜 필수",
+      modal: {
+        exactCounts: `한약 처방 ${herbalPatients}명 중 1제 후 추가결제(연복) ${herbalFollowupYes}명 (${followupRate}%)`,
+        benchmarkReason:
+          "신규 한약 환자 1명 유치 비용보다 기존 복용 환자의 2제 연복 전환이 5배 이상 쉽고 치료 완성도도 비약적으로 높아집니다.",
+        riskWarning:
+          "약을 다 먹은 뒤에 연락하면 이미 복약을 중단해 연복 타이밍을 놓칩니다.",
+        actionInstruction:
+          "한약 발송 후 '3일차 적응 콜' → '10일차 호전 체크 및 2제 연복 예약 안내' 해피콜 스케줄을 실장님 루틴으로 고정하세요.",
+        scriptExample:
+          "\"약이 4일 치 남으셨을 텐데 끊기지 않고 2제째 이어가셔야 체질 개선이 완성됩니다. 이번 주 금요일 내원 잡아드릴까요?\"",
+        revenueImpactManwon: gainFollowupManwon,
+      },
+    },
+    {
+      id: "nc_package_renewal",
+      track: "non_covered",
+      order: 5,
+      title: "패키지 · 연장률",
+      subMetric: `패키지 ${packagePatients}명 (${pkgRate}%)`,
+      currentValue: packagePatients > 0 ? pkgRenewRate : pkgRate,
+      valueDisplay: packagePatients > 0 ? `연장 ${pkgRenewRate}%` : `등록 ${pkgRate}%`,
+      targetValue: packagePatients > 0 ? targetPkgRenew : 20,
+      targetDisplay: packagePatients > 0 ? `연장 ${targetPkgRenew}%↑` : "등록 20%↑",
+      gapDisplay:
+        packagePatients === 0
+          ? "패키지 제안 필요"
+          : needPkgRenew === 0
+          ? "목표 달성"
+          : `연장 ${needPkgRenew}명 부족`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : packagePatients > 0
+          ? pkgRenewRate >= targetPkgRenew
+            ? "HEALTHY"
+            : pkgRenewRate >= 15
+            ? "WARNING"
+            : "CRITICAL"
+          : pkgRate >= 20
+          ? "HEALTHY"
+          : "WARNING",
+      conclusion:
+        packagePatients === 0
+          ? "약침·추나 5·10회권 구성 제안"
+          : needPkgRenew === 0
+          ? "패키지 재결제 선순환 정착"
+          : "잔여 2회 시점 중간 재평가 실시",
+      modal: {
+        exactCounts: `패키지 등록 ${packagePatients}명(전체의 ${pkgRate}%) · 종료 후 연장 결제 ${packageRenewYes}명(${pkgRenewRate}%)`,
+        benchmarkReason:
+          "약침·다이어트·통증 패키지는 환자의 치료 이탈을 막고 현금 흐름을 안정화하며, 종료 직전 재연장(30%↑)이 순이익을 극대화합니다.",
+        riskWarning:
+          "마지막 회차가 다 끝난 날 연장을 권유하면 환자는 '일단 쉬어볼게요'라고 거절할 확률이 높습니다.",
+        actionInstruction:
+          "패키지 종료 D-2회차(예: 10회 중 8회차)에 원장님 중간 경과 진단을 배정하고 유지·강화 연장 혜택을 안내하세요.",
+        scriptExample:
+          "\"오늘이 8회차시네요! 처음보다 70% 좋아지셨는데 남은 30% 마무리를 위해 연장권 우대 혜택을 적용해 드릴 수 있어요.\"",
+        revenueImpactManwon: gainPkgManwon,
+      },
+    },
+    {
+      id: "nc_delayed_recovery",
+      track: "non_covered",
+      order: 6,
+      title: "30일 보류 회수율",
+      subMetric: `회수 ${delayedPayPatients}건`,
+      currentValue: delayedRate,
+      valueDisplay: totalPatients === 0 ? "-" : `${delayedRate}%`,
+      targetValue: targetDelayed,
+      targetDisplay: `목표 ${targetDelayed}%↑`,
+      gapDisplay:
+        delayedPayPatients === 0
+          ? "해피콜 회수 대기"
+          : needDelayed === 0
+          ? "회수율 우수"
+          : `${needDelayed}건 회수 가능`,
+      status:
+        totalPatients === 0
+          ? "EMPTY"
+          : delayedRate >= targetDelayed
+          ? "HEALTHY"
+          : delayedRate >= 6
+          ? "WARNING"
+          : "WARNING",
+      conclusion:
+        delayedPayPatients === 0
+          ? "당일 미결제자 3·7일 해피콜 가동"
+          : needDelayed === 0
+          ? "보류 환자 밀착 회수 시스템 우수"
+          : `미결제 보류자 ${needDelayed}명 안부콜 진행`,
+      modal: {
+        exactCounts: `당일 미결제(보류) 풀 ${pendingPool}명 중 1달 이내 재결제 회수 ${delayedPayPatients}건 (${delayedRate}%)`,
+        benchmarkReason:
+          "초진 당일 결제를 망설인 보류 환자의 15~20%는 2주 내 증상 악화 또는 가족 상의 후 단 한 번의 정중한 안부 연락으로 결제 전환됩니다.",
+        riskWarning:
+          "보류 환자 명단을 따로 관리하지 않으면 다 잡은 고단가 매출이 그대로 증발합니다.",
+        actionInstruction:
+          "비급여 상담 후 미결제 귀가 환자를 실장님 '관심 노트에 별도 표기'하고 3일 후 통증 안부 연락을 드리세요.",
+        scriptExample:
+          "\"지난번 상담드렸던 OOO님, 치료 후 통증은 좀 어떠신지 원장님께서 궁금해하셔서 안부 연락드렸습니다.\"",
+        revenueImpactManwon: gainDelayedManwon,
+      },
+    },
+  ];
+
+  // --- 트랙별 종합 요약 산출 함수 ---
+  const buildTrackSummary = (
+    track: FirstVisitTrack,
+    label: string,
+    list: DualTrackIndicator[]
+  ): TrackSummary => {
+    const active = list.filter((i) => i.status !== "EMPTY");
+    const healthyCount = list.filter((i) => i.status === "HEALTHY").length;
+    const warningCount = list.filter((i) => i.status === "WARNING").length;
+    const criticalCount = list.filter((i) => i.status === "CRITICAL").length;
+
+    const baseDenom = Math.max(1, active.length * 100);
+    const earned = active.reduce((acc, cur) => {
+      if (cur.status === "HEALTHY") return acc + 92;
+      if (cur.status === "WARNING") return acc + 62;
+      return acc + 30;
+    }, 0);
+    const score = active.length === 0 ? 0 : Math.min(100, Math.round((earned / baseDenom) * 100));
+    const tierInfo = scoreToTier(score);
+
+    // 가장 잠재 매출 임팩트가 크거나 시급한 1개 미션 자동 선정
+    const priorityTarget =
+      [...list]
+        .filter((i) => i.status !== "HEALTHY")
+        .sort((a, b) => b.modal.revenueImpactManwon - a.modal.revenueImpactManwon)[0] || list[0];
+
+    const potentialBreakdown = list
+      .filter((i) => i.modal.revenueImpactManwon > 0)
+      .map((i) => ({
+        label: i.title,
+        gainManwon: i.modal.revenueImpactManwon,
+        detail: `${i.valueDisplay} → ${i.targetDisplay} (${i.gapDisplay})`,
+      }));
+
+    const potentialMonthlyGainManwon = potentialBreakdown.reduce((s, x) => s + x.gainManwon, 0);
+
+    return {
+      track,
+      label,
+      score,
+      tier: tierInfo.tier,
+      tierLabel: tierInfo.label,
+      nextTierGapText:
+        tierInfo.nextCut === 100
+          ? "최상위 마스터 유지 중"
+          : `+${Math.max(1, tierInfo.nextCut - score)}점 달성 시 ${tierInfo.nextTier}`,
+      focusMission: priorityTarget ? `${priorityTarget.title}: ${priorityTarget.conclusion}` : "현재 기준점 우수 유지",
+      focusMissionReason: priorityTarget
+        ? `${priorityTarget.modal.actionInstruction} (예상 효과: 월 +${priorityTarget.modal.revenueImpactManwon}만 원)`
+        : "모든 지표가 권장 기준점 내에 있습니다.",
+      potentialMonthlyGainManwon,
+      potentialBreakdown,
+      healthyCount,
+      warningCount,
+      criticalCount,
+      indicators: list,
+    };
+  };
 
   return {
     evaluatedAt: new Date().toISOString(),
-    region: demographic,
-    marketPenetrationIndex: Number(mpi.toFixed(2)),
-    geriatricDistortionIndex: Number(gdi.toFixed(2)),
-    genderDistortionIndex: Number(genderDI.toFixed(2)),
-    indicators,
-    overallRiskScore,
-    healthyCount,
-    warningCount,
-    criticalCount,
-    executiveSummary,
+    districtType: district.type,
+    districtTip: district.tip,
+    mpi,
+    mpiTargetRange: `${district.mpiMin} ~ ${district.mpiMax}명`,
+    recordedMale,
+    recordedFemale,
+    unrecordedGender,
+    effectiveMale,
+    effectiveFemale,
+    insurance: buildTrackSummary("insurance", "보험 (원장)", insIndicators),
+    nonCovered: buildTrackSummary("non_covered", "비급여 (실장)", ncIndicators),
+  };
+}
+
+/**
+ * 하위 호환 유지를 위한 기존 헬퍼
+ */
+export function computeMetricsFromRows(rows: Partial<FirstVisitRow>[]): ClinicPatientMetrics {
+  if (!rows || rows.length === 0) return DEFAULT_CLINIC_METRICS;
+  let firstVisits = 0;
+  let reFirstVisits = 0;
+  let revisits = 0;
+  let seniorVisits = 0;
+  let under65Visits = 0;
+  let maleVisits = 0;
+  let femaleVisits = 0;
+  let nonReimbursableVisits = 0;
+  let referralPatients = 0;
+  const channels = { organicWalkIn: 0, referral: 0, digitalSearch: 0, socialAd: 0, other: 0 };
+
+  for (const r of rows) {
+    if (clean(r.visitType).includes("재초진")) reFirstVisits++;
+    else firstVisits++;
+    if (clean(r.secondVisitDate)) revisits++;
+    if (clean(r.thirdVisitDate)) revisits++;
+
+    const ageNum = parseInt(clean(r.age).replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(ageNum) && ageNum > 0) {
+      if (ageNum >= 65) seniorVisits++;
+      else under65Visits++;
+    }
+    const g = clean(r.gender);
+    if (/남|M/i.test(g)) maleVisits++;
+    else if (/여|F/i.test(g)) femaleVisits++;
+
+    const rt = clean(r.visitRoute).toLowerCase().replace(/\s+/g, "");
+    if (/소개|지인|가족|추천/.test(rt)) {
+      channels.referral++;
+      referralPatients++;
+    } else if (/네이버|플레이스|블로그|검색|지도|홈페이지|구글/.test(rt)) {
+      channels.digitalSearch++;
+    } else if (/인스타|스레드|유튜브|맘카페|당근|sns|광고/.test(rt)) {
+      channels.socialAd++;
+    } else if (/간판|지나가|근처|동네|인근|거주|도보/.test(rt)) {
+      channels.organicWalkIn++;
+    } else if (rt) {
+      channels.other++;
+    }
+
+    if (
+      clean(r.insuranceType) === "비급여" ||
+      Boolean(clean(r.nonCoveredList)) ||
+      extractPositiveCount(r.nonCoveredCount) > 0 ||
+      Boolean(clean(r.herbalMonthlySummary)) ||
+      extractPositiveCount(r.packageCount) > 0
+    ) {
+      nonReimbursableVisits++;
+    }
+  }
+
+  const totalVisits = Math.max(1, firstVisits + reFirstVisits + revisits);
+  return {
+    totalVisits,
+    firstVisits,
+    reFirstVisits,
+    revisits,
+    seniorVisits,
+    under65Visits: under65Visits || Math.max(0, rows.length - seniorVisits),
+    maleVisits,
+    femaleVisits,
+    acquisitionChannels: channels,
+    nonReimbursableVisits,
+    reimbursableOnlyVisits: Math.max(0, totalVisits - nonReimbursableVisits),
+    referralPatients,
   };
 }

@@ -358,23 +358,91 @@ export function extractRawTableFromArrayBuffer(
 }
 
 /**
- * 이름 정제 (예: "홍길동(남/45)" -> 이름 "홍길동", 보조 나이 "45")
+ * 이름 정제 (예: "홍길동(남/45)" -> 이름 "홍길동", 보조 성별 "남", 보조 나이 "45")
  */
-function parsePatientNameAndInlineAge(rawName: any): { name: string; inlineAge: string } {
+function parsePatientNameAndInlineAge(rawName: any): {
+  name: string;
+  inlineAge: string;
+  inlineGender: string;
+} {
   const s = cleanStr(rawName);
-  if (!s) return { name: "", inlineAge: "" };
+  if (!s) return { name: "", inlineAge: "", inlineGender: "" };
 
   // 예: "홍길동(남/64)" or "홍길동 (여, 45세)"
-  const m = s.match(/^([가-힣a-zA-Z\s]+?)\s*\(\s*[남여MFmf]?\s*[\/,\s]*(\d{1,3})\s*세?\s*\)$/);
+  const m = s.match(
+    /^([가-힣a-zA-Z\s]+?)\s*\(\s*([남여MFmf])?\s*[\/,\s]*(\d{1,3})\s*세?\s*\)$/
+  );
   if (m) {
-    return { name: m[1].trim(), inlineAge: m[2] };
+    const gRaw = (m[2] || "").toUpperCase();
+    const inlineGender =
+      gRaw === "남" || gRaw === "M"
+        ? "남"
+        : gRaw === "여" || gRaw === "F"
+        ? "여"
+        : "";
+    return { name: m[1].trim(), inlineAge: m[3], inlineGender };
+  }
+  // 예: "홍길동(남)"
+  const mSexOnly = s.match(/^([가-힣a-zA-Z\s]+?)\s*\(\s*([남여MFmf])\s*\)$/);
+  if (mSexOnly) {
+    const gRaw = mSexOnly[2].toUpperCase();
+    return {
+      name: mSexOnly[1].trim(),
+      inlineAge: "",
+      inlineGender: gRaw === "남" || gRaw === "M" ? "남" : "여",
+    };
   }
   // 예: "홍길동(12345)" -> 차트번호 분리
   const mChart = s.match(/^([가-힣a-zA-Z]+)\s*\(\d{3,}\)$/);
   if (mChart) {
-    return { name: mChart[1].trim(), inlineAge: "" };
+    return { name: mChart[1].trim(), inlineAge: "", inlineGender: "" };
   }
-  return { name: s, inlineAge: "" };
+  return { name: s, inlineAge: "", inlineGender: "" };
+}
+
+/**
+ * 성별 추출: "남"/"여", "M"/"F", "남/64", 주민등록번호 뒷자리 첫 숫자(1·3·5·7=남, 2·4·6·8=여) 지원
+ */
+export function parseGenderValue(
+  rawGender?: any,
+  rawAgeOrSexAge?: any,
+  rawBirthOrRrn?: any,
+  inlineGender?: string
+): string {
+  const checkStr = (v: any): string => {
+    const s = cleanStr(v);
+    if (!s) return "";
+    const compact = s.replace(/\s+/g, "").toUpperCase();
+    if (compact === "남" || compact === "남자" || compact === "남성" || compact === "M" || compact === "MALE") {
+      return "남";
+    }
+    if (compact === "여" || compact === "여자" || compact === "여성" || compact === "F" || compact === "FEMALE") {
+      return "여";
+    }
+    const mCombo = compact.match(/^([남여MF])[\/,\-\s]?\d{1,3}/) || compact.match(/\d{1,3}세?[\/,\-\s]?([남여MF])$/);
+    if (mCombo) {
+      return mCombo[1] === "남" || mCombo[1] === "M" ? "남" : "여";
+    }
+    return "";
+  };
+
+  const g1 = checkStr(rawGender);
+  if (g1) return g1;
+
+  const g2 = checkStr(rawAgeOrSexAge);
+  if (g2) return g2;
+
+  if (rawBirthOrRrn !== null && rawBirthOrRrn !== undefined) {
+    const b = cleanStr(rawBirthOrRrn);
+    const mRrn = b.match(/^\d{6}\s*-?\s*([1-8])/);
+    if (mRrn) {
+      const code = Number(mRrn[1]);
+      if ([1, 3, 5, 7].includes(code)) return "남";
+      if ([2, 4, 6, 8].includes(code)) return "여";
+    }
+  }
+
+  return inlineGender || "";
 }
 
 /**
@@ -562,10 +630,13 @@ export function convertRawTableToEvents(
     ? Number(effectiveFallbackDate.slice(0, 4))
     : Number(getTodayKSTISO().slice(0, 4));
 
-  // 1) 2번 구글 시트 표준 템플릿(19컬럼) 직접 매핑
+  // 1) 바른 초진 표준 템플릿(구 19컬럼 & 신 20컬럼[성별 포함] 모두 호환) 직접 매핑
   if (isGoogleSheetTemplate) {
     let lastForwardFillDateISO = effectiveFallbackDate;
     let lastForwardFillLabel = effectiveFallbackDate ? formatISOToKoreanMD(effectiveFallbackDate) : "";
+
+    const hasGenderCol = normHeader(rawHeadersRow[2]) === "성별";
+    const o = hasGenderCol ? 1 : 0; // 성별 열 유무에 따른 인덱스 오프셋
 
     const events: ParsedPatientEvent[] = [];
 
@@ -579,16 +650,20 @@ export function convertRawTableToEvents(
         lastForwardFillLabel = cleanStr(rawDate);
       }
 
-      const { name, inlineAge } = parsePatientNameAndInlineAge(r[1]);
+      const { name, inlineAge, inlineGender } = parsePatientNameAndInlineAge(r[1]);
       if (!name) return;
 
       const finalDateISO = parsedDateISO || lastForwardFillDateISO || effectiveFallbackDate;
-      const firstISO = parseAnyDateToISO(r[7], refYear) || finalDateISO;
-      const secondISO = parseAnyDateToISO(r[8], refYear);
-      const thirdISO = parseAnyDateToISO(r[9], refYear);
+      const firstISO = parseAnyDateToISO(r[7 + o], refYear) || finalDateISO;
+      const secondISO = parseAnyDateToISO(r[8 + o], refYear);
+      const thirdISO = parseAnyDateToISO(r[9 + o], refYear);
 
-      const vTypeNorm = normalizeVisitType(r[3]);
-      const visitTypeVal = vTypeNorm === "재진" ? "" : vTypeNorm || cleanStr(r[3]);
+      const vTypeNorm = normalizeVisitType(r[3 + o]);
+      const visitTypeVal = vTypeNorm === "재진" ? "" : vTypeNorm || cleanStr(r[3 + o]);
+
+      const genderVal = hasGenderCol
+        ? parseGenderValue(r[2], r[3], undefined, inlineGender)
+        : parseGenderValue(undefined, r[2], undefined, inlineGender);
 
       const row: FirstVisitRow = {
         id: `fv_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
@@ -597,26 +672,27 @@ export function convertRawTableToEvents(
           : lastForwardFillLabel || cleanStr(rawDate),
         visitDateISO: finalDateISO,
         patientName: name,
-        age: parseAgeValue(r[2], undefined, refYear) || inlineAge,
+        gender: genderVal,
+        age: parseAgeValue(r[2 + o], undefined, refYear) || inlineAge,
         visitType: visitTypeVal,
-        insuranceType: normalizeInsuranceType(r[4]),
-        treatmentDetail: cleanStr(r[5]),
-        nextReservation: normalizeReservation(r[6]) || cleanStr(r[6]),
-        firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : cleanStr(r[7]),
+        insuranceType: normalizeInsuranceType(r[4 + o]),
+        treatmentDetail: cleanStr(r[5 + o]),
+        nextReservation: normalizeReservation(r[6 + o]) || cleanStr(r[6 + o]),
+        firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : cleanStr(r[7 + o]),
         firstVisitISO: firstISO,
-        secondVisitDate: secondISO ? formatISOToKoreanMD(secondISO) : cleanStr(r[8]),
+        secondVisitDate: secondISO ? formatISOToKoreanMD(secondISO) : cleanStr(r[8 + o]),
         secondVisitISO: secondISO,
-        thirdVisitDate: thirdISO ? formatISOToKoreanMD(thirdISO) : cleanStr(r[9]),
+        thirdVisitDate: thirdISO ? formatISOToKoreanMD(thirdISO) : cleanStr(r[9 + o]),
         thirdVisitISO: thirdISO,
-        visitRoute: cleanStr(r[10]),
-        nonCoveredList: cleanStr(r[11]),
-        nonCoveredCount: cleanStr(r[12]),
-        immediatePaymentCount: cleanStr(r[13]),
-        herbalMonthlySummary: cleanStr(r[14]),
-        packageCount: cleanStr(r[15]),
-        herbalFollowupPayment: cleanStr(r[16]),
-        packageRenewal: cleanStr(r[17]),
-        delayedPaymentWithinMonth: cleanStr(r[18]),
+        visitRoute: cleanStr(r[10 + o]),
+        nonCoveredList: cleanStr(r[11 + o]),
+        nonCoveredCount: cleanStr(r[12 + o]),
+        immediatePaymentCount: cleanStr(r[13 + o]),
+        herbalMonthlySummary: cleanStr(r[14 + o]),
+        packageCount: cleanStr(r[15 + o]),
+        herbalFollowupPayment: cleanStr(r[16 + o]),
+        packageRenewal: cleanStr(r[17 + o]),
+        delayedPaymentWithinMonth: cleanStr(r[18 + o]),
         sourceFile: extraction.fileName,
         updatedAt: new Date().toISOString(),
       };
@@ -686,6 +762,7 @@ export function convertRawTableToEvents(
     ["환자이름", "환자명", "수진자명", "수진자", "환자성명", "고객명", "성명", "이름"],
     ["원장", "의사", "담당", "소개자", "보호자"]
   );
+  const genderCols = pickCols("gender", ["성별", "남녀", "남여", "sex", "gender", "성별나이", "성별연령"]);
   const ageCols = pickCols("age", ["만나이", "나이", "연령", "성별나이", "성별연령"]);
   const visitTypeCols = pickCols(
     "visitType",
@@ -747,6 +824,7 @@ export function convertRawTableToEvents(
   const colRegistry: Record<SheetColumnKey, number[]> = {
     visitDate: dateCols,
     patientName: nameCols,
+    gender: [...genderCols, ...birthCols],
     age: [...ageCols, ...birthCols],
     visitType: visitTypeCols,
     insuranceType: insCols,
@@ -781,7 +859,7 @@ export function convertRawTableToEvents(
 
   dataRows.forEach((r, rowIdx) => {
     const rawNameCell = nameCols.length > 0 ? r[nameCols[0]] : "";
-    const { name, inlineAge } = parsePatientNameAndInlineAge(rawNameCell);
+    const { name, inlineAge, inlineGender } = parsePatientNameAndInlineAge(rawNameCell);
     if (!name) return;
 
     const chartNo = chartCols.length > 0 ? cleanStr(r[chartCols[0]]) : "";
@@ -843,6 +921,13 @@ export function convertRawTableToEvents(
       }
     }
 
+    const genderVal = parseGenderValue(
+      genderCols.length > 0 ? r[genderCols[0]] : "",
+      ageCols.length > 0 ? r[ageCols[0]] : "",
+      birthCols.length > 0 ? r[birthCols[0]] : "",
+      inlineGender
+    );
+
     const ageVal =
       parseAgeValue(
         ageCols.length > 0 ? r[ageCols[0]] : "",
@@ -883,6 +968,7 @@ export function convertRawTableToEvents(
       visitDate: rowDateISO ? formatISOToKoreanMD(rowDateISO) : (dateCols.length > 0 ? cleanStr(r[dateCols[0]]) : ""),
       visitDateISO: rowDateISO,
       patientName: name,
+      gender: genderVal,
       age: ageVal,
       visitType: normalizedVType === "재진" ? "" : normalizedVType,
       insuranceType: insuranceVal,
@@ -1001,7 +1087,7 @@ export function mergeParsedEventsIntoRows(
       for (const col of SHEET_COLUMNS) {
         const k = col.key;
         if (!cleanStr(target[k]) && cleanStr(incoming[k])) {
-          target[k] = incoming[k];
+          target[k] = incoming[k] || "";
           touched = true;
         }
       }
@@ -1695,15 +1781,16 @@ export function buildFallbackAiReport(
  * 2번 구글 시트 100% 동일 레이아웃(.xlsx) 내보내기
  */
 export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?: string) {
-  const row0 = Array(19).fill("");
-  row0[7] = "초진일";
-  row0[8] = "재내원일";
+  const row0 = Array(20).fill("");
+  row0[8] = "초진일";
+  row0[9] = "재내원일";
 
   const row1 = SHEET_COLUMNS.map((c) => c.label);
 
   const dataMatrix = rows.map((r) => [
     r.visitDate || "",
     r.patientName || "",
+    r.gender || "",
     r.age ? (isNaN(Number(r.age)) ? r.age : Number(r.age)) : "",
     r.visitType || "",
     r.insuranceType || "",
@@ -1725,29 +1812,30 @@ export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?:
 
   const ws = XLSX.utils.aoa_to_sheet([row0, row1, ...dataMatrix]);
 
-  // I1:J1 "재내원일" 병합 (2번 구글 시트 동일 병합 구조)
-  ws["!merges"] = [{ s: { r: 0, c: 8 }, e: { r: 0, c: 9 } }];
+  // J1:K1 "재내원일" 병합
+  ws["!merges"] = [{ s: { r: 0, c: 9 }, e: { r: 0, c: 10 } }];
 
   ws["!cols"] = [
     { wch: 11 }, // 일자
     { wch: 12 }, // 환자 이름
+    { wch: 7 },  // 성별
     { wch: 7 },  // 나이
     { wch: 11 }, // 초진/재초진
-    { wch: 16 }, // 환자구분
-    { wch: 34 }, // 환자 진료 내역
-    { wch: 15 }, // 다음 진료 예약 안내
+    { wch: 14 }, // 환자구분
+    { wch: 32 }, // 환자 진료 내역
+    { wch: 13 }, // 예약 안내
     { wch: 11 }, // 1회
     { wch: 11 }, // 2회
     { wch: 11 }, // 3회
     { wch: 14 }, // 내원경로
-    { wch: 24 }, // 비급여 목록
-    { wch: 18 }, // 비급여 판매 건수
+    { wch: 22 }, // 비급여 목록
+    { wch: 16 }, // 비급여 판매 건수
     { wch: 16 }, // 상담후 즉시 결제
-    { wch: 24 }, // 한약 월총 건수
+    { wch: 22 }, // 한약 건수·목적
     { wch: 12 }, // 패키지 건수
-    { wch: 18 }, // 1제 복용후 추가결제
-    { wch: 22 }, // 패키지 종료후 연장
-    { wch: 26 }, // 상담후 1달이내 결제
+    { wch: 16 }, // 1제후 연복유무
+    { wch: 18 }, // 패키지 종료연장
+    { wch: 24 }, // 1달이내 지연결제
   ];
 
   const wb = XLSX.utils.book_new();

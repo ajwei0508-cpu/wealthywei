@@ -14,18 +14,16 @@ import {
 import {
   Sparkles,
   RefreshCw,
-  AlertCircle,
-  CheckCircle2,
-  FileText,
-  TrendingUp,
-  Users,
-  Activity,
+  Info,
+  X,
 } from "lucide-react";
 import {
   FirstVisitAnalytics,
   FirstVisitAiReportData,
   MissingDataReport,
   FirstVisitRow,
+  FirstVisitTrack,
+  KeyTakeawaySection,
 } from "@/types/firstVisit";
 import FirstVisitAnalyticsView from "./FirstVisitAnalyticsView";
 
@@ -38,402 +36,228 @@ interface Props {
   isGenerating: boolean;
   onGenerateReport: () => void;
   rows?: FirstVisitRow[];
+  activeTrack?: FirstVisitTrack;
+  onTrackChange?: (track: FirstVisitTrack) => void;
 }
 
 export default function FirstVisitAiReportView({
   clinicName,
   directorName,
   analytics,
-  missingReport,
   aiReport,
   isGenerating,
   onGenerateReport,
   rows = [],
+  activeTrack: controlledTrack,
+  onTrackChange,
 }: Props) {
-  if (analytics.totalPatients === 0) {
-    return (
-      <div className="bg-white/5 border border-white/10 rounded-[28px] p-14 text-center space-y-5">
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center mx-auto text-amber-300">
-          <Sparkles size={30} />
-        </div>
-        <h3 className="text-xl font-black text-white">
-          아직 분석할 초진·재초진 환자 리스트가 없습니다
-        </h3>
-        <p className="text-sm text-white/55 max-w-lg mx-auto leading-relaxed">
-          상단 업로드 영역에 사용 중이신 차트 프로그램(한차트·오케이차트·한의사랑·동의보감·엑셀 시트 등)의{" "}
-          <strong className="text-amber-300">일일 환자 리스트</strong>를 업로드하시면, 시각 차트와 원장님 맞춤형 AI 심층 리포트가 자동 생성됩니다.
-        </p>
-      </div>
-    );
-  }
+  const [internalTrack, setInternalTrack] = useState<FirstVisitTrack>("insurance");
+  const activeTrack = controlledTrack ?? internalTrack;
+  const handleTrackChange = (t: FirstVisitTrack) => {
+    setInternalTrack(t);
+    onTrackChange?.(t);
+  };
+  const [selectedTakeaway, setSelectedTakeaway] = useState<KeyTakeawaySection | null>(null);
 
-  const isOutdated =
-    aiReport && aiReport.analyzedRowCount !== analytics.totalPatients;
+  // 선택된 트랙(보험·원장 vs 비급여·실장)에 맞는 AI 핵심 결론만 필터링
+  const activeTakeaways: KeyTakeawaySection[] = (() => {
+    if (!aiReport) return [];
+    if (activeTrack === "insurance" && aiReport.insuranceTakeaways?.length) {
+      return aiReport.insuranceTakeaways;
+    }
+    if (activeTrack === "non_covered" && aiReport.nonCoveredTakeaways?.length) {
+      return aiReport.nonCoveredTakeaways;
+    }
+    // 구버전 리포트 호환: 인덱스 기준 분배
+    if (activeTrack === "insurance") {
+      return aiReport.keyTakeaways.slice(0, 2);
+    }
+    return aiReport.keyTakeaways.slice(2);
+  })();
 
   return (
-    <div className="space-y-8">
-      {/* 상단 액션 헤더 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-emerald-950/90 via-[#07291c] to-emerald-950/80 border border-emerald-500/25 rounded-3xl p-6 shadow-xl">
-        <div className="space-y-1">
+    <div className="space-y-5">
+      {/* 1. 메인 2트랙 [보험(원장) · 비급여(실장)] 통계 기준점 & 동기부여 보드 */}
+      <FirstVisitAnalyticsView
+        existingFirstVisitRows={rows}
+        embedded={true}
+        activeTrack={activeTrack}
+        onTrackChange={handleTrackChange}
+      />
+
+      {/* 2. 심플 AI 핵심 결론 바 (글자 최소화 + ⓘ 아이콘 클릭 시 상세 컨설팅 모달) */}
+      <div className="bg-white text-[#111111] rounded-[28px] p-5 md:p-7 border border-[#E5E5E5] space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/30">
-              AI EXECUTIVE CLINICAL REPORT
-            </span>
-            {aiReport?.generatedAt && (
-              <span className="text-xs text-white/45">
-                최근 생성: {new Date(aiReport.generatedAt).toLocaleString("ko-KR")}
-              </span>
-            )}
-            {isOutdated && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                신규 데이터 반영 필요
+            <Sparkles size={16} className="text-[#B8924A]" />
+            <h3 className="text-base font-black text-[#111111]">
+              {clinicName} · {activeTrack === "insurance" ? "보험(원장)" : "비급여(실장)"} AI 핵심 결론
+            </h3>
+            {aiReport?.introParagraph && (
+              <span className="hidden lg:inline-block text-xs text-[#666666] font-medium ml-2 truncate max-w-md">
+                — {aiReport.introParagraph}
               </span>
             )}
           </div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2">
-            <FileText size={20} className="text-amber-400" />
-            {clinicName} ({directorName} 원장님) 초진·재내원 AI 심층 분석 & 7대 경영통계 리포트
-          </h2>
-          <p className="text-xs text-white/60">
-            분석 기간: <strong className="text-emerald-300">{analytics.periodLabel}</strong> · 총{" "}
-            <strong className="text-white">{analytics.totalPatients}명</strong> (2차 재내원율{" "}
-            <strong className="text-amber-300">{analytics.overallSecondVisitRate}%</strong> / 3차 재내원율{" "}
-            <strong className="text-emerald-300">{analytics.overallThirdVisitRate}%</strong>)
-          </p>
+
+          <button
+            type="button"
+            onClick={onGenerateReport}
+            disabled={isGenerating || rows.length === 0}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#111111] hover:bg-[#262626] text-[#D4AF37] text-xs font-extrabold transition cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={isGenerating ? "animate-spin" : ""} />
+            <span>{isGenerating ? "AI 분석 중..." : aiReport ? "AI 결론 갱신" : "AI 결론 생성"}</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onGenerateReport}
-          disabled={isGenerating}
-          className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#031C13] font-black text-sm shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-60 active:scale-95"
-        >
-          <RefreshCw size={16} className={isGenerating ? "animate-spin" : ""} />
-          <span>{isGenerating ? "AI가 정밀 분석 중입니다..." : aiReport ? "AI 분석 리포트 최신화" : "AI 심층 분석 생성하기"}</span>
-        </button>
-      </div>
-
-      {/* 핵심 KPI 요약 4단 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-white/50 text-xs font-bold mb-1">
-            <span>누적 초진·재초진 환자</span>
-            <Users size={15} className="text-blue-400" />
-          </div>
-          <p className="text-2xl font-black text-white">{analytics.totalPatients}명</p>
-          <p className="text-[11px] text-white/45 mt-1">
-            초진 {analytics.firstVisitCount}명 · 재초진 {analytics.reFirstVisitCount}명
-            {analytics.untypedVisitCount > 0 ? ` · 미분류 ${analytics.untypedVisitCount}명` : ""}
-          </p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-white/50 text-xs font-bold mb-1">
-            <span>2차 재내원율 (초기 안착)</span>
-            <TrendingUp size={15} className="text-amber-400" />
-          </div>
-          <p className="text-2xl font-black text-amber-300">{analytics.overallSecondVisitRate}%</p>
-          <p className="text-[11px] text-white/45 mt-1">
-            총 {analytics.overallSecondVisitCount}명 2회차 내원 완료
-          </p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-white/50 text-xs font-bold mb-1">
-            <span>3차 재내원율 (치료 지속)</span>
-            <CheckCircle2 size={15} className="text-emerald-400" />
-          </div>
-          <p className="text-2xl font-black text-emerald-300">{analytics.overallThirdVisitRate}%</p>
-          <p className="text-[11px] text-white/45 mt-1">
-            총 {analytics.overallThirdVisitCount}명 3회차 내원 완료
-          </p>
-        </div>
-
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <div className="flex items-center justify-between text-white/50 text-xs font-bold mb-1">
-            <span>내원경로 기재율</span>
-            <Activity size={15} className="text-rose-400" />
-          </div>
-          <p className="text-2xl font-black text-white">
-            {(100 - analytics.missingRoutePct).toFixed(1)}%
-          </p>
-          <p className="text-[11px] text-white/45 mt-1">
-            기입 {analytics.recordedRouteCount}명 · 공란 {analytics.missingRouteCount}명
-          </p>
-        </div>
-      </div>
-
-      {/* 통계청 인구 비례 7대 경영 통계 분석 통합 섹션 */}
-      <FirstVisitAnalyticsView existingFirstVisitRows={rows} embedded={true} />
-
-      {/* === 3번 구글 문서(Doc) 백서 스타일 본문 + 2대 시각 차트 === */}
-      <div className="bg-[#FAFBFD] text-slate-800 rounded-[32px] shadow-2xl border border-slate-200/80 overflow-hidden">
-        {/* 문서 상단: 핵심 시각 차트 영역 */}
-        <div className="p-6 md:p-10 bg-[#F2F5F8] border-b border-slate-200">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* 차트 1: 연령대별 환자 수 분포 및 재내원율 */}
-            <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[15px] font-extrabold text-slate-800">
-                  연령대별 환자 수 분포 및 재내원율
-                </h3>
-                {analytics.unknownAgeCount > 0 && (
-                  <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
-                    연령 공란 {analytics.unknownAgeCount}명 제외
-                  </span>
-                )}
-              </div>
-              <div className="h-[290px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={analytics.ageDistribution}
-                    margin={{ top: 18, right: 16, left: -8, bottom: 8 }}
+        {/* AI 1줄 결론 카드 목록 */}
+        {activeTakeaways.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {activeTakeaways.map((sec, idx) => {
+              const summaryLine =
+                sec.oneLiner ||
+                sec.bullets?.[0]?.content?.slice(0, 42) + "..." ||
+                "우측 아이콘을 눌러 상세 전략을 확인하세요.";
+              return (
+                <div
+                  key={idx}
+                  className="p-4 rounded-2xl bg-[#FAFAFA] border border-[#E5E5E5] flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <span className="text-[11px] font-extrabold text-[#0F5132] block truncate">
+                      {sec.title}
+                    </span>
+                    <p className="text-sm font-black text-[#111111] mt-1 truncate">
+                      {summaryLine}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTakeaway(sec)}
+                    className="w-8 h-8 rounded-full bg-white border border-[#D4D4D4] hover:bg-[#111111] hover:border-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center shrink-0 transition cursor-pointer"
+                    title="AI 상세 분석 및 실행 지시 보기"
                   >
-                    <CartesianGrid strokeDasharray="0" vertical={false} stroke="#CBD5E1" />
-                    <XAxis
-                      dataKey="ageGroup"
-                      tick={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
-                      axisLine={{ stroke: "#334155" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{ fill: "#475569", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <Info size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-4 rounded-2xl bg-[#FAFAFA] border border-dashed border-[#D4D4D4] flex items-center justify-between gap-3 text-xs text-[#666666]">
+            <span>우측 [AI 결론 생성] 버튼을 누르면 핵심 지시 요약이 생성됩니다.</span>
+          </div>
+        )}
+
+        {/* 보험(원장) 선택 시에만 연령·주소증 핵심 분포 차트 간결 노출 */}
+        {activeTrack === "insurance" && analytics.totalPatients > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-[#F0F0F0]">
+            <div className="bg-[#FAFAFA] rounded-2xl p-4 border border-[#EAEAEA]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-extrabold text-[#111111]">연령대별 환자 분포</span>
+                <span className="text-[11px] text-[#737373]">60대↑ {analytics.senior60PlusPct}%</span>
+              </div>
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.ageDistribution} margin={{ top: 14, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EAEAEA" />
+                    <XAxis dataKey="ageGroup" tick={{ fill: "#333333", fontSize: 10, fontWeight: 700 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: "#888888", fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0F172A",
-                        border: "none",
-                        borderRadius: "12px",
-                        color: "#F8FAFC",
-                        fontSize: "12px",
-                      }}
-                      formatter={(val: any, _name: any, item: any) => [
-                        `${val}명 (비중 ${item?.payload?.sharePct ?? 0}% | 2차 재내원 ${item?.payload?.secondVisitRate ?? 0}% · 3차 ${item?.payload?.thirdVisitRate ?? 0}%)`,
-                        "환자 수",
+                      contentStyle={{ backgroundColor: "#111111", border: "none", borderRadius: "10px", color: "#fff", fontSize: "11px" }}
+                      formatter={(val: any, _n: any, item: any) => [
+                        `${val}명 (2차 ${item?.payload?.secondVisitRate ?? 0}%)`,
+                        "인원",
                       ]}
                     />
-                    <Bar dataKey="total" fill="#DE5656" radius={[4, 4, 0, 0]} maxBarSize={54}>
-                      <LabelList
-                        dataKey="total"
-                        position="top"
-                        style={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
-                      />
+                    <Bar dataKey="total" fill="#0F5132" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                      <LabelList dataKey="total" position="top" style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* 차트 2: 주요 증상 및 진료 부위별 환자 수 (가로 막대형) */}
-            <div className="bg-[#F4F6F9] rounded-2xl p-6 border border-slate-200/90 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-[15px] font-extrabold text-slate-800">
-                  주요 증상 및 진료 부위별 환자 수
-                </h3>
-                {analytics.missingSymptomCount > 0 && (
-                  <span className="text-[11px] font-bold text-slate-600 bg-slate-200 px-2.5 py-0.5 rounded-full">
-                    진료내역 공란 {analytics.missingSymptomCount}명
-                  </span>
-                )}
+            <div className="bg-[#FAFAFA] rounded-2xl p-4 border border-[#EAEAEA]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-extrabold text-[#111111]">주요 진료 부위</span>
+                <span className="text-[11px] text-[#737373]">총 {analytics.totalPatients}명</span>
               </div>
-              <div className="h-[290px] w-full">
+              <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={analytics.symptomDistribution}
                     layout="vertical"
-                    margin={{ top: 8, right: 36, left: 28, bottom: 8 }}
+                    margin={{ top: 4, right: 28, left: 16, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="0" horizontal={false} stroke="#CBD5E1" />
-                    <XAxis
-                      type="number"
-                      allowDecimals={false}
-                      tick={{ fill: "#475569", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAEAEA" />
+                    <XAxis type="number" allowDecimals={false} hide />
                     <YAxis
                       type="category"
                       dataKey="category"
-                      width={120}
-                      tick={{ fill: "#334155", fontSize: 12, fontWeight: 700 }}
-                      axisLine={{ stroke: "#334155" }}
+                      width={95}
+                      tick={{ fill: "#111111", fontSize: 11, fontWeight: 700 }}
+                      axisLine={false}
                       tickLine={false}
                     />
                     <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#0F172A",
-                        border: "none",
-                        borderRadius: "12px",
-                        color: "#F8FAFC",
-                        fontSize: "12px",
-                      }}
-                      formatter={(val: any, _name: any, item: any) => [
-                        `${val}명 (전체 대비 ${item?.payload?.sharePct ?? 0}%)`,
-                        "환자 수",
-                      ]}
+                      contentStyle={{ backgroundColor: "#111111", border: "none", borderRadius: "10px", color: "#fff", fontSize: "11px" }}
                     />
-                    <Bar dataKey="count" fill="#559E4C" radius={[0, 4, 4, 0]} barSize={28}>
-                      <LabelList
-                        dataKey="count"
-                        position="right"
-                        style={{ fill: "#334155", fontSize: 11, fontWeight: 700 }}
-                      />
+                    <Bar dataKey="count" fill="#C5A059" radius={[0, 4, 4, 0]} barSize={18}>
+                      <LabelList dataKey="count" position="right" style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* 문서 하단: AI 텍스트 분석 리포트 & 요약 테이블 */}
-        <div className="p-8 md:p-12 space-y-8 bg-white">
-          {aiReport ? (
-            <>
-              {/* 도입부 요약 */}
-              <p className="text-[15.5px] leading-relaxed text-slate-700 font-medium border-b border-slate-200 pb-6">
-                {aiReport.introParagraph}
-              </p>
-
-              {/* Key Takeaways (핵심 분석 결과) */}
-              <div className="space-y-7">
-                <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                  <span className="w-1.5 h-6 rounded-full bg-emerald-600 inline-block" />
-                  Key Takeaways (핵심 분석 결과)
-                </h3>
-
-                <div className="space-y-7">
-                  {aiReport.keyTakeaways.map((sec, sIdx) => (
-                    <div key={sIdx} className="space-y-3">
-                      <h4 className="text-[16.5px] font-extrabold text-slate-900">
-                        {sec.title}
-                      </h4>
-                      <ul className="space-y-2.5 pl-5 list-disc marker:text-emerald-600">
-                        {sec.bullets.map((b, bIdx) => (
-                          <li key={bIdx} className="text-[14.5px] leading-relaxed text-slate-700">
-                            <strong className="font-extrabold text-slate-900">{b.label}</strong>:{" "}
-                            {b.content}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-extrabold text-emerald-950">
-                  차트 시각화가 준비되었습니다! 상단 [AI 심층 분석 생성하기] 버튼을 누르시면 원장님 맞춤 Key Takeaways 해설이 작성됩니다.
-                </p>
-                <p className="text-xs text-emerald-800/80">
-                  연령별 재내원 격차, 내원경로 효율성, 주소증 분포 및 공란 항목 보완 가이드를 한 번에 브리핑해 드립니다.
-                </p>
+      {/* AI 상세 해설 모달 (ⓘ 클릭 시) */}
+      {selectedTakeaway && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-4"
+          onClick={() => setSelectedTakeaway(null)}
+        >
+          <div
+            className="bg-white text-[#111111] w-full max-w-lg rounded-3xl border border-[#E5E5E5] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-[#111111] text-white px-6 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#D4AF37] block">
+                  AI PRESCRIPTIVE GUIDE
+                </span>
+                <h3 className="text-base font-black mt-0.5">{selectedTakeaway.title}</h3>
               </div>
               <button
                 type="button"
-                onClick={onGenerateReport}
-                disabled={isGenerating}
-                className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black shrink-0 cursor-pointer transition"
+                onClick={() => setSelectedTakeaway(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
               >
-                {isGenerating ? "분석 생성 중..." : "지금 AI 해설 생성"}
+                <X size={16} />
               </button>
             </div>
-          )}
-
-          {/* 원장님 공란(미기재) 항목 안내 박스 (요구사항 4번 연동) */}
-          {missingReport.directorMessages.length > 0 && (
-            <div className="rounded-2xl bg-amber-50/90 border border-amber-200 p-6 space-y-2.5">
-              <div className="flex items-center gap-2 text-amber-900 font-extrabold text-sm">
-                <AlertCircle size={18} className="text-amber-600 shrink-0" />
-                <span>원장님 확인 안내 — 2번 표준 시트 내 공란(미포함·미기재) 항목 브리핑</span>
-              </div>
-              <ul className="space-y-1.5 pl-6 list-disc text-[13.5px] text-amber-950/85 leading-relaxed">
-                {missingReport.directorMessages.map((msg, idx) => (
-                  <li key={idx}>{msg}</li>
+            <div className="p-6 space-y-3.5 text-xs leading-relaxed max-h-[75vh] overflow-y-auto">
+              {selectedTakeaway.oneLiner && (
+                <div className="p-3 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] text-[#0F5132] font-extrabold text-sm">
+                  핵심 결론: {selectedTakeaway.oneLiner}
+                </div>
+              )}
+              <div className="space-y-3">
+                {selectedTakeaway.bullets.map((b, idx) => (
+                  <div key={idx} className="p-3.5 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA]">
+                    <strong className="font-extrabold text-[#111111] block mb-1">{b.label}</strong>
+                    <p className="text-[#404040]">{b.content}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-          )}
-
-          {/* 분석 요약 데이터 표 (3번 Google Doc 동일 양식) */}
-          <div className="space-y-4 pt-2 border-t border-slate-200">
-            <h3 className="text-lg font-black text-slate-900">분석 요약 데이터</h3>
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-sm text-left border-collapse">
-                <thead className="bg-slate-100 text-slate-700 border-b border-slate-200">
-                  <tr>
-                    <th className="py-3.5 px-4 font-extrabold whitespace-nowrap">구분</th>
-                    {analytics.monthlySummary.map((m) => (
-                      <th key={m.month} className="py-3.5 px-4 font-extrabold text-center whitespace-nowrap">
-                        {m.month}
-                      </th>
-                    ))}
-                    <th className="py-3.5 px-4 font-black text-center bg-emerald-50 text-emerald-900 whitespace-nowrap">
-                      합계/평균
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-slate-700">
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">환자 수 (명)</td>
-                    {analytics.monthlySummary.map((m) => (
-                      <td key={m.month} className="py-3 px-4 text-center font-semibold">
-                        {m.totalPatients}
-                      </td>
-                    ))}
-                    <td className="py-3 px-4 text-center font-black bg-emerald-50/50 text-emerald-950">
-                      {analytics.totalPatients}명
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">2차 재내원율 (%)</td>
-                    {analytics.monthlySummary.map((m) => (
-                      <td key={m.month} className="py-3 px-4 text-center font-semibold">
-                        {m.secondVisitRate}%
-                      </td>
-                    ))}
-                    <td className="py-3 px-4 text-center font-black bg-emerald-50/50 text-emerald-950">
-                      {analytics.overallSecondVisitRate}%
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">3차 재내원율 (%)</td>
-                    {analytics.monthlySummary.map((m) => (
-                      <td key={m.month} className="py-3 px-4 text-center font-semibold">
-                        {m.thirdVisitRate}%
-                      </td>
-                    ))}
-                    <td className="py-3 px-4 text-center font-black bg-emerald-50/50 text-emerald-950">
-                      {analytics.overallThirdVisitRate}%
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-slate-50">
-                    <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">다음 진료 예약률 (%)</td>
-                    {analytics.monthlySummary.map((m) => (
-                      <td key={m.month} className="py-3 px-4 text-center font-semibold text-slate-600">
-                        {m.reservationRecordedCount > 0 ? `${m.reservationYesRate}%` : "공란"}
-                      </td>
-                    ))}
-                    <td className="py-3 px-4 text-center font-black bg-emerald-50/50 text-emerald-950">
-                      {analytics.overallReservationYesRate}%
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p className="text-xs italic text-slate-500 leading-relaxed pt-1">
-              *{aiReport?.footnote ||
-                "참고 및 전제 조건: 최근 월/일 데이터의 재내원율 감소는 진료 기록 및 후속 내원 진행 중 영향이 반영되었을 수 있습니다. 일자가 공란으로 입력된 행은 동일 날짜 연속 방문 데이터로 전진 채움(Forward-fill)하여 분석을 수행하였으며, 원장님 차트에 없는 시트 항목은 공란으로 유지됩니다."}
-            </p>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
