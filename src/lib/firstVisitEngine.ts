@@ -1313,28 +1313,39 @@ export function classifySymptomCategories(detail: string): string[] {
   const matched: string[] = [];
   const cleanedUpper = s.replace(/발등/g, "족배").replace(/발목|손목/g, "관절");
 
-  if (/어깨|어꺠|오십견|회전근개|목|경추|뒷목|승모근|등|날개뼈|견갑|담|쇄골|갈비|늑간/.test(cleanedUpper)) {
+  if (
+    /어깨|어꺠|오십견|회전근개|경추|뒷목|거북목|일자목|낙침|승모근|등통증|등결림|등담|흉추|날개뼈|견갑|담결림|담걸림|쇄골|갈비|늑간|(?<![항품과세주])목(?![적록요소리구멍])|^등[\s,/]/.test(
+      cleanedUpper
+    )
+  ) {
     matched.push("어깨/목/등/담");
   }
 
   if (/허리|요통|요추|디스크|협착|골반|엉치|고관절|좌골|옆구리|천장관절/.test(s)) {
     matched.push("허리/요통");
   }
-  if (/무릎|슬관절|다리|하체|정강이|종아리|허벅지|발목|발바닥|족저|발가락|발등|아킬레스|쥐남|(?<![재출다모])발(?!생|열)/.test(s)) {
+  if (
+    /무릎|슬관절|슬통|다리|하체|하지|정강이|종아리|허벅지|대퇴|발목|족관절|염좌|접질|삐끗|발바닥|족저|발가락|발등|족배|뒤꿈치|아킬레스|쥐남|(?<![재출다모유폭])발(?![생열진한목등바닥가락])/.test(
+      s
+    )
+  ) {
     matched.push("무릎/하체/발");
   }
-  if (/팔|팔꿈치|엘보|아래팔|윗팔|전완|상완|손|손목|손가락|손저림|손떨림|터널/.test(s)) {
+  if (
+    /팔꿈치|엘보|상과염|아래팔|윗팔|전완|상완|손목|손가락|손바닥|손저림|손떨림|수근관|터널|건초염|방아쇠|팔통증|팔저림|(?<![양재])팔(?![월십])|(?<![파훼결손])손(?![실상해님])/.test(
+      s
+    )
+  ) {
     matched.push("팔/손/상체");
   }
-  if (/비염|콧물|코막힘|축농증|기침|마른기침|가래|천식|감기|인후|호흡/.test(s)) {
+  if (/비염|콧물|코막힘|축농증|기침|마른기침|가래|천식|감기|인후|호흡|기관지/.test(s)) {
     matched.push("비염/호흡기");
   }
-  if (/다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약상담|소화|체함|식도염|위염|속쓰림|속안좋음|설사|변비|복통|불면|불안|우울|화병|놀람|무기력|기력|피로|기운|어지럼|소변|절박뇨|전립선|생리|자궁|가려움|열감|노란끼/.test(s)) {
-    matched.push("한약/내과/다이어트");
-  }
-
-  if (matched.length === 0) {
-    // 두통, 구안와사, 안면, 이명 등 기타 내과/신경계 증상
+  if (
+    /다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약상담|소화|체함|체기|식도염|위염|속쓰림|속안좋음|설사|변비|복통|장염|불면|불안|우울|화병|놀람|무기력|기력|피로|기운|어지럼|현훈|이석증|두통|편두통|이명|난청|구안와사|안면|벨마비|턱관절|악관절|소변|절박뇨|전립선|생리|자궁|산후|갱년기|피부|두드러기|가려움|열감|노란끼/.test(
+      s
+    )
+  ) {
     matched.push("한약/내과/다이어트");
   }
 
@@ -1420,6 +1431,10 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
         category,
         count: 0,
         sharePct: 0,
+        secondVisitCount: 0,
+        thirdVisitCount: 0,
+        secondVisitRate: 0,
+        thirdVisitRate: 0,
       })),
       missingSymptomCount: 0,
       insuranceBreakdown: [],
@@ -1469,8 +1484,8 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
   const routeMap = new Map<string, { count: number; second: number; third: number }>();
   let missingRouteCount = 0;
 
-  const symptomMap = new Map<string, number>();
-  symptomLabels.forEach((s) => symptomMap.set(s, 0));
+  const symptomMap = new Map<string, { count: number; second: number; third: number }>();
+  symptomLabels.forEach((s) => symptomMap.set(s, { count: 0, second: 0, third: 0 }));
   let missingSymptomCount = 0;
 
   const insMap = new Map<string, number>();
@@ -1551,11 +1566,15 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
       missingRouteCount++;
     }
 
-    // 주요 증상 및 진료 부위 (복합 부위 중복 집계 지원)
+    // 주요 증상 및 진료 부위 (복합 부위 중복 집계 + 부위별 2·3차 재내원 추적)
     const syms = classifySymptomCategories(r.treatmentDetail);
     if (syms.length > 0) {
       syms.forEach((sym) => {
-        symptomMap.set(sym, (symptomMap.get(sym) || 0) + 1);
+        if (!symptomMap.has(sym)) symptomMap.set(sym, { count: 0, second: 0, third: 0 });
+        const sStat = symptomMap.get(sym)!;
+        sStat.count++;
+        if (has2nd) sStat.second++;
+        if (has3rd) sStat.third++;
       });
     } else {
       missingSymptomCount++;
@@ -1630,11 +1649,15 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
     .sort((a, b) => b.count - a.count);
 
   const symptomDistribution: SymptomGroupStat[] = symptomLabels.map((category) => {
-    const count = symptomMap.get(category) || 0;
+    const st = symptomMap.get(category) || { count: 0, second: 0, third: 0 };
     return {
       category,
-      count,
-      sharePct: pct(count, totalPatients),
+      count: st.count,
+      sharePct: pct(st.count, totalPatients),
+      secondVisitCount: st.second,
+      thirdVisitCount: st.third,
+      secondVisitRate: pct(st.second, st.count),
+      thirdVisitRate: pct(st.third, st.count),
     };
   });
 
@@ -1751,13 +1774,13 @@ export function buildFallbackAiReport(
         title: "3. 주요 진료 부위(주소증) 분포 및 한약·비급여 상담 연계 전략",
         bullets: [
           {
-            label: "상위 주소증 집중도",
+            label: "진료부위별 비중 및 삼진율(3회 내원율) 강·약점",
             content:
               topSymptoms.length > 0
-                ? `환자들이 가장 많이 호소하는 진료 영역은 ${topSymptoms
+                ? `주요 진료 영역은 ${topSymptoms
                     .slice(0, 3)
-                    .map((s) => `'${s.category}'(${s.sharePct}%, ${s.count}명)`)
-                    .join(", ")} 순으로 나타났습니다.`
+                    .map((s) => `'${s.category}'(${s.count}명, 삼진율 ${s.thirdVisitRate}%)`)
+                    .join(", ")} 순입니다. 삼진율이 70% 미만인 취약 부위는 초진 당일 질환별 3회 집중 치료 티업을 강화하시기 바랍니다.`
                 : `진료 내역(주소증/치료법)이 공란인 환자가 많아 상병/주소증 컬럼 포함 업로드를 권장드립니다.`,
           },
           {

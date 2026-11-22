@@ -367,6 +367,10 @@ export interface SymptomGroupStat {
   category: string;
   count: number;
   sharePct: number;
+  secondVisitCount: number;
+  thirdVisitCount: number;
+  secondVisitRate: number;
+  thirdVisitRate: number;
 }
 
 export interface FirstVisitAnalytics {

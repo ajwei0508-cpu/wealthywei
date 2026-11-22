@@ -52,7 +52,37 @@ export interface IndicatorModalDetail {
   riskWarning: string;           // 미달 시 경영 위험 상황
   actionInstruction: string;     // 구체적 행동 지시
   scriptExample: string;         // 현장 1문장 실전 스크립트
-  revenueImpactManwon: number;   // 목표 도달 시 월 예상 추가 매출(만원)
+  revenueImpactManwon: number;   // 목표 도달 시 월 예상 추가 매출(만원) — 중복제외 순수분
+  formulaNote?: string;          // 1회 진료비(5만/2만) 기반 정확한 산출 공식 설명
+}
+
+export interface BodyPartRetentionItem {
+  id: string;
+  label: string;                 // 예: "허리·골반"
+  shortName: string;             // 카드 표기용 단축명 (예: "허리")
+  patients: number;              // 해당 부위 초진·재초진 인원
+  sharePct: number;              // 전체 환자 대비 비중 (%)
+  secondCount: number;           // 2회 내원 인원
+  thirdCount: number;            // 3회 완주 인원 (삼진)
+  secondRate: number;            // 2차 재내원율 (%)
+  thirdRate: number;             // 삼진율 (3회 내원율, %)
+  targetRate: number;            // 권장 기준점 (70%)
+  neededFor70: number;           // 70% 도달에 필요한 추가 3회 완주 인원
+  isConsultOnly?: boolean;       // 보약·다이어트 등 1회 처방/택배 비중 군 여부
+  status: RiskLevel;             // HEALTHY (>=70%) | WARNING (50~69.9% 또는 표본1명) | CRITICAL (<50%)
+  dropoutReason: string;         // 해당 질환의 주요 3회 미만 이탈 원인
+  prescriptionGuide: string;     // 원장님 맞춤 개선 지시
+  scriptExample: string;         // 진료실 1문장 실전 티업 멘트
+}
+
+export interface FeeBasisSummary {
+  under65FeeManwon: number;      // 65세 미만 1회 진료비 (5만원)
+  senior65FeeManwon: number;     // 65세 이상 1회 진료비 (2만원)
+  avgVisitFeeManwon: number;     // 실측 연령 가중평균 1회 진료비 (만원)
+  under65Count: number;
+  senior65Count: number;
+  knownAgeCount: number;
+  isDefaultRatioUsed: boolean;   // 나이 미기입으로 기본 80:20(4.4만원) 적용 여부
 }
 
 export interface DualTrackIndicator {
@@ -82,7 +112,7 @@ export interface TrackSummary {
   focusMission: string;          // 이번 주 딱 1가지 핵심 미션 (1줄!)
   focusMissionReason: string;    // ⓘ 클릭 시 미션 선정 이유 및 가이드
   potentialMonthlyGainManwon: number; // 목표 도달 시 월 잠재 추가매출 합계(만원)
-  potentialBreakdown: { label: string; gainManwon: number; detail: string }[];
+  potentialBreakdown: { label: string; gainManwon: number; detail: string; formula?: string }[];
   healthyCount: number;
   warningCount: number;
   criticalCount: number;
@@ -100,6 +130,9 @@ export interface DualTrackEvaluation {
   unrecordedGender: number;
   effectiveMale: number;
   effectiveFemale: number;
+  feeBasis: FeeBasisSummary;     // 1회 진료비 산출 기준 (65세↓ 5만 · 65세↑ 2만)
+  bodyPartRetention: BodyPartRetentionItem[]; // 진료부위별 삼진율 정밀 분석
+  unclassifiedBodyPartCount: number;          // 부위 미기입 인원
   insurance: TrackSummary;       // 보험 (원장) — 내원경로까지
   nonCovered: TrackSummary;      // 비급여 (실장) — 내원경로 이후
 }
@@ -218,6 +251,183 @@ function classifyDistrict(demo: DemographicData) {
   };
 }
 
+interface ClinicalBodyPartDef {
+  id: string;
+  label: string;
+  shortName: string;
+  isConsultOnly?: boolean;
+  match: (detail: string, insType: string) => boolean;
+  dropoutReason: string;
+  prescriptionGuide: string;
+  scriptExample: string;
+}
+
+const CLINICAL_BODY_PARTS: ClinicalBodyPartDef[] = [
+  {
+    id: "waist",
+    label: "허리·골반",
+    shortName: "허리",
+    match: (d) => /허리|요통|요추|디스크|협착|골반|엉치|고관절|좌골|옆구리|천장관절|요부/.test(d),
+    dropoutReason:
+      "1~2회 침·약침 후 급성 통증이 절반 줄면 다 나은 줄 알고 조기 중단했다가 착석·물건 들기 후 재발하기 쉽습니다.",
+    prescriptionGuide:
+      "초진 첫날 '겉근육 통증 완화 후 3회차 심부 코어(장요근·다열근)·골반 안정화까지 마쳐야 재발하지 않는다'고 선언하세요.",
+    scriptExample:
+      "\"허리는 통증이 절반 줄었을 때 멈추면 가장 쉽게 재발합니다. 3회차 골반·속근육 안정화까지는 꼭 채우셔야 합니다.\"",
+  },
+  {
+    id: "neck",
+    label: "목·경추·담",
+    shortName: "목·담",
+    match: (d) => {
+      const stripped = d.replace(/발목|손목|목적|목록|목요일|목소리|목구멍/g, "");
+      return /경추|경항|뒷목|목통증|목디스크|목결림|목뻐근|목담|거북목|일자목|낙침|승모근|날개뼈|견갑|등통증|등결림|등담|흉추|배통|담결림|담걸림|늑간|갈비|^등[\s,/]|(?<![항품과세주발손])목/.test(
+        stripped
+      );
+    },
+    dropoutReason:
+      "'단순 담결림·잠을 잘못 잤다'고 가볍게 여겨 1회 치료 후 고개가 돌아가면 바로 내원을 중단하는 대표적 단발 이탈 부위입니다.",
+    prescriptionGuide:
+      "급성 낙침·담결림도 실제로는 경추 심부근 누적 피로임을 설명하고, 가동범위 정상화를 위한 3회 단기 집중 예약을 고정하세요.",
+    scriptExample:
+      "\"갑자기 온 담결림도 경추 속근육 피로가 쌓여 터진 겁니다. 3회차까지 완전히 풀어두지 않으면 2주 내 다시 굳습니다.\"",
+  },
+  {
+    id: "shoulder",
+    label: "어깨·견관절",
+    shortName: "어깨",
+    match: (d) =>
+      /어깨|어꺠|오십견|회전근개|유착성|충돌증후군|견관절|견비통|삼각근|쇄골|석회성/.test(d),
+    dropoutReason:
+      "야간통·거상 제한 등 만성 힘줄 염증이 많아 1~2회 치료로 즉각 완치되지 않으면 조기 실망 이탈이 발생하기 쉽습니다.",
+    prescriptionGuide:
+      "어깨 질환은 첫 3회가 '야간통 염증 불씨를 잡는 도입기'임을 명확히 고지하고 3회차에 거상 각도 재평가를 예고하세요.",
+    scriptExample:
+      "\"어깨 힘줄 염증은 처음 3회 집중 약침으로 밤에 쑤시는 불씨부터 잡는 구간입니다. 3회차에 팔 각도를 다시 체크하겠습니다.\"",
+  },
+  {
+    id: "knee",
+    label: "무릎·하지",
+    shortName: "무릎",
+    match: (d) =>
+      /무릎|슬관절|슬통|퇴행성관절|반월상|십자인대|다리|하체|하지|허벅지|대퇴|종아리|정강이|쥐남/.test(
+        d
+      ),
+    dropoutReason:
+      "보행·계단 이용 시 체중 부하가 매일 반복되어 시술 직후 편했다가 귀가 후 다시 시큰거리면 효과를 의심해 중단하기 쉽습니다.",
+    prescriptionGuide:
+      "보행 하중을 이기려면 최소 3회 연속으로 관절강 주변 부종과 대퇴근 긴장을 함께 잡아야 통증 주기가 끊김을 안내하세요.",
+    scriptExample:
+      "\"무릎은 걸을 때마다 체중이 실리는 관절이라, 최소 3회 연속으로 부종을 빼줘야 계단 내려갈 때 시큰거림이 잡힙니다.\"",
+  },
+  {
+    id: "ankle",
+    label: "발목·족부",
+    shortName: "발목",
+    match: (d) => {
+      if (
+        /발목|족관절|발바닥|족저|아킬레스|발등|족배|발가락|뒤꿈치|종골|발통증|발저림|발시림|접질|삐끗|삐었|(?<![재출다모유폭])발(?![생열진한목등바닥가락])/.test(
+          d
+        )
+      ) {
+        return true;
+      }
+      if (/염좌/.test(d) && !/요추|경추|목|허리|손목|손가락|무릎|어깨/.test(d)) {
+        return true;
+      }
+      return false;
+    },
+    dropoutReason:
+      "부기와 급성 통증만 조금 가라앉으면 걸을 만하다고 판단해 1~2회 만에 자가 종료(만성 발목 불안정증 유발 1위)합니다.",
+    prescriptionGuide:
+      "통증 소실과 인대 조직 회복은 다르다는 점을 강조하고, 습관성 염좌 예방을 위한 '초기 3회 인대 고정 치료'를 못 박으세요.",
+    scriptExample:
+      "\"발목은 덜 아파도 늘어난 인대가 아물기까지 초기 3회 치료가 핵심입니다. 지금 멈추면 평생 습관성으로 삐끗합니다.\"",
+  },
+  {
+    id: "wrist_elbow",
+    label: "손목·팔꿈치",
+    shortName: "손목·팔",
+    match: (d) =>
+      /손목|손가락|손바닥|손등|손저림|손떨림|손마디|수근관|터널|건초염|방아쇠|팔꿈치|엘보|상과염|아래팔|윗팔|전완|상완|팔통증|팔저림|(?<![양재])팔(?![월십])|(?<![파훼결손])손(?![실상해님])/.test(
+        d
+      ),
+    dropoutReason:
+      "스마트폰·PC·가사 등 일상 사용을 쉬지 못해 1~2회 치료 후 재자극이 오면 회복이 더디다고 느껴 이탈하기 쉽습니다.",
+    prescriptionGuide:
+      "매일 쓰는 건초·힘줄 부위 특성을 설명하고, 사용량을 이기는 초기 3회 약침·테이핑 집중 주기를 이틀 간격으로 잡으세요.",
+    scriptExample:
+      "\"손목·팔꿈치는 매일 쓰시는 부위라 1회 치료만으론 사용량을 못 이깁니다. 처음 3회는 간격을 좁혀 염증부터 꺾어야 합니다.\"",
+  },
+  {
+    id: "neuro_head",
+    label: "두통·턱·신경",
+    shortName: "두통·턱",
+    match: (d) =>
+      /두통|편두통|어지럼|현훈|이석증|이명|난청|턱|악관절|구안와사|안면|벨마비|삼차신경|불면|자율신경|화병|불안|우울|놀람/.test(
+        d
+      ),
+    dropoutReason:
+      "진통제처럼 1회 만에 증상이 완전히 소실되길 기대하거나 침 치료의 자율신경·상부경추 기전 설명이 부족할 때 이탈합니다.",
+    prescriptionGuide:
+      "상부 경추 긴장과 자율신경 안정화 과정을 쉽게 설명하고, 증상 빈도·수면의 질 변화를 3회차에 점검하겠다고 약속하세요.",
+    scriptExample:
+      "\"두통·어지럼은 뒷목 신경 긴장과 자율신경 흥분을 같이 낮춰야 합니다. 3회차까지 강도와 빈도가 줄어드는 걸 체크하겠습니다.\"",
+  },
+  {
+    id: "internal_ent",
+    label: "소화·비염·내과",
+    shortName: "내과·비염",
+    match: (d) =>
+      /소화|체함|체기|식도염|위염|속쓰림|속안좋음|설사|변비|복통|장염|과민성|비염|콧물|코막힘|축농증|기침|가래|천식|감기|인후|호흡|기관지|소변|절박뇨|전립선|생리|자궁|산후|갱년기|피부|두드러기|가려움|열감|피로|기력|무기력/.test(
+        d
+      ),
+    dropoutReason:
+      "급성 체기·코막힘이 1회 침·보험한약으로 호전되면 한의원 내과 진료를 1회성 응급처치로만 인식하고 재방문을 생략합니다.",
+    prescriptionGuide:
+      "급성 증상 완화 후 위장 운동성·점막 면역 회복을 위해 3일치 보험/과립제 처방과 함께 3일 뒤 2·3차 경과 진료를 연결하세요.",
+    scriptExample:
+      "\"오늘 급한 체기는 내렸지만 위장 운동이 아직 멈춰 있습니다. 3일치 약 드신 뒤 금요일에 맥과 복진 상태를 꼭 다시 봐야 합니다.\"",
+  },
+  {
+    id: "herbal_diet",
+    label: "보약·다이어트",
+    shortName: "보약·비만",
+    isConsultOnly: true,
+    match: (d) => /다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약상담|성장한약/.test(d),
+    dropoutReason:
+      "1회 진맥·처방 후 택배 수령 비중이 높아 별도 내원 점검 예약이 없으면 시트상 2·3회 내원일이 공란으로 남기 쉽습니다.",
+    prescriptionGuide:
+      "한약·다이어트 환자도 복용 7일차·14일차 인바디/맥진 중간점검 내원일을 미리 잡아두면 삼진율과 연복률이 함께 상승합니다.",
+    scriptExample:
+      "\"한약 복용 시작 1주일째 되는 다음 주 목요일에 체수분·적응도 중간점검 예약을 미리 잡아드리겠습니다.\"",
+  },
+];
+
+const TRAFFIC_FALLBACK_DEF: ClinicalBodyPartDef = {
+  id: "traffic",
+  label: "교통사고(자보)",
+  shortName: "자보",
+  match: (d, ins) => /교통사고|자보|후유증|편타/.test(d) || ins === "자보",
+  dropoutReason:
+    "사고 직후 통증이 경미하다고 방치하거나 초기 집중 치료 골든타임 안내 부족 시 조기 종결됩니다.",
+  prescriptionGuide:
+    "편타성 손상은 사고 3~7일 뒤 어혈 통증이 본격화됨을 고지하고 첫 주 최소 3회 연속 내원 스케줄을 즉시 확정하세요.",
+  scriptExample:
+    "\"교통사고 긴장은 사흘 뒤부터 통증이 더 올라옵니다. 후유증이 남지 않게 이번 주 3회 연속 치료 일정을 먼저 잡겠습니다.\"",
+};
+
+function classifyClinicalBodyParts(detail: string, insType: string): ClinicalBodyPartDef[] {
+  const d = clean(detail);
+  const ins = clean(insType);
+  if (!d && ins !== "자보") return [];
+
+  const matched = CLINICAL_BODY_PARTS.filter((def) => d && def.match(d, ins));
+  if (matched.length > 0) return matched;
+  if (TRAFFIC_FALLBACK_DEF.match(d, ins)) return [TRAFFIC_FALLBACK_DEF];
+  return [];
+}
+
 /**
  * [핵심 엔진] 보험(원장) & 비급여(실장) 2대 트랙 정밀 평가 + 동기부여 시뮬레이터
  */
@@ -263,6 +473,13 @@ export function evaluateDualTrackStats(
   let pureFirstReferral = 0;
   let pureFirstWalkIn = 0;
   let pureFirstDigital = 0;
+
+  // 진료부위별 삼진율(3회 내원율) 집계
+  const bodyPartStatsMap = new Map<
+    string,
+    { def: ClinicalBodyPartDef; patients: number; second: number; third: number }
+  >();
+  let unclassifiedBodyPartCount = 0;
 
   // --- 비급여(실장) 집계 ---
   let nonCovPatientCount = 0;
@@ -330,8 +547,24 @@ export function evaluateDualTrackStats(
       }
     }
 
-    // 비급여(실장) 판별
+    // 진료부위별 분류 및 2·3회 내원 추적
     const detail = clean(r.treatmentDetail);
+    const matchedParts = classifyClinicalBodyParts(detail, clean(r.insuranceType));
+    if (matchedParts.length > 0) {
+      for (const def of matchedParts) {
+        if (!bodyPartStatsMap.has(def.id)) {
+          bodyPartStatsMap.set(def.id, { def, patients: 0, second: 0, third: 0 });
+        }
+        const st = bodyPartStatsMap.get(def.id)!;
+        st.patients++;
+        if (has2) st.second++;
+        if (has3) st.third++;
+      }
+    } else {
+      unclassifiedBodyPartCount++;
+    }
+
+    // 비급여(실장) 판별
     const hasNonCovItem =
       clean(r.insuranceType) === "비급여" ||
       Boolean(clean(r.nonCoveredList)) ||
@@ -377,8 +610,8 @@ export function evaluateDualTrackStats(
     Math.max(0, Math.ceil((den * targetPct) / 100 - cur));
 
   // =========================================================================
-  // TRACK 1: 보험 (원장) — 내원경로까지 7대 핵심 지표
-  // (10명 중 타지역·1회성 경증 2~3명 제외, 유효 치료군 8명 2차 내원[80%↑] → 7명 3차 완주[70%↑] 기준)
+  // TRACK 1: 보험 (원장) — 내원경로까지 9대 핵심 지표 (3x3 밸런스 그리드)
+  // [1회 진료비 기준: 65세 미만(이하) 5만 원 · 65세 이상 2만 원 가중단가 적용 / 중복합산 배제]
   // =========================================================================
   const todayISO = new Date().toISOString().slice(0, 10);
   const recentUnder7DaysCount = rows.filter((r) => {
@@ -386,15 +619,119 @@ export function evaluateDualTrackStats(
     return d !== null && d < 7 && !clean(r.thirdVisitDate);
   }).length;
 
+  const under65Count = Math.max(0, knownAge - senior65);
+  const under65Rate = knownAge > 0 ? pct(under65Count, knownAge) : 0;
+  const seniorRate = knownAge > 0 ? pct(senior65, knownAge) : 0;
+  const pureFirstSeniorRate = pureFirstKnownAge > 0 ? pct(pureFirstSenior65, pureFirstKnownAge) : 0;
+  const reFirstSeniorRate = reFirstKnownAge > 0 ? pct(reFirstSenior65, reFirstKnownAge) : 0;
+  const regSenior = demographic.seniorRatio || 22.2;
+  const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
+  const ageWarningCap = Math.max(30, Number((regSenior * 1.25).toFixed(1)));
+  const age65Status: RiskLevel =
+    knownAge === 0
+      ? "EMPTY"
+      : seniorRate <= 20
+      ? "HEALTHY"
+      : seniorRate <= ageWarningCap
+      ? "WARNING"
+      : "CRITICAL";
+  const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, 80) : 0;
+
+  // 1회 진료비 정밀 산출 (65세 미만 5만 원 · 65세 이상 2만 원)
+  const UNDER65_FEE_MANWON = 5;
+  const SENIOR65_FEE_MANWON = 2;
+  const avgVisitFeeManwon =
+    knownAge > 0
+      ? Number(((under65Count * UNDER65_FEE_MANWON + senior65 * SENIOR65_FEE_MANWON) / knownAge).toFixed(2))
+      : 4.4; // 나이 미기입 시 권장 80:20 기본 가중단가 (0.8*5 + 0.2*2 = 4.4만원)
+  const avgFeeStr = Number(avgVisitFeeManwon.toFixed(2)).toString();
+
+  const feeBasis: FeeBasisSummary = {
+    under65FeeManwon: UNDER65_FEE_MANWON,
+    senior65FeeManwon: SENIOR65_FEE_MANWON,
+    avgVisitFeeManwon,
+    under65Count,
+    senior65Count: senior65,
+    knownAgeCount: knownAge,
+    isDefaultRatioUsed: knownAge === 0,
+  };
+
   const rate2nd = pct(secondCount, safeTotal);
   const target2nd = 80;
-  const need2nd = neededCount(secondCount, totalPatients, target2nd);
-  const gain2ndManwon = Math.round(need2nd * 2.5 * 3.5); // 정착 1명당 평균 후속 2.5회 * 3.5만원
+  const need2nd = totalPatients === 0 ? 0 : neededCount(secondCount, totalPatients, target2nd);
+  // 중복 합산 방지: 2차 재내원율은 순수 '2회차 1회분'만 산출
+  const gain2ndManwon = totalPatients === 0 ? 0 : Math.round(need2nd * 1 * avgVisitFeeManwon);
 
   const rate3rd = pct(thirdCount, safeTotal);
   const target3rd = 70;
-  const need3rd = neededCount(thirdCount, totalPatients, target3rd);
-  const gain3rdManwon = Math.round(need3rd * 3.0 * 3.8);
+  const need3rd = totalPatients === 0 ? 0 : neededCount(thirdCount, totalPatients, target3rd);
+  // 중복 합산 방지: 3차 정착률은 순수 '3회차 1회분'만 산출 (2회차분과 중복 0%)
+  const gain3rdManwon = totalPatients === 0 ? 0 : Math.round(need3rd * 1 * avgVisitFeeManwon);
+
+  // 진료부위별 삼진율(3회 내원율) 정밀 산출
+  const bodyPartRetention: BodyPartRetentionItem[] = Array.from(bodyPartStatsMap.values())
+    .filter((st) => st.patients > 0)
+    .map((st) => {
+      const sRate = pct(st.second, st.patients);
+      const tRate = pct(st.third, st.patients);
+      const need70 = neededCount(st.third, st.patients, 70);
+      const status: RiskLevel =
+        tRate >= 70
+          ? "HEALTHY"
+          : st.patients < 2 || st.def.isConsultOnly
+          ? "WARNING"
+          : tRate >= 50
+          ? "WARNING"
+          : "CRITICAL";
+
+      return {
+        id: st.def.id,
+        label: st.def.label,
+        shortName: st.def.shortName,
+        patients: st.patients,
+        sharePct: pct(st.patients, safeTotal),
+        secondCount: st.second,
+        thirdCount: st.third,
+        secondRate: sRate,
+        thirdRate: tRate,
+        targetRate: 70,
+        neededFor70: need70,
+        isConsultOnly: st.def.isConsultOnly,
+        status,
+        dropoutReason: st.def.dropoutReason,
+        prescriptionGuide: st.def.prescriptionGuide,
+        scriptExample: st.def.scriptExample,
+      };
+    })
+    .sort((a, b) => b.thirdRate - a.thirdRate || b.patients - a.patients);
+
+  // 대표 강점/보완 부위 선정 (모수 1명 왜곡 및 순수 보약택배군 왜곡 방지)
+  const clinicalBodyParts = bodyPartRetention.filter((p) => !p.isConsultOnly);
+  const poolStep1 = clinicalBodyParts.filter((p) => p.patients >= 2);
+  const qualifiedParts =
+    poolStep1.length > 0
+      ? poolStep1
+      : clinicalBodyParts.length > 0
+      ? clinicalBodyParts
+      : bodyPartRetention;
+
+  const bestBodyPart = qualifiedParts[0] || null;
+  const weakestBodyPart =
+    qualifiedParts.length > 0
+      ? [...qualifiedParts].sort((a, b) => a.thirdRate - b.thirdRate || b.patients - a.patients)[0]
+      : null;
+  const healthyBodyPartCount = qualifiedParts.filter((p) => p.thirdRate >= 70).length;
+
+  const bodyPartCardStatus: RiskLevel =
+    totalPatients === 0
+      ? "EMPTY"
+      : !weakestBodyPart
+      ? "WARNING"
+      : weakestBodyPart.thirdRate >= 70
+      ? "HEALTHY"
+      : weakestBodyPart.patients < 2 || weakestBodyPart.thirdRate >= 50
+      ? "WARNING"
+      : "CRITICAL";
 
   const avgInterval =
     intervals.length > 0
@@ -412,32 +749,27 @@ export function evaluateDualTrackStats(
   const resvDenom = resvYes + resvNo > 0 ? resvYes + resvNo : safeTotal;
   const resvRate = pct(resvYes, resvDenom);
   const targetResv = 85;
-  const needResv = neededCount(resvYes, resvDenom, targetResv);
+  const needResv = totalPatients === 0 ? 0 : neededCount(resvYes, resvDenom, targetResv);
   const resvLiftYes = pct(resvYes2nd, resvYes);
   const resvLiftNo = pct(resvNo2nd, resvNo);
-  const gainResvManwon = Math.round(needResv * 0.5 * 7); // 예약 확정 시 절반 이상 추가 내원
 
   const reFirstRate = pct(reFirst, safeTotal);
   const targetReFirst = 30;
-  const needReFirst = neededCount(reFirst, totalPatients, targetReFirst);
+  const needReFirst = totalPatients === 0 ? 0 : neededCount(reFirst, totalPatients, targetReFirst);
+  // 재초진 부족 인원 복귀 시 기대 진료비: 목표 정착 기준 평균 2.5회(초진1 + 2차0.8 + 3차0.7) × 가중 1회 진료비
+  const gainReFirstManwon =
+    totalPatients === 0 ? 0 : Math.round(needReFirst * 2.5 * avgVisitFeeManwon);
 
-  const under65Count = Math.max(0, knownAge - senior65);
-  const under65Rate = knownAge > 0 ? pct(under65Count, knownAge) : 0;
-  const seniorRate = knownAge > 0 ? pct(senior65, knownAge) : 0;
-  const pureFirstSeniorRate = pureFirstKnownAge > 0 ? pct(pureFirstSenior65, pureFirstKnownAge) : 0;
-  const reFirstSeniorRate = reFirstKnownAge > 0 ? pct(reFirstSenior65, reFirstKnownAge) : 0;
-  const regSenior = demographic.seniorRatio || 22.2;
-  const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
-  const ageWarningCap = Math.max(30, Number((regSenior * 1.25).toFixed(1))); // 동네 고령화율 반영 상한선
-  const age65Status: RiskLevel =
-    knownAge === 0
-      ? "EMPTY"
-      : seniorRate <= 20
-      ? "HEALTHY"
-      : seniorRate <= ageWarningCap
-      ? "WARNING"
-      : "CRITICAL";
-  const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, 80) : 0;
+  // 65세 이상 고령 비율 초과 시 단가 차이(5만 - 2만 = 3만 원) 기반 기대효과
+  const excessSenior65 = knownAge > 0 ? Math.max(0, senior65 - Math.floor(knownAge * 0.2)) : 0;
+  const actualAvgVisits =
+    totalPatients > 0
+      ? Number((1 + secondCount / totalPatients + thirdCount / totalPatients).toFixed(1))
+      : 2.5;
+  const gainAge65Manwon =
+    excessSenior65 > 0
+      ? Math.round(excessSenior65 * actualAvgVisits * (UNDER65_FEE_MANWON - SENIOR65_FEE_MANWON))
+      : 0;
 
   const genderSum = effectiveMale + effectiveFemale;
   const femaleRate = genderSum > 0 ? pct(effectiveFemale, genderSum) : 0;
@@ -461,7 +793,6 @@ export function evaluateDualTrackStats(
     demographic.totalPopulation > 0
       ? Number(((pureFirst / demographic.totalPopulation) * 1000).toFixed(2))
       : 0;
-  const gainReferralManwon = Math.round(needReferral * 12); // 소개 신환 1명 평균 기대가치 12만원
 
   const insIndicators: DualTrackIndicator[] = [
     {
@@ -505,6 +836,10 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 합니다.\"",
         revenueImpactManwon: gain2ndManwon,
+        formulaNote:
+          need2nd > 0
+            ? `${need2nd}명 부족 × 1회(2차 내원) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
+            : "목표 달성 완료",
       },
     },
     {
@@ -551,12 +886,81 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"통증이 절반 줄었을 때 멈추면 금방 재발합니다. 최소 3회차까지는 속근육을 잡아드려야 안전하게 마무리됩니다.\"",
         revenueImpactManwon: gain3rdManwon,
+        formulaNote:
+          need3rd > 0
+            ? `${need3rd}명 부족 × 1회(3차 내원, 2차분과 중복제외) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
+            : "목표 달성 완료",
+      },
+    },
+    {
+      id: "ins_bodypart_3rd",
+      track: "insurance",
+      order: 3,
+      title: "진료부위별 삼진율",
+      subMetric:
+        bestBodyPart && totalPatients > 0
+          ? `강점 ${bestBodyPart.shortName} ${bestBodyPart.thirdRate}%`
+          : "부위 진단",
+      currentValue: weakestBodyPart ? weakestBodyPart.thirdRate : 0,
+      valueDisplay:
+        totalPatients === 0
+          ? "-"
+          : !weakestBodyPart
+          ? "부위 미기입"
+          : weakestBodyPart.thirdRate >= 70
+          ? `최저 ${weakestBodyPart.thirdRate}%`
+          : `${weakestBodyPart.shortName} ${weakestBodyPart.thirdRate}%`,
+      targetValue: 70,
+      targetDisplay: "부위별 70%↑",
+      gapDisplay:
+        totalPatients === 0
+          ? "데이터 대기"
+          : !weakestBodyPart
+          ? "진료내역 기입"
+          : weakestBodyPart.thirdRate >= 70
+          ? "전 부위 70%↑"
+          : `통과 ${healthyBodyPartCount}/${qualifiedParts.length}부위`,
+      status: bodyPartCardStatus,
+      conclusion:
+        totalPatients === 0
+          ? "환자 시트를 업로드하세요"
+          : !weakestBodyPart
+          ? "진료내역에 통증 부위를 기입하세요"
+          : weakestBodyPart.thirdRate >= 70
+          ? `전 부위 우수 (최고 ${bestBodyPart?.shortName} ${bestBodyPart?.thirdRate}%)`
+          : bestBodyPart && bestBodyPart.id !== weakestBodyPart.id
+          ? `잘됨 ${bestBodyPart.shortName}(${bestBodyPart.thirdRate}%) · 보완 ${weakestBodyPart.shortName}(${weakestBodyPart.thirdRate}%)`
+          : `${weakestBodyPart.label} 3회 티업 강화 (+${weakestBodyPart.neededFor70}명)`,
+      modal: {
+        exactCounts:
+          bodyPartRetention.length > 0
+            ? `${bodyPartRetention
+                .map((p) => `${p.label} ${p.thirdRate}%(${p.thirdCount}/${p.patients}명)`)
+                .join(" · ")}${
+                unclassifiedBodyPartCount > 0 ? ` | 부위 미기입 ${unclassifiedBodyPartCount}명` : ""
+              }`
+            : "진료내역에서 통증·질환 부위가 확인된 환자가 아직 없습니다.",
+        benchmarkReason:
+          "전체 평균 3차 정착률만 보면 강점 질환이 취약 질환의 조기 이탈을 가리는 '평균의 착시(Simpson's Paradox)'가 발생합니다. 부위별 삼진율(목표 70%↑)을 분리해야 우리 한의원이 어떤 질환에서 신뢰가 높고 어떤 질환에서 1~2회 만에 놓치는지 정확히 타깃 교정할 수 있습니다.",
+        riskWarning:
+          weakestBodyPart && weakestBodyPart.thirdRate < 70
+            ? `현재 '${weakestBodyPart.label}' 환자의 삼진율이 ${weakestBodyPart.thirdRate}%로 가장 낮습니다. ${weakestBodyPart.dropoutReason}`
+            : "특정 부위(예: 발목 염좌, 단순 담결림, 손목·팔꿈치)에서 1회 치료 후 자가 종결이 누적되면 전체 정착률이 70% 아래로 무너집니다.",
+        actionInstruction:
+          weakestBodyPart && weakestBodyPart.thirdRate < 70
+            ? `[최우선 보완: ${weakestBodyPart.label}] ${weakestBodyPart.prescriptionGuide}`
+            : "하단 부위별 보드에서 각 질환 옆 ⓘ 아이콘을 눌러 질환별 맞춤 3회 티업 멘트를 진료실 표준으로 유지하세요.",
+        scriptExample:
+          weakestBodyPart?.scriptExample ||
+          "\"통증이 줄어드는 것과 손상된 속근육·인대가 아무는 것은 다릅니다. 재발 방지를 위해 3회차까지는 꼭 체크하겠습니다.\"",
+        revenueImpactManwon: 0,
+        formulaNote: "※ 부위별 개선 기대금액은 '2차·3차 정착률' 항목에 통합 산출됨 (중복 합산 제외)",
       },
     },
     {
       id: "ins_golden_interval",
       track: "insurance",
-      order: 3,
+      order: 4,
       title: "재내원 골든타임",
       subMetric: intervals.length > 0 ? `${intervals.length}명 측정` : "2회일 필요",
       currentValue: intervals.length > 0 ? Math.max(10, Math.min(100, Math.round((4.5 / Math.max(1, avgInterval)) * 75))) : 0,
@@ -589,13 +993,14 @@ export function evaluateDualTrackStats(
           "초진 환자에게 '일주일 뒤에 오세요' 대신 무조건 2~4일 내 다음 내원 날짜를 먼저 제시하세요.",
         scriptExample:
           "\"초기 염증기에는 간격이 벌어지면 다시 원점으로 돌아갑니다. 이틀 뒤 수요일이나 목요일 중 언제가 괜찮으세요?\"",
-        revenueImpactManwon: avgInterval > 4.5 ? 60 : 0,
+        revenueImpactManwon: 0,
+        formulaNote: "※ 내원 주기 단축 효과는 '2차·3차 정착률' 기대효과에 통합 반영 (중복 합산 제외)",
       },
     },
     {
       id: "ins_reservation",
       track: "insurance",
-      order: 4,
+      order: 5,
       title: "다음 예약 확정률",
       subMetric: `예약 ${resvYes}명`,
       currentValue: resvRate,
@@ -632,13 +1037,14 @@ export function evaluateDualTrackStats(
           "데스크 수납 표준 멘트를 '예약하시겠어요?(Yes/No)'에서 '목요일 오전/오후 중 언제가 편하세요?(양자택일)'로 즉시 변경하세요.",
         scriptExample:
           "\"원장님께서 금요일쯤 경과 체크 말씀하셨는데, 오전 11시와 오후 3시 중 어느 시간이 편하실까요?\"",
-        revenueImpactManwon: gainResvManwon,
+        revenueImpactManwon: 0,
+        formulaNote: "※ 예약 확정에 따른 추가 내원 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)",
       },
     },
     {
       id: "ins_refirst",
       track: "insurance",
-      order: 5,
+      order: 6,
       title: "재초진 복귀율",
       subMetric: `재초진 ${reFirst}명`,
       currentValue: reFirstRate,
@@ -675,13 +1081,17 @@ export function evaluateDualTrackStats(
           "최근 6개월~1년 내 내원 중단 구환에게 환절기 건강 관리 문자나 카카오톡 채널 소식을 월 1회 발송하세요.",
         scriptExample:
           "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
-        revenueImpactManwon: needReFirst * 9,
+        revenueImpactManwon: gainReFirstManwon,
+        formulaNote:
+          needReFirst > 0
+            ? `${needReFirst}명 부족 × 평균 2.5회(초진1+재진1.5) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
+            : "목표 달성 완료",
       },
     },
     {
       id: "ins_age_65_ratio",
       track: "insurance",
-      order: 6,
+      order: 7,
       title: "65세 연령 비율",
       subMetric: knownAge > 0 ? `65세↑ ${seniorRate}%` : "나이 미기입",
       currentValue: under65Rate,
@@ -704,22 +1114,26 @@ export function evaluateDualTrackStats(
           ? `2050 청장년 초진 +${needUnder65}명 보강 권장`
           : "고령 편중 위험 · 젊은 신환 유입 시급",
       modal: {
-        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
+        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%, 1회 5만원) : 65세 이상 ${senior65}명(${seniorRate}%, 1회 2만원)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
         benchmarkReason:
-          `2026년 대한민국 전체 65세 이상 인구 비율(22.2%)과 노인외래정액제 내원 빈도 승수 효과(고령 신환 1명이 주 3~4회 내원하여 베드를 3배 점유)를 고려할 때, 초진·재초진 인원 기준 '65세 미만 80% : 65세 이상 20% 이하'가 한의원 활력과 수익성을 지키는 황금 기준점입니다. (단, ${demographic.regionName} 고령화율 ${regSenior}% 특성상 최대 상한 마지노선은 ${ageWarningCap}%로 보정)`,
+          `1회 평균 진료비가 65세 미만(5만 원)과 65세 이상(2만 원, 노인정액구간)에서 2.5배 차이나고 고령층의 베드 점유 승수가 3배에 달하므로, 초진·재초진 인원 기준 '65세 미만 80% : 65세 이상 20% 이하(가중 1회 단가 4.4만 원)'가 한의원 활력과 수익성을 지키는 황금 기준점입니다. (단, ${demographic.regionName} 고령화율 ${regSenior}% 특성상 최대 상한 마지노선은 ${ageWarningCap}%로 보정)`,
         riskWarning:
-          "초진 인원 중 65세 이상이 30%를 넘으면 방문 빈도 승수 효과로 실제 대기실·치료베드 점유율은 65~70%가 고령층으로 채워지며, 경제학 구축 효과(Crowding-Out)로 인해 고부가가치 20~50대 환자가 '어르신 침방'으로 인식해 이탈합니다.",
+          "초진 인원 중 65세 이상이 30%를 넘으면 방문 빈도 승수 효과로 실제 대기실·치료베드 점유율은 65~70%가 고령층으로 채워지며, 경제학 구축 효과(Crowding-Out)로 인해 고부가가치 20~50대 환자가 이탈합니다.",
         actionInstruction:
           "순수초진의 65세 이상 비중이 20%를 초과한다면 야간/점심 직장인 추나·약침, 교통사고, 소아·여성·다이어트 키워드 노출을 보강해 20~50대 신환 비율을 80% 선으로 맞추세요.",
         scriptExample:
           "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 피로회복 보약도 저녁 진료 시간에 편하게 예약해 주세요.\"",
-        revenueImpactManwon: age65Status === "CRITICAL" ? 120 : age65Status === "WARNING" ? 60 : 0,
+        revenueImpactManwon: gainAge65Manwon,
+        formulaNote:
+          excessSenior65 > 0
+            ? `고령 20% 초과분 ${excessSenior65}명 × 단가차액 3만 원(65세↓ 5만 - 65세↑ 2만) × 평균 ${actualAvgVisits}회 내원`
+            : "65세↓ 80% : 65세↑ 20% 황금비율 기준 충족",
       },
     },
     {
       id: "ins_gender",
       track: "insurance",
-      order: 7,
+      order: 8,
       title: "성별 분포 균형",
       subMetric: genderSum > 0 ? `남${effectiveMale}·여${effectiveFemale}` : "성별 미입력",
       currentValue: femaleRate,
@@ -754,13 +1168,14 @@ export function evaluateDualTrackStats(
           "시트 또는 카드 내 성별 입력란으로 남녀 비율을 관리하고, 파우더룸·프라이빗 베드·여성 특화 상담 등 여성 친화 접점을 점검하세요.",
         scriptExample:
           "\"환자분 체질에 맞춘 순환·수족냉증 케어도 함께 도와드리고 있으니 불편하신 점 편하게 말씀해 주세요.\"",
-        revenueImpactManwon: genderStatus !== "HEALTHY" ? 60 : 0,
+        revenueImpactManwon: 0,
+        formulaNote: "※ 성별 균형은 소개·비급여 확장의 기반 지표로 직접 진료비 합산에서는 제외",
       },
     },
     {
       id: "ins_route_referral",
       track: "insurance",
-      order: 8,
+      order: 9,
       title: "순수초진 소개율 (7:3)",
       subMetric: pureFirstRouteRecorded > 0 ? `신규창출 ${externalSeedRate}%` : `MPI ${mpi}‰`,
       currentValue: referralRate,
@@ -803,45 +1218,54 @@ export function evaluateDualTrackStats(
           "소개 환자에게는 원장님 직접 감사 인사로 만족도 복리를 가속하고, 동시에 전체 순수초진의 20~30%는 블로그·플레이스·홈페이지·간판을 통해 새로운 씨앗 환자가 꾸준히 유입되도록 마케팅을 유지하세요.",
         scriptExample:
           "\"OOO님 소개로 오셨군요! 믿고 찾아주신 만큼 3회 치료 원칙으로 확실히 호전시켜 드리겠습니다.\"",
-        revenueImpactManwon: gainReferralManwon,
+        revenueImpactManwon: 0,
+        formulaNote: "※ 내원경로 비중(7:3) 지표로 기존 정착·재초진 기대효과와 중복 합산하지 않음",
       },
     },
   ];
 
   // =========================================================================
-  // TRACK 2: 비급여 (실장) — 내원경로 이후 패키지·한약·비급여 6대 핵심 지표
+  // TRACK 2: 비급여 (실장) — 내원경로 이후 패키지·한약·비급여 6대 핵심 지표 (중복합산 제거)
   // =========================================================================
   const nonCovRate = pct(nonCovPatientCount, safeTotal);
   const targetNonCov = district.nonCovTarget;
-  const needNonCov = neededCount(nonCovPatientCount, totalPatients, targetNonCov);
-  const gainNonCovManwon = needNonCov * 18; // 비급여 전환 1건당 평균 18만원 가정
+  const needNonCov = totalPatients === 0 ? 0 : neededCount(nonCovPatientCount, totalPatients, targetNonCov);
 
   const immBase = nonCovPatientCount > 0 ? nonCovPatientCount : safeTotal;
   const immRate = nonCovPatientCount > 0 ? pct(immediatePayPatients, nonCovPatientCount) : pct(immediatePayPatients, safeTotal);
   const targetImm = nonCovPatientCount > 0 ? 45 : 20;
-  const needImm = neededCount(immediatePayPatients, immBase, targetImm);
-  const gainImmManwon = needImm * 22;
+  const needImm = totalPatients === 0 ? 0 : neededCount(immediatePayPatients, immBase, targetImm);
 
   const herbalRate = pct(herbalPatients, safeTotal);
   const targetHerbal = district.herbalTarget;
-  const needHerbal = neededCount(herbalPatients, totalPatients, targetHerbal);
-  const gainHerbalManwon = needHerbal * 35; // 한약 1제 평균 35만원 가정
+  const needHerbal = totalPatients === 0 ? 0 : neededCount(herbalPatients, totalPatients, targetHerbal);
+  const gainHerbalManwon = needHerbal * 35; // 한약 1제 평균 35만원 기준
+
+  // 한약 전환 목표 인원을 제외한 순수 약침·추나·소액비급여 전환 부족 인원만 별도 산출 (중복 방지)
+  const residualNonCovNeed = Math.max(0, needNonCov - needHerbal);
+  const gainNonCovManwon = residualNonCovNeed * 10; // 약침·추나 비급여 평균 10만원 기준
 
   const followupRate = herbalPatients > 0 ? pct(herbalFollowupYes, herbalPatients) : 0;
   const targetFollowup = 35;
-  const needFollowup = herbalPatients > 0 ? neededCount(herbalFollowupYes, herbalPatients, targetFollowup) : 1;
+  const needFollowup =
+    totalPatients === 0 ? 0 : herbalPatients > 0 ? neededCount(herbalFollowupYes, herbalPatients, targetFollowup) : 0;
   const gainFollowupManwon = needFollowup * 32;
 
   const pkgRate = pct(packagePatients, safeTotal);
   const pkgRenewRate = packagePatients > 0 ? pct(packageRenewYes, packagePatients) : 0;
   const targetPkgRenew = 30;
-  const needPkgRenew = packagePatients > 0 ? neededCount(packageRenewYes, packagePatients, targetPkgRenew) : neededCount(packagePatients, totalPatients, 15);
+  const needPkgRenew =
+    totalPatients === 0
+      ? 0
+      : packagePatients > 0
+      ? neededCount(packageRenewYes, packagePatients, targetPkgRenew)
+      : neededCount(packagePatients, totalPatients, 15);
   const gainPkgManwon = needPkgRenew * 20;
 
   const pendingPool = Math.max(1, totalPatients - immediatePayPatients);
   const delayedRate = pct(delayedPayPatients, pendingPool);
   const targetDelayed = 15;
-  const needDelayed = neededCount(delayedPayPatients, pendingPool, targetDelayed);
+  const needDelayed = totalPatients === 0 ? 0 : neededCount(delayedPayPatients, pendingPool, targetDelayed);
   const gainDelayedManwon = needDelayed * 25;
 
   const ncIndicators: DualTrackIndicator[] = [
@@ -885,6 +1309,10 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"오늘 침 치료에 염증을 빠르게 잡는 약침이 함께 들어가면 회복 기간이 절반으로 줄어듭니다.\"",
         revenueImpactManwon: gainNonCovManwon,
+        formulaNote:
+          residualNonCovNeed > 0
+            ? `한약 목표 제외 일반 비급여(약침·추나) ${residualNonCovNeed}명 × 10만 원 (중복 제외)`
+            : "목표 충족 또는 한약 전환 목표에 포함",
       },
     },
     {
@@ -927,7 +1355,8 @@ export function evaluateDualTrackStats(
           "원장님 진료실 티업(처방 필요성 고지) 직후 상담실로 연결하고, 당일 시작 시 1회 케어 추가 등 명확한 당일 결정 명분을 제시하세요.",
         scriptExample:
           "\"오늘 바로 원장님 처방대로 시작하시면 진맥 후 탕전 일정이 내일 바로 배정되어 금요일부터 복용하실 수 있어요.\"",
-        revenueImpactManwon: gainImmManwon,
+        revenueImpactManwon: 0,
+        formulaNote: "※ 한약·패키지·비급여 전환액과 중복 합산 방지를 위해 별도 합산 제외",
       },
     },
     {
@@ -971,6 +1400,7 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"침으로 겉의 급한 불은 껐는데, 진액이 부족해 자꾸 재발하는 상태라 2주간 회복 한약을 같이 드시면 훨씬 덜 아픕니다.\"",
         revenueImpactManwon: gainHerbalManwon,
+        formulaNote: needHerbal > 0 ? `${needHerbal}명 부족 × 한약 1제 표준 35만 원` : "목표 달성 완료",
       },
     },
     {
@@ -1014,6 +1444,7 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"약이 4일 치 남으셨을 텐데 끊기지 않고 2제째 이어가셔야 체질 개선이 완성됩니다. 이번 주 금요일 내원 잡아드릴까요?\"",
         revenueImpactManwon: gainFollowupManwon,
+        formulaNote: needFollowup > 0 ? `${needFollowup}명 연복 부족 × 2제 표준 32만 원` : "연복 달성 또는 모수 대기",
       },
     },
     {
@@ -1061,6 +1492,7 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"오늘이 8회차시네요! 처음보다 70% 좋아지셨는데 남은 30% 마무리를 위해 연장권 우대 혜택을 적용해 드릴 수 있어요.\"",
         revenueImpactManwon: gainPkgManwon,
+        formulaNote: needPkgRenew > 0 ? `${needPkgRenew}건 × 패키지 표준 20만 원` : "목표 달성 완료",
       },
     },
     {
@@ -1104,11 +1536,14 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"지난번 상담드렸던 OOO님, 치료 후 통증은 좀 어떠신지 원장님께서 궁금해하셔서 안부 연락드렸습니다.\"",
         revenueImpactManwon: gainDelayedManwon,
+        formulaNote: needDelayed > 0 ? `미결제 회수 목표 ${needDelayed}건 × 평균 25만 원` : "목표 달성 완료",
       },
     },
   ];
 
   // --- 트랙별 종합 요약 산출 함수 ---
+  const severityRank = (st: RiskLevel) => (st === "CRITICAL" ? 3 : st === "WARNING" ? 2 : st === "EMPTY" ? 1 : 0);
+
   const buildTrackSummary = (
     track: FirstVisitTrack,
     label: string,
@@ -1128,11 +1563,16 @@ export function evaluateDualTrackStats(
     const score = active.length === 0 ? 0 : Math.min(100, Math.round((earned / baseDenom) * 100));
     const tierInfo = scoreToTier(score);
 
-    // 가장 잠재 매출 임팩트가 크거나 시급한 1개 미션 자동 선정
+    // 시급도(CRITICAL 우선) → 기대 매출 임팩트 → 핵심 순서(order) 기준으로 1개 미션 자동 선정
     const priorityTarget =
       [...list]
-        .filter((i) => i.status !== "HEALTHY")
-        .sort((a, b) => b.modal.revenueImpactManwon - a.modal.revenueImpactManwon)[0] || list[0];
+        .filter((i) => i.status !== "HEALTHY" && i.status !== "EMPTY")
+        .sort(
+          (a, b) =>
+            severityRank(b.status) - severityRank(a.status) ||
+            b.modal.revenueImpactManwon - a.modal.revenueImpactManwon ||
+            a.order - b.order
+        )[0] || list[0];
 
     const potentialBreakdown = list
       .filter((i) => i.modal.revenueImpactManwon > 0)
@@ -1140,6 +1580,7 @@ export function evaluateDualTrackStats(
         label: i.title,
         gainManwon: i.modal.revenueImpactManwon,
         detail: `${i.valueDisplay} → ${i.targetDisplay} (${i.gapDisplay})`,
+        formula: i.modal.formulaNote,
       }));
 
     const potentialMonthlyGainManwon = potentialBreakdown.reduce((s, x) => s + x.gainManwon, 0);
@@ -1156,7 +1597,11 @@ export function evaluateDualTrackStats(
           : `+${Math.max(1, tierInfo.nextCut - score)}점 달성 시 ${tierInfo.nextTier}`,
       focusMission: priorityTarget ? `${priorityTarget.title}: ${priorityTarget.conclusion}` : "현재 기준점 우수 유지",
       focusMissionReason: priorityTarget
-        ? `${priorityTarget.modal.actionInstruction} (예상 효과: 월 +${priorityTarget.modal.revenueImpactManwon}만 원)`
+        ? `${priorityTarget.modal.actionInstruction}${
+            priorityTarget.modal.revenueImpactManwon > 0
+              ? ` (직접 기대효과: 월 +${priorityTarget.modal.revenueImpactManwon}만 원)`
+              : ""
+          }`
         : "모든 지표가 권장 기준점 내에 있습니다.",
       potentialMonthlyGainManwon,
       potentialBreakdown,
@@ -1178,6 +1623,9 @@ export function evaluateDualTrackStats(
     unrecordedGender,
     effectiveMale,
     effectiveFemale,
+    feeBasis,
+    bodyPartRetention,
+    unclassifiedBodyPartCount,
     insurance: buildTrackSummary("insurance", "보험 (원장)", insIndicators),
     nonCovered: buildTrackSummary("non_covered", "비급여 (실장)", ncIndicators),
   };

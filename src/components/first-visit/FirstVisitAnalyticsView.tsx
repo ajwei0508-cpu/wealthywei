@@ -29,6 +29,7 @@ import {
   DemographicData,
   DEFAULT_DEMOGRAPHIC,
   DualTrackIndicator,
+  BodyPartRetentionItem,
   evaluateDualTrackStats,
 } from "@/lib/firstVisitStatsEngine";
 
@@ -49,6 +50,7 @@ interface FirstVisitAnalyticsViewProps {
 
 type ModalPayload =
   | { kind: "indicator"; item: DualTrackIndicator }
+  | { kind: "bodyPart"; part: BodyPartRetentionItem }
   | { kind: "demographic" }
   | { kind: "mission" }
   | { kind: "revenue" };
@@ -473,12 +475,18 @@ export default function FirstVisitAnalyticsView({
             </div>
             <div className="my-1.5">
               <span className="text-2xl font-black text-[#111111]">
-                {currentSummary.potentialMonthlyGainManwon > 0
+                {existingFirstVisitRows.length === 0
+                  ? "데이터 대기"
+                  : currentSummary.potentialMonthlyGainManwon > 0
                   ? `+월 ${currentSummary.potentialMonthlyGainManwon.toLocaleString()}만 원`
                   : "기준점 달성 완료"}
               </span>
             </div>
-            <p className="text-[11px] text-[#7A5B1F] font-semibold">권장 기준점 충족 시 추정치</p>
+            <p className="text-[11px] text-[#7A5B1F] font-semibold truncate">
+              {track === "insurance"
+                ? `65세↓ 5만 · 65세↑ 2만 (평균 ${Number(evaluation.feeBasis.avgVisitFeeManwon.toFixed(2))}만/회)`
+                : "비급여·한약·패키지 중복제외 추정"}
+            </p>
           </div>
         </div>
 
@@ -642,6 +650,129 @@ export default function FirstVisitAnalyticsView({
           })}
         </div>
 
+        {/* 3-B. 보험(원장) 전용: 진료부위별 삼진율(3회 내원율) 강·약점 진단 보드 */}
+        {track === "insurance" && existingFirstVisitRows.length > 0 && (
+          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-sm space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold text-[#111111]">
+                  진료부위별 삼진율 (3회 내원율)
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-[#F4F8F5] text-[#0F5132] text-[10px] font-extrabold">
+                  목표 70%↑
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] font-bold">
+                <span className="inline-flex items-center gap-1 text-[#0F5132]">
+                  <span className="w-2 h-2 rounded-full bg-[#0F5132]" /> 강점 (70%↑)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[#B8924A]">
+                  <span className="w-2 h-2 rounded-full bg-[#C5A059]" /> 보완 (50~69%)
+                </span>
+                <span className="inline-flex items-center gap-1 text-[#111111]">
+                  <span className="w-2 h-2 rounded-full bg-[#111111]" /> 이탈주의 (&lt;50%)
+                </span>
+              </div>
+            </div>
+
+            {evaluation.bodyPartRetention.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {evaluation.bodyPartRetention.map((part) => {
+                  const isGood = part.thirdRate >= 70;
+                  const isLowSample = !isGood && (part.patients < 2 || part.isConsultOnly);
+                  const isCrit = !isGood && !isLowSample && part.thirdRate < 50;
+
+                  return (
+                    <div
+                      key={part.id}
+                      className={`p-3.5 rounded-xl border transition-all ${
+                        isGood
+                          ? "bg-[#FAFAFA] border-[#E5E5E5]"
+                          : isCrit
+                          ? "bg-white border-[#111111]"
+                          : "bg-white border-[#E6D5B3]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs font-extrabold text-[#111111] truncate">
+                            {part.label}
+                          </span>
+                          <span className="text-[10px] font-semibold text-[#737373] shrink-0">
+                            {part.patients}명 · 2차 {part.secondRate}%
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-sm font-black text-[#111111]">
+                            {part.thirdRate}%
+                          </span>
+                          <span className="text-[10px] text-[#737373] font-semibold">
+                            ({part.thirdCount}/{part.patients})
+                          </span>
+                          {isGood ? (
+                            <span className="px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
+                              강점
+                            </span>
+                          ) : part.isConsultOnly ? (
+                            <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
+                              첩약군
+                            </span>
+                          ) : part.patients < 2 ? (
+                            <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
+                              표본1명
+                            </span>
+                          ) : isCrit ? (
+                            <span className="px-1.5 py-0.5 rounded bg-[#111111] text-[#D4AF37] text-[10px] font-extrabold">
+                              이탈
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded bg-[#FBF7EE] text-[#8C6B2D] text-[10px] font-extrabold">
+                              보완
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setActiveModal({ kind: "bodyPart", part })}
+                            className="w-5 h-5 rounded-full bg-[#F2F2F2] hover:bg-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center transition-colors cursor-pointer"
+                            title={`${part.label} 삼진율 처방 보기`}
+                          >
+                            <Info size={11} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 70% 기준선이 표시된 심플 바 */}
+                      <div className="relative h-1.5 w-full bg-[#EAEAEA] rounded-full overflow-hidden">
+                        <div
+                          className="absolute top-0 bottom-0 w-[1.5px] bg-[#111111]/35 z-10"
+                          style={{ left: "70%" }}
+                          title="기준점 70%"
+                        />
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            isGood
+                              ? "bg-[#0F5132]"
+                              : isCrit
+                              ? "bg-[#111111]"
+                              : "bg-[#C5A059]"
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(3, part.thirdRate))}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-dashed border-[#D4D4D4] text-xs text-[#666666]">
+                시트의 &apos;환자 진료 내역&apos;란에 통증·질환 부위(예: 허리, 목, 어깨, 발목)를 기입하시면 질환별 삼진율 강·약점이 자동 표시됩니다.
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 4. 현재 수치 vs 권장 기준점 한눈에 비교 차트 (심플) */}
         <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -708,6 +839,8 @@ export default function FirstVisitAnalyticsView({
                 <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#D4AF37] block">
                   {activeModal.kind === "indicator"
                     ? `${activeModal.item.track === "insurance" ? "보험 (원장)" : "비급여 (실장)"} 기준점 가이드`
+                    : activeModal.kind === "bodyPart"
+                    ? "보험 (원장) 질환별 삼진율 처방"
                     : activeModal.kind === "demographic"
                     ? "동네 배후 인구 & 상권 기준"
                     : activeModal.kind === "mission"
@@ -717,11 +850,13 @@ export default function FirstVisitAnalyticsView({
                 <h3 className="text-base font-black mt-0.5">
                   {activeModal.kind === "indicator"
                     ? activeModal.item.title
+                    : activeModal.kind === "bodyPart"
+                    ? `${activeModal.part.label} — 삼진율 ${activeModal.part.thirdRate}%`
                     : activeModal.kind === "demographic"
                     ? demographic.regionName
                     : activeModal.kind === "mission"
                     ? currentSummary.focusMission
-                    : `월 +${currentSummary.potentialMonthlyGainManwon.toLocaleString()}만 원 잠재 효과`}
+                    : `월 +${currentSummary.potentialMonthlyGainManwon.toLocaleString()}만 원 기대효과 산출식`}
                 </h3>
               </div>
               <button
@@ -737,7 +872,7 @@ export default function FirstVisitAnalyticsView({
             <div className="p-6 space-y-4 text-xs leading-relaxed max-h-[75vh] overflow-y-auto">
               {activeModal.kind === "indicator" && (
                 <>
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA]">
+                  <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA]">
                     <div>
                       <span className="text-[#737373] block text-[11px]">현재 수치 / 실측 집계</span>
                       <span className="text-lg font-black text-[#111111]">
@@ -747,7 +882,7 @@ export default function FirstVisitAnalyticsView({
                         {activeModal.item.modal.exactCounts}
                       </span>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span className="text-[11px] text-[#737373] block">권장 기준점</span>
                       <span className="text-sm font-extrabold text-[#0F5132]">
                         {activeModal.item.targetDisplay}
@@ -757,6 +892,41 @@ export default function FirstVisitAnalyticsView({
                       </span>
                     </div>
                   </div>
+
+                  {/* 진료부위별 삼진율 카드 클릭 시 전체 부위 순위 요약표 제공 */}
+                  {activeModal.item.id === "ins_bodypart_3rd" &&
+                    evaluation.bodyPartRetention.length > 0 && (
+                      <div className="border border-[#EAEAEA] rounded-xl overflow-hidden">
+                        <div className="bg-[#FAFAFA] px-3.5 py-2 text-[11px] font-extrabold text-[#111111] flex justify-between border-b border-[#EAEAEA]">
+                          <span>진료부위 (인원)</span>
+                          <span>2차 → 삼진율(3회)</span>
+                        </div>
+                        <div className="divide-y divide-[#F2F2F2]">
+                          {evaluation.bodyPartRetention.map((p) => (
+                            <div
+                              key={p.id}
+                              className="px-3.5 py-2 flex items-center justify-between text-[11px]"
+                            >
+                              <span className="font-bold text-[#111111]">
+                                {p.label}{" "}
+                                <span className="text-[#737373] font-medium">({p.patients}명)</span>
+                              </span>
+                              <span
+                                className={`font-extrabold ${
+                                  p.thirdRate >= 70
+                                    ? "text-[#0F5132]"
+                                    : p.thirdRate < 50 && p.patients >= 2 && !p.isConsultOnly
+                                    ? "text-[#111111]"
+                                    : "text-[#8C6B2D]"
+                                }`}
+                              >
+                                2차 {p.secondRate}% → 삼진 {p.thirdRate}% ({p.thirdCount}/{p.patients}명)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                   <div>
                     <h4 className="font-extrabold text-[#111111] mb-1">1. 왜 이 기준점인가?</h4>
@@ -773,6 +943,62 @@ export default function FirstVisitAnalyticsView({
                     <p className="text-[#1F2937] mb-2">{activeModal.item.modal.actionInstruction}</p>
                     <div className="p-2.5 rounded-lg bg-white border border-[#D4E7DA] text-[#0F5132] font-bold">
                       💬 실전 멘트: {activeModal.item.modal.scriptExample}
+                    </div>
+                  </div>
+
+                  {activeModal.item.modal.formulaNote && (
+                    <div className="px-3 py-2 rounded-lg bg-[#FAFAFA] border border-[#EAEAEA] text-[11px] text-[#666666]">
+                      <strong className="text-[#111111]">기대효과 산출식:</strong>{" "}
+                      {activeModal.item.modal.formulaNote}
+                      {activeModal.item.modal.revenueImpactManwon > 0 && (
+                        <span className="text-[#0F5132] font-extrabold ml-1">
+                          (= +월 {activeModal.item.modal.revenueImpactManwon.toLocaleString()}만 원)
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeModal.kind === "bodyPart" && (
+                <>
+                  <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA]">
+                    <div>
+                      <span className="text-[#737373] block text-[11px]">해당 질환 내원 흐름</span>
+                      <span className="text-base font-black text-[#111111]">
+                        초진 {activeModal.part.patients}명 → 2회 {activeModal.part.secondCount}명(
+                        {activeModal.part.secondRate}%) → 3회 {activeModal.part.thirdCount}명(
+                        {activeModal.part.thirdRate}%)
+                      </span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-[11px] text-[#737373] block">목표 70%↑ 기준</span>
+                      <span
+                        className={`text-sm font-extrabold ${
+                          activeModal.part.thirdRate >= 70 ? "text-[#0F5132]" : "text-[#8C6B2D]"
+                        }`}
+                      >
+                        {activeModal.part.neededFor70 === 0
+                          ? "강점 질환 달성"
+                          : `+${activeModal.part.neededFor70}명 더 완주 필요`}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3]">
+                    <h4 className="font-extrabold text-[#7A5B1F] mb-1">
+                      1. {activeModal.part.label} 주요 3회 전 이탈 원인
+                    </h4>
+                    <p className="text-[#404040]">{activeModal.part.dropoutReason}</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
+                    <h4 className="font-extrabold text-[#0F5132] mb-1">
+                      2. 원장님 맞춤 3회 완주 처방 &amp; 티업 멘트
+                    </h4>
+                    <p className="text-[#1F2937] mb-2">{activeModal.part.prescriptionGuide}</p>
+                    <div className="p-2.5 rounded-lg bg-white border border-[#D4E7DA] text-[#0F5132] font-bold">
+                      💬 실전 멘트: {activeModal.part.scriptExample}
                     </div>
                   </div>
                 </>
@@ -823,10 +1049,48 @@ export default function FirstVisitAnalyticsView({
 
               {activeModal.kind === "revenue" && (
                 <div className="space-y-3">
-                  <p className="text-[#555555]">
-                    미달 지표를 권장 기준점까지 끌어올렸을 때 동네 한의원 표준 객단가 기준으로 추산한 월간 추가 기대 매출입니다.
-                  </p>
-                  {currentSummary.potentialBreakdown.length === 0 ? (
+                  {track === "insurance" ? (
+                    <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] space-y-1.5">
+                      <strong className="font-extrabold text-[#7A5B1F] block">
+                        보험(원장) 1회 진료비 산출 기준
+                      </strong>
+                      <div className="text-[#111111] font-bold">
+                        · 65세 이하(미만): <span className="text-[#0F5132]">1회 5만 원</span> / 65세 이상:{" "}
+                        <span className="text-[#0F5132]">1회 2만 원</span>
+                      </div>
+                      <div className="text-[11px] text-[#555555]">
+                        {evaluation.feeBasis.isDefaultRatioUsed ? (
+                          <span>
+                            → 현재 나이 미기입 상태로 권장 연령비(80:20) 가중단가{" "}
+                            <strong className="text-[#111111]">1회 4.4만 원</strong> 적용 중
+                          </span>
+                        ) : (
+                          <span>
+                            → 실측 연령 확인 {evaluation.feeBasis.knownAgeCount}명(65세↓{" "}
+                            {evaluation.feeBasis.under65Count}명 · 65세↑{" "}
+                            {evaluation.feeBasis.senior65Count}명) 반영 가중단가{" "}
+                            <strong className="text-[#111111]">
+                              1회 {Number(evaluation.feeBasis.avgVisitFeeManwon.toFixed(2))}만 원
+                            </strong>{" "}
+                            적용
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[#737373] pt-1 border-t border-[#E6D5B3]/60">
+                        * 2차·3차 내원은 각각 순수 1회분씩만 계산하며, 예약확정·골든타임·부위별 삼진율 등 연결 지표는 중복 합산에서 제외했습니다.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[#555555]">
+                      비급여·한약·패키지 미달 지표를 권장 기준점까지 달성했을 때 중복 항목을 제외하고 추산한 월간 기대 매출입니다.
+                    </p>
+                  )}
+
+                  {existingFirstVisitRows.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-[#FAFAFA] border border-[#EAEAEA] text-[#666666] font-bold text-center">
+                      환자 시트 데이터가 연동되면 자동 산출됩니다.
+                    </div>
+                  ) : currentSummary.potentialBreakdown.length === 0 ? (
                     <div className="p-4 rounded-xl bg-[#ECFDF5] text-[#0F5132] font-bold text-center">
                       현재 트랙의 모든 권장 기준점을 달성하셨습니다!
                     </div>
@@ -837,9 +1101,14 @@ export default function FirstVisitAnalyticsView({
                           key={i}
                           className="px-4 py-3 bg-white flex items-center justify-between gap-2"
                         >
-                          <div>
+                          <div className="min-w-0">
                             <strong className="font-extrabold text-[#111111] block">{b.label}</strong>
-                            <span className="text-[11px] text-[#737373]">{b.detail}</span>
+                            <span className="text-[11px] text-[#737373] block">{b.detail}</span>
+                            {b.formula && (
+                              <span className="text-[10px] text-[#0F5132] font-semibold block mt-0.5">
+                                산출식: {b.formula}
+                              </span>
+                            )}
                           </div>
                           <span className="font-black text-[#0F5132] shrink-0">
                             +월 {b.gainManwon.toLocaleString()}만 원

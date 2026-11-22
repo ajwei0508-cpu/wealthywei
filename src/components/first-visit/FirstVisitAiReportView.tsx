@@ -181,15 +181,15 @@ export default function FirstVisitAiReportView({
 
             <div className="bg-[#FAFAFA] rounded-2xl p-4 border border-[#EAEAEA]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-extrabold text-[#111111]">주요 진료 부위</span>
-                <span className="text-[11px] text-[#737373]">총 {analytics.totalPatients}명</span>
+                <span className="text-xs font-extrabold text-[#111111]">주요 증상군 인원 · 삼진율</span>
+                <span className="text-[11px] text-[#737373]">삼진 목표 70%↑</span>
               </div>
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={analytics.symptomDistribution}
                     layout="vertical"
-                    margin={{ top: 4, right: 28, left: 16, bottom: 0 }}
+                    margin={{ top: 4, right: 64, left: 16, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAEAEA" />
                     <XAxis type="number" allowDecimals={false} hide />
@@ -203,9 +203,18 @@ export default function FirstVisitAiReportView({
                     />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#111111", border: "none", borderRadius: "10px", color: "#fff", fontSize: "11px" }}
+                      formatter={(val: any, _n: any, item: any) => [
+                        `${val}명 (2차 ${item?.payload?.secondVisitRate ?? 0}% · 삼진 ${item?.payload?.thirdVisitRate ?? 0}%)`,
+                        "집계",
+                      ]}
                     />
                     <Bar dataKey="count" fill="#C5A059" radius={[0, 4, 4, 0]} barSize={18}>
-                      <LabelList dataKey="count" position="right" style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }} />
+                      <LabelList
+                        dataKey="count"
+                        position="right"
+                        formatter={(val: any) => `${val}명`}
+                        style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
