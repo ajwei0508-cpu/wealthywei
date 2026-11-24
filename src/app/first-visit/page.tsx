@@ -174,6 +174,13 @@ function FirstVisitSystemContent() {
   const [memberWorkspaces, setMemberWorkspaces] = useState<MasterMemberSummary[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // 20초 간격 자동 저장 상태 및 경합 방지 Ref
+  const AUTO_SAVE_INTERVAL_SEC = 20;
+  const [autoSaveCountdown, setAutoSaveCountdown] = useState<number>(AUTO_SAVE_INTERVAL_SEC);
+  const [lastAutoSavedTime, setLastAutoSavedTime] = useState<string>("");
+  const changeVersionRef = useRef<number>(0);
+  const autoSaveInFlightRef = useRef<boolean>(false);
+
   // Action States
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -356,8 +363,10 @@ function FirstVisitSystemContent() {
     customLogs?: UploadHistoryLog[],
     customEmr?: string,
     silent?: boolean,
-    customSuccessMsg?: string
+    customSuccessMsg?: string,
+    isAutoSave = false
   ) => {
+    const saveVersion = changeVersionRef.current;
     setIsSaving(true);
     try {
       const targetDateISO = fallbackDateInput || getTodayKSTISO();
@@ -365,22 +374,25 @@ function FirstVisitSystemContent() {
 
       // 저장 시 일자(visitDate)나 1회(firstVisitDate)가 비어있는 행은 해당일로 자동 보정
       const rawRows = customRows ?? rows;
+      let anyDateFilled = false;
       const payloadRows = rawRows.map((r) => {
         const next = { ...r };
         if (!next.visitDate?.trim()) {
           const iso = next.firstVisitISO || targetDateISO;
           next.visitDateISO = iso;
           next.visitDate = formatISOToKoreanMD(iso) || targetDateLabel;
+          anyDateFilled = true;
         }
         if (!next.firstVisitDate?.trim()) {
           const iso = next.visitDateISO || targetDateISO;
           next.firstVisitISO = iso;
           next.firstVisitDate = next.visitDate || formatISOToKoreanMD(iso) || targetDateLabel;
+          anyDateFilled = true;
         }
         return next;
       });
 
-      if (!customRows) {
+      if (!customRows && (!isAutoSave || (anyDateFilled && changeVersionRef.current === saveVersion))) {
         setRows(payloadRows);
       }
 
@@ -401,14 +413,22 @@ function FirstVisitSystemContent() {
       }
       const saved = await res.json();
       setWorkspace(saved.workspace);
-      setHasUnsavedChanges(false);
-      if (!silent) {
+      setLastAutoSavedTime(
+        new Date().toLocaleTimeString("ko-KR", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      );
+      // 저장 요청 중에 추가 입력이 발생하지 않았을 때만 미저장 상태 해제
+      if (changeVersionRef.current === saveVersion) {
+        setHasUnsavedChanges(false);
+      }
+      if (isAutoSave) {
+        toast.success("20초 자동 저장이 완료되었습니다.", { id: "fv-autosave", duration: 2200 });
+      } else if (!silent) {
         toast.success(
           customSuccessMsg ||
             "소속 한의원 전용 보안 공간에 안전하게 저장되었습니다. (마스터 외 타 계정 열람 불가)"
         );
       }
-      if (isMaster) {
+      if (isMaster && !isAutoSave) {
         const refreshRes = await fetch(`/api/first-visit${buildQuerySuffix()}`);
         if (refreshRes.ok) {
           const refreshJson = await refreshRes.json();
@@ -419,12 +439,50 @@ function FirstVisitSystemContent() {
       }
       return saved.workspace as FirstVisitWorkspace;
     } catch (err: any) {
-      toast.error(err.message || "저장 중 오류가 발생했습니다.");
+      if (isAutoSave) {
+        toast.error("자동 저장 중 일시적 오류가 발생했습니다. 20초 후 다시 시도합니다.", {
+          id: "fv-autosave",
+          duration: 3000,
+        });
+      } else {
+        toast.error(err.message || "저장 중 오류가 발생했습니다.");
+      }
       return null;
     } finally {
       setIsSaving(false);
     }
   };
+
+  // 최신 자동저장 핸들러 참조 유지 (연속 입력 중에도 정확히 20초 간격으로 안전하게 자동 저장)
+  const latestAutoSaveRef = useRef<() => Promise<FirstVisitWorkspace | null>>(() => Promise.resolve(null));
+  latestAutoSaveRef.current = () =>
+    handleSaveWorkspace(undefined, undefined, undefined, true, undefined, true);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges || status !== "authenticated" || !hasMenuAccess || loading || isUploading) {
+      setAutoSaveCountdown(AUTO_SAVE_INTERVAL_SEC);
+      return;
+    }
+
+    let remaining = AUTO_SAVE_INTERVAL_SEC;
+    setAutoSaveCountdown(remaining);
+
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        if (!autoSaveInFlightRef.current) {
+          autoSaveInFlightRef.current = true;
+          latestAutoSaveRef.current().finally(() => {
+            autoSaveInFlightRef.current = false;
+          });
+        }
+        remaining = AUTO_SAVE_INTERVAL_SEC;
+      }
+      setAutoSaveCountdown(remaining);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [hasUnsavedChanges, status, hasMenuAccess, loading, isUploading]);
 
   // Trigger AI Report Generation (전체 또는 현재 선택된 월 기준 분석)
   const handleGenerateAiReport = async (overrideRows?: FirstVisitRow[]) => {
@@ -639,6 +697,7 @@ function FirstVisitSystemContent() {
         return next;
       })
     );
+    changeVersionRef.current += 1;
     setHasUnsavedChanges(true);
   };
 
@@ -788,6 +847,7 @@ function FirstVisitSystemContent() {
       updatedAt: new Date().toISOString(),
     };
     setRows((prev) => [newRow, ...prev]);
+    changeVersionRef.current += 1;
     setHasUnsavedChanges(true);
     toast.success(
       `해당일(${todayLabel}) 날짜가 자동 기입된 새 환자 입력 행이 상단에 추가되었습니다.`
@@ -1031,7 +1091,9 @@ function FirstVisitSystemContent() {
                 {isSaving
                   ? "저장 중..."
                   : hasUnsavedChanges
-                  ? "수정사항 저장하기 *"
+                  ? `수정사항 저장하기 * (${autoSaveCountdown}초 후 자동저장)`
+                  : lastAutoSavedTime
+                  ? `안전하게 저장됨 (${lastAutoSavedTime})`
                   : "안전하게 저장됨"}
               </span>
             </button>
