@@ -260,8 +260,8 @@ export default function DashboardSidebar() {
     { 
       label: "마케팅", 
       items: [
-        { label: "플레이스 리뷰", url: "https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", isPopup: true },
-        { label: "블로그 생성", url: "https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", isPopup: true },
+        { label: "플레이스 리뷰", url: "https://gemini.google.com/customize/skills/d/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", isPopup: true },
+        { label: "블로그 생성", url: "https://gemini.google.com/customize/skills/d/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", isPopup: true },
         ...(isMaster ? [{ label: "자동화 글쓰기", url: "/admin/scheduler" }] : [])
       ]
     }
@@ -696,7 +696,7 @@ export default function DashboardSidebar() {
             <div className="space-y-1">
               <button 
                 type="button"
-                onClick={() => openGeminiPopup("https://gemini.google.com/gem/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", "gemini_place_review")}
+                onClick={() => openGeminiPopup("https://gemini.google.com/customize/skills/d/1b_8vPBnItEWf4TNdSOrCCThIQJXAdyqk?usp=sharing", "gemini_place_review")}
                 className="w-full flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
@@ -708,7 +708,7 @@ export default function DashboardSidebar() {
 
               <button 
                 type="button"
-                onClick={() => openGeminiPopup("https://gemini.google.com/gem/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", "gemini_blog_create")}
+                onClick={() => openGeminiPopup("https://gemini.google.com/customize/skills/d/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing", "gemini_blog_create")}
                 className="w-full flex items-center justify-between py-2 text-[12px] text-white/70 hover:text-amber-300 transition-colors group cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2">
