@@ -120,7 +120,10 @@ export default function DashboardSidebar() {
         setIsContourDiagOpen(true);
       }
     }
-  }, [pathname]);
+    if (pathname.startsWith("/first-visit") || pathname.startsWith("/employee") || (session?.user as any)?.role === 'staff') {
+      setIsStaffMenuOpen(true);
+    }
+  }, [pathname, (session?.user as any)?.role]);
 
   const [hasNewNotice, setHasNewNotice] = useState(false);
   const [hasNewRequest, setHasNewRequest] = useState(false);
@@ -169,9 +172,33 @@ export default function DashboardSidebar() {
   const userCategory = (session?.user as any)?.approvedCategory || '';
   const userRole = (session?.user as any)?.role || 'director';
 
-  const isConsultingApproved = userStatus === 'approved' && (approvedCategories.includes('consulting') || userCategory === 'consulting');
-  const isTreatmentApproved = userStatus === 'approved' && (approvedCategories.includes('treatment') || approvedCategories.includes('treatment_no_download') || approvedCategories.includes('consulting') || userCategory === 'treatment' || userCategory === 'consulting');
-  const isOpeningApproved = userStatus === 'approved' && (approvedCategories.includes('opening') || approvedCategories.includes('consulting') || userCategory === 'opening' || userCategory === 'consulting');
+  const isConsultingApproved = userStatus === 'approved' && (
+    approvedCategories.includes('consulting') || 
+    approvedCategories.includes('바른컨설팅') || 
+    userCategory === 'consulting' || 
+    userCategory === '바른컨설팅'
+  );
+  const isTreatmentApproved = userStatus === 'approved' && (
+    approvedCategories.includes('treatment') || 
+    approvedCategories.includes('treatment_no_download') || 
+    approvedCategories.includes('consulting') || 
+    approvedCategories.includes('바른진료법') || 
+    approvedCategories.includes('바른컨설팅') || 
+    userCategory === 'treatment' || 
+    userCategory === 'consulting' || 
+    userCategory === '바른진료법' || 
+    userCategory === '바른컨설팅'
+  );
+  const isOpeningApproved = userStatus === 'approved' && (
+    approvedCategories.includes('opening') || 
+    approvedCategories.includes('consulting') || 
+    approvedCategories.includes('바른개원법') || 
+    approvedCategories.includes('바른컨설팅') || 
+    userCategory === 'opening' || 
+    userCategory === 'consulting' || 
+    userCategory === '바른개원법' || 
+    userCategory === '바른컨설팅'
+  );
   const isPrescriptionApproved = userStatus === 'approved' && (
     approvedCategories.includes('prescription') || 
     approvedCategories.includes('consulting') || 
@@ -291,13 +318,15 @@ export default function DashboardSidebar() {
         <div className="mb-4">
           <p className="px-4 text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-4">Core Services</p>
           
-          <NavItem 
-            icon={CreditCard} 
-            label="개인카드 통합분류" 
-            isActive={pathname.startsWith("/cards")}
-            onClick={() => router.push("/cards")}
-            hasNew={true}
-          />
+          {userRole !== 'staff' && (
+            <NavItem 
+              icon={CreditCard} 
+              label="개인카드 통합분류" 
+              isActive={pathname.startsWith("/cards")}
+              onClick={() => router.push("/cards")}
+              hasNew={true}
+            />
+          )}
 
           <NavItem 
             icon={MessageSquare} 
