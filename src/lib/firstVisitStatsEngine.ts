@@ -75,14 +75,19 @@ export interface BodyPartRetentionItem {
   scriptExample: string;         // 진료실 1문장 실전 티업 멘트
 }
 
+export const DEFAULT_INSURANCE_AVG_FEE_MANWON = 3.8; // 비급여 제외 · 보험(본부금+공단청구) 1회 평균 기본값
+export const MIN_BODYPART_SAMPLE = 5; // 부위별 삼진율 통계 판정 최소 표본수
+
 export interface FeeBasisSummary {
-  under65FeeManwon: number;      // 65세 미만 1회 진료비 (5만원)
-  senior65FeeManwon: number;     // 65세 이상 1회 진료비 (2만원)
-  avgVisitFeeManwon: number;     // 실측 연령 가중평균 1회 진료비 (만원)
+  insuranceAvgFeeManwon: number; // 적용된 보험 1회 평균 객단가 (본부금+공단청구, 만원)
+  isCustomInput: boolean;        // 원장님 직접 입력 여부 (false면 기본 3.8만원)
+  under65FeeManwon: number;      // 하위 호환용
+  senior65FeeManwon: number;     // 하위 호환용
+  avgVisitFeeManwon: number;     // 적용된 보험 1회 평균 객단가 (만원)
   under65Count: number;
   senior65Count: number;
   knownAgeCount: number;
-  isDefaultRatioUsed: boolean;   // 나이 미기입으로 기본 80:20(4.4만원) 적용 여부
+  isDefaultRatioUsed: boolean;
 }
 
 export interface DualTrackIndicator {
@@ -130,7 +135,7 @@ export interface DualTrackEvaluation {
   unrecordedGender: number;
   effectiveMale: number;
   effectiveFemale: number;
-  feeBasis: FeeBasisSummary;     // 1회 진료비 산출 기준 (65세↓ 5만 · 65세↑ 2만)
+  feeBasis: FeeBasisSummary;     // 보험 1회 평균 객단가 산출 기준 (본부금+공단청구)
   bodyPartRetention: BodyPartRetentionItem[]; // 진료부위별 삼진율 정밀 분석
   unclassifiedBodyPartCount: number;          // 부위 미기입 인원
   insurance: TrackSummary;       // 보험 (원장) — 내원경로까지
@@ -441,7 +446,8 @@ function classifyClinicalBodyParts(detail: string, insType: string): ClinicalBod
 export function evaluateDualTrackStats(
   rows: FirstVisitRow[],
   demographic: DemographicData,
-  genderOverride?: { male?: number | null; female?: number | null }
+  genderOverride?: { male?: number | null; female?: number | null },
+  customInsuranceFeeManwon?: number | null
 ): DualTrackEvaluation {
   const district = classifyDistrict(demographic);
   const totalPatients = rows.length;
@@ -618,7 +624,7 @@ export function evaluateDualTrackStats(
 
   // =========================================================================
   // TRACK 1: 보험 (원장) — 내원경로까지 9대 핵심 지표 (3x3 밸런스 그리드)
-  // [1회 진료비 기준: 65세 미만(이하) 5만 원 · 65세 이상 2만 원 가중단가 적용 / 중복합산 배제]
+  // [매출 증대 공식: 오직 통제 가능한 2차(80%)·3차(70%) 부족 인원 × 입력한 보험 1회 객단가(본부금+공단청구)]
   // =========================================================================
   const todayISO = new Date().toISOString().slice(0, 10);
   const recentUnder7DaysCount = rows.filter((r) => {
@@ -633,60 +639,66 @@ export function evaluateDualTrackStats(
   const reFirstSeniorRate = reFirstKnownAge > 0 ? pct(reFirstSenior65, reFirstKnownAge) : 0;
   const regSenior = demographic.seniorRatio || 22.2;
   const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
-  const ageWarningCap = Math.max(30, Number((regSenior * 1.25).toFixed(1)));
+  const ageHealthyCap = Math.max(20, Number(regSenior.toFixed(1)));
+  const ageWarningCap = Math.max(30, Number((regSenior * 1.3).toFixed(1)));
   const age65Status: RiskLevel =
     knownAge === 0
       ? "EMPTY"
-      : seniorRate <= 20
+      : seniorRate <= ageHealthyCap
       ? "HEALTHY"
       : seniorRate <= ageWarningCap
       ? "WARNING"
       : "CRITICAL";
-  const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, 80) : 0;
+  const targetUnder65 = Number((100 - ageHealthyCap).toFixed(1));
+  const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, targetUnder65) : 0;
 
-  // 1회 진료비 정밀 산출 (65세 미만 5만 원 · 65세 이상 2만 원)
-  const UNDER65_FEE_MANWON = 5;
-  const SENIOR65_FEE_MANWON = 2;
-  const avgVisitFeeManwon =
-    knownAge > 0
-      ? Number(((under65Count * UNDER65_FEE_MANWON + senior65 * SENIOR65_FEE_MANWON) / knownAge).toFixed(2))
-      : 4.4; // 나이 미기입 시 권장 80:20 기본 가중단가 (0.8*5 + 0.2*2 = 4.4만원)
+  // 보험 1회 평균 객단가 (비급여 제외 · 본부금 + 공단청구 / 원장님 직접 입력 우선, 미입력 시 기본 3.8만원)
+  const isCustomFee =
+    typeof customInsuranceFeeManwon === "number" &&
+    !isNaN(customInsuranceFeeManwon) &&
+    customInsuranceFeeManwon > 0;
+  const avgVisitFeeManwon = isCustomFee
+    ? Number(customInsuranceFeeManwon.toFixed(2))
+    : DEFAULT_INSURANCE_AVG_FEE_MANWON;
   const avgFeeStr = Number(avgVisitFeeManwon.toFixed(2)).toString();
 
   const feeBasis: FeeBasisSummary = {
-    under65FeeManwon: UNDER65_FEE_MANWON,
-    senior65FeeManwon: SENIOR65_FEE_MANWON,
+    insuranceAvgFeeManwon: avgVisitFeeManwon,
+    isCustomInput: isCustomFee,
+    under65FeeManwon: avgVisitFeeManwon,
+    senior65FeeManwon: avgVisitFeeManwon,
     avgVisitFeeManwon,
     under65Count,
     senior65Count: senior65,
     knownAgeCount: knownAge,
-    isDefaultRatioUsed: knownAge === 0,
+    isDefaultRatioUsed: !isCustomFee,
   };
 
   const rate2nd = pct(secondCount, safeTotal);
   const target2nd = 80;
   const need2nd = totalPatients === 0 ? 0 : neededCount(secondCount, totalPatients, target2nd);
-  // 중복 합산 방지: 2차 재내원율은 순수 '2회차 1회분'만 산출
+  // 2차 재내원: 2회차 방문 진료비 1회분 (3차 방문비와 날짜·결제가 별개이므로 중복 0%)
   const gain2ndManwon = totalPatients === 0 ? 0 : Math.round(need2nd * 1 * avgVisitFeeManwon);
 
   const rate3rd = pct(thirdCount, safeTotal);
   const target3rd = 70;
   const need3rd = totalPatients === 0 ? 0 : neededCount(thirdCount, totalPatients, target3rd);
-  // 중복 합산 방지: 3차 정착률은 순수 '3회차 1회분'만 산출 (2회차분과 중복 0%)
+  // 3차 정착률: 3회차 방문 진료비 1회분 (2차와 합산 시 실제 늘어나는 총 내원횟수와 수학적으로 정확히 일치)
   const gain3rdManwon = totalPatients === 0 ? 0 : Math.round(need3rd * 1 * avgVisitFeeManwon);
 
-  // 진료부위별 삼진율(3회 내원율) 정밀 산출
+  // 진료부위별 삼진율(3회 내원율) 정밀 산출 (최소 표본수 N>=5 가드 적용)
   const bodyPartRetention: BodyPartRetentionItem[] = Array.from(bodyPartStatsMap.values())
     .filter((st) => st.patients > 0)
     .map((st) => {
       const sRate = pct(st.second, st.patients);
       const tRate = pct(st.third, st.patients);
       const need70 = neededCount(st.third, st.patients, 70);
+      const isLowSample = st.patients < MIN_BODYPART_SAMPLE;
       const status: RiskLevel =
-        tRate >= 70
+        isLowSample || st.def.isConsultOnly
+          ? "EMPTY"
+          : tRate >= 70
           ? "HEALTHY"
-          : st.patients < 2 || st.def.isConsultOnly
-          ? "WARNING"
           : tRate >= 50
           ? "WARNING"
           : "CRITICAL";
@@ -710,19 +722,16 @@ export function evaluateDualTrackStats(
         scriptExample: st.def.scriptExample,
       };
     })
-    .sort((a, b) => b.thirdRate - a.thirdRate || b.patients - a.patients);
+    .sort((a, b) => b.patients - a.patients || b.thirdRate - a.thirdRate);
 
-  // 대표 강점/보완 부위 선정 (모수 1명 왜곡 및 순수 보약택배군 왜곡 방지)
+  // 대표 강점/보완 부위 선정 (최소 5명 이상 누적된 부위만 정식 판정하여 소표본 왜곡 원천 차단)
   const clinicalBodyParts = bodyPartRetention.filter((p) => !p.isConsultOnly);
-  const poolStep1 = clinicalBodyParts.filter((p) => p.patients >= 2);
-  const qualifiedParts =
-    poolStep1.length > 0
-      ? poolStep1
-      : clinicalBodyParts.length > 0
-      ? clinicalBodyParts
-      : bodyPartRetention;
+  const qualifiedParts = clinicalBodyParts.filter((p) => p.patients >= MIN_BODYPART_SAMPLE);
+  const qualifiedSortedBest = [...qualifiedParts].sort(
+    (a, b) => b.thirdRate - a.thirdRate || b.patients - a.patients
+  );
 
-  const bestBodyPart = qualifiedParts[0] || null;
+  const bestBodyPart = qualifiedSortedBest[0] || null;
   const weakestBodyPart =
     qualifiedParts.length > 0
       ? [...qualifiedParts].sort((a, b) => a.thirdRate - b.thirdRate || b.patients - a.patients)[0]
@@ -730,16 +739,28 @@ export function evaluateDualTrackStats(
   const healthyBodyPartCount = qualifiedParts.filter((p) => p.thirdRate >= 70).length;
 
   const bodyPartCardStatus: RiskLevel =
-    totalPatients === 0
+    totalPatients === 0 || !weakestBodyPart
       ? "EMPTY"
-      : !weakestBodyPart
-      ? "WARNING"
       : weakestBodyPart.thirdRate >= 70
       ? "HEALTHY"
-      : weakestBodyPart.patients < 2 || weakestBodyPart.thirdRate >= 50
+      : weakestBodyPart.thirdRate >= 50
       ? "WARNING"
       : "CRITICAL";
 
+  // 방문 간격(골든타임): 극단치(1~2명 지연)에 흔들리지 않도록 중앙값(Median) 기준 판정
+  const sortedIntervals = [...intervals].sort((a, b) => a - b);
+  const medianInterval =
+    sortedIntervals.length > 0
+      ? sortedIntervals.length % 2 === 1
+        ? sortedIntervals[Math.floor(sortedIntervals.length / 2)]
+        : Number(
+            (
+              (sortedIntervals[sortedIntervals.length / 2 - 1] +
+                sortedIntervals[sortedIntervals.length / 2]) /
+              2
+            ).toFixed(1)
+          )
+      : 0;
   const avgInterval =
     intervals.length > 0
       ? Number((intervals.reduce((a, b) => a + b, 0) / intervals.length).toFixed(1))
@@ -747,9 +768,9 @@ export function evaluateDualTrackStats(
   const intervalStatus: RiskLevel =
     intervals.length === 0
       ? "EMPTY"
-      : avgInterval <= 4.5
+      : medianInterval <= 4.5
       ? "HEALTHY"
-      : avgInterval <= 7.0
+      : medianInterval <= 7.0
       ? "WARNING"
       : "CRITICAL";
 
@@ -763,20 +784,9 @@ export function evaluateDualTrackStats(
   const reFirstRate = pct(reFirst, safeTotal);
   const targetReFirst = 30;
   const needReFirst = totalPatients === 0 ? 0 : neededCount(reFirst, totalPatients, targetReFirst);
-  // 재초진 부족 인원 복귀 시 기대 진료비: 목표 정착 기준 평균 2.5회(초진1 + 2차0.8 + 3차0.7) × 가중 1회 진료비
-  const gainReFirstManwon =
-    totalPatients === 0 ? 0 : Math.round(needReFirst * 2.5 * avgVisitFeeManwon);
-
-  // 65세 이상 고령 비율 초과 시 단가 차이(5만 - 2만 = 3만 원) 기반 기대효과
-  const excessSenior65 = knownAge > 0 ? Math.max(0, senior65 - Math.floor(knownAge * 0.2)) : 0;
-  const actualAvgVisits =
-    totalPatients > 0
-      ? Number((1 + secondCount / totalPatients + thirdCount / totalPatients).toFixed(1))
-      : 2.5;
-  const gainAge65Manwon =
-    excessSenior65 > 0
-      ? Math.round(excessSenior65 * actualAvgVisits * (UNDER65_FEE_MANWON - SENIOR65_FEE_MANWON))
-      : 0;
+  // 재초진·65세 비율은 시점 예측 불가 / 대체 가정 오류 방지를 위해 확정 기대매출 합산에서 제외 (0원)
+  const gainReFirstManwon = 0;
+  const gainAge65Manwon = 0;
 
   const genderSum = effectiveMale + effectiveFemale;
   const femaleRate = genderSum > 0 ? pct(effectiveFemale, genderSum) : 0;
@@ -853,7 +863,7 @@ export function evaluateDualTrackStats(
         revenueImpactManwon: gain2ndManwon,
         formulaNote:
           need2nd > 0
-            ? `${need2nd}명 부족 × 1회(2차 내원) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
+            ? `${need2nd}명 부족 × 1회(2회차 방문비) × 보험 객단가 ${avgFeeStr}만 원`
             : "목표 달성 완료",
       },
     },
@@ -903,7 +913,7 @@ export function evaluateDualTrackStats(
         revenueImpactManwon: gain3rdManwon,
         formulaNote:
           need3rd > 0
-            ? `${need3rd}명 부족 × 1회(3차 내원, 2차분과 중복제외) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
+            ? `${need3rd}명 부족 × 1회(3회차 방문비, 2차와 중복 0%) × 보험 객단가 ${avgFeeStr}만 원`
             : "목표 달성 완료",
       },
     },
@@ -915,13 +925,17 @@ export function evaluateDualTrackStats(
       subMetric:
         bestBodyPart && totalPatients > 0
           ? `강점 ${bestBodyPart.shortName} ${bestBodyPart.thirdRate}%`
+          : clinicalBodyParts.length > 0
+          ? `표본 누적 중 (${MIN_BODYPART_SAMPLE}명↑ 판정)`
           : "부위 진단",
       currentValue: weakestBodyPart ? weakestBodyPart.thirdRate : 0,
       valueDisplay:
         totalPatients === 0
           ? "-"
           : !weakestBodyPart
-          ? "부위 미기입"
+          ? clinicalBodyParts.length > 0
+            ? "표본 누적 중"
+            : "부위 미기입"
           : weakestBodyPart.thirdRate >= 70
           ? `최저 ${weakestBodyPart.thirdRate}%`
           : `${weakestBodyPart.shortName} ${weakestBodyPart.thirdRate}%`,
@@ -931,7 +945,9 @@ export function evaluateDualTrackStats(
         totalPatients === 0
           ? "데이터 대기"
           : !weakestBodyPart
-          ? "진료내역 기입"
+          ? clinicalBodyParts.length > 0
+            ? `${MIN_BODYPART_SAMPLE}명↑부터 판정`
+            : "진료내역 기입"
           : weakestBodyPart.thirdRate >= 70
           ? "전 부위 70%↑"
           : `통과 ${healthyBodyPartCount}/${qualifiedParts.length}부위`,
@@ -940,7 +956,9 @@ export function evaluateDualTrackStats(
         totalPatients === 0
           ? "환자 시트를 업로드하세요"
           : !weakestBodyPart
-          ? "진료내역에 통증 부위를 기입하세요"
+          ? clinicalBodyParts.length > 0
+            ? `부위별 ${MIN_BODYPART_SAMPLE}명 이상 누적 시 강·약점 자동 판정`
+            : "진료내역에 통증 부위를 기입하세요"
           : weakestBodyPart.thirdRate >= 70
           ? `전 부위 우수 (최고 ${bestBodyPart?.shortName} ${bestBodyPart?.thirdRate}%)`
           : bestBodyPart && bestBodyPart.id !== weakestBodyPart.id
@@ -950,16 +968,21 @@ export function evaluateDualTrackStats(
         exactCounts:
           bodyPartRetention.length > 0
             ? `${bodyPartRetention
-                .map((p) => `${p.label} ${p.thirdRate}%(${p.thirdCount}/${p.patients}명)`)
+                .map(
+                  (p) =>
+                    `${p.label} ${p.thirdRate}%(${p.thirdCount}/${p.patients}명${
+                      p.patients < MIN_BODYPART_SAMPLE ? ", 표본누적중" : ""
+                    })`
+                )
                 .join(" · ")}${
                 unclassifiedBodyPartCount > 0 ? ` | 부위 미기입 ${unclassifiedBodyPartCount}명` : ""
               }`
             : "진료내역에서 통증·질환 부위가 확인된 환자가 아직 없습니다.",
         benchmarkReason:
-          "전체 평균 3차 정착률만 보면 강점 질환이 취약 질환의 조기 이탈을 가리는 '평균의 착시(Simpson's Paradox)'가 발생합니다. 부위별 삼진율(목표 70%↑)을 분리해야 우리 한의원이 어떤 질환에서 신뢰가 높고 어떤 질환에서 1~2회 만에 놓치는지 정확히 타깃 교정할 수 있습니다.",
+          `소표본(5명 미만)의 통계 착시를 막기 위해 부위별 ${MIN_BODYPART_SAMPLE}명 이상 쌓인 질환군만 정식 판정합니다. 전체 평균에 가려진 취약 질환의 조기 이탈을 찾아 타깃 교정하는 핵심 진단 지표입니다.`,
         riskWarning:
           weakestBodyPart && weakestBodyPart.thirdRate < 70
-            ? `현재 '${weakestBodyPart.label}' 환자의 삼진율이 ${weakestBodyPart.thirdRate}%로 가장 낮습니다. ${weakestBodyPart.dropoutReason}`
+            ? `현재 '${weakestBodyPart.label}'(${weakestBodyPart.patients}명) 환자의 삼진율이 ${weakestBodyPart.thirdRate}%로 가장 낮습니다. ${weakestBodyPart.dropoutReason}`
             : "특정 부위(예: 발목 염좌, 단순 담결림, 손목·팔꿈치)에서 1회 치료 후 자가 종결이 누적되면 전체 정착률이 70% 아래로 무너집니다.",
         actionInstruction:
           weakestBodyPart && weakestBodyPart.thirdRate < 70
@@ -969,7 +992,7 @@ export function evaluateDualTrackStats(
           weakestBodyPart?.scriptExample ||
           "\"통증이 줄어드는 것과 손상된 속근육·인대가 아무는 것은 다릅니다. 재발 방지를 위해 3회차까지는 꼭 체크하겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote: "※ 부위별 개선 기대금액은 '2차·3차 정착률' 항목에 통합 산출됨 (중복 합산 제외)",
+        formulaNote: "※ 부위별 개선 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)",
       },
     },
     {
@@ -977,31 +1000,34 @@ export function evaluateDualTrackStats(
       track: "insurance",
       order: 4,
       title: "재내원 골든타임",
-      subMetric: intervals.length > 0 ? `${intervals.length}명 측정` : "2회일 필요",
-      currentValue: intervals.length > 0 ? Math.max(10, Math.min(100, Math.round((4.5 / Math.max(1, avgInterval)) * 75))) : 0,
-      valueDisplay: intervals.length > 0 ? `${avgInterval}일` : "-",
+      subMetric: intervals.length > 0 ? `${intervals.length}명 중간값` : "2회일 필요",
+      currentValue:
+        intervals.length > 0
+          ? Math.max(10, Math.min(100, Math.round((4.5 / Math.max(1, medianInterval)) * 75)))
+          : 0,
+      valueDisplay: intervals.length > 0 ? `${medianInterval}일` : "-",
       targetValue: 75,
-      targetDisplay: "목표 4.5일 이내",
+      targetDisplay: "중간값 4.5일 이내",
       gapDisplay:
         intervals.length === 0
           ? "재내원 집계전"
-          : avgInterval <= 4.5
+          : medianInterval <= 4.5
           ? "골든타임 합격"
-          : `+${(avgInterval - 4.5).toFixed(1)}일 지연`,
+          : `+${(medianInterval - 4.5).toFixed(1)}일 지연`,
       status: intervalStatus,
       conclusion:
         intervals.length === 0
           ? "2회 방문일 누적 시 자동 산출"
-          : avgInterval <= 4.5
+          : medianInterval <= 4.5
           ? "초기 집중 치료 주기 이상적"
           : "초진 후 3일 이내 2차 예약 당기기",
       modal: {
         exactCounts:
           intervals.length > 0
-            ? `2회 내원자 ${intervals.length}명의 1→2회 평균 방문 간격 ${avgInterval}일`
+            ? `2회 내원자 ${intervals.length}명의 1→2회 방문 간격 중간값 ${medianInterval}일 (산술평균 ${avgInterval}일)`
             : "아직 1회·2회 날짜가 모두 기입된 환자가 없습니다.",
         benchmarkReason:
-          "초진 후 72~96시간(3~4.5일) 이내가 침·약침 자극 반응이 유지되고 치료 동기가 살아있는 골든타임입니다.",
+          "유난히 늦게 재방문한 1~2명 때문에 평균이 왜곡되지 않도록 '중간값(Median)'을 적용했습니다. 초진 후 3~4.5일 이내가 침·약침 자극 반응과 치료 동기가 살아있는 골든타임입니다.",
         riskWarning:
           "첫 방문 후 일주일 이상 간격이 벌어지면 환자의 치료 의지가 식어 노쇼 및 영구 이탈 확률이 2.4배 높아집니다.",
         actionInstruction:
@@ -1009,7 +1035,7 @@ export function evaluateDualTrackStats(
         scriptExample:
           "\"초기 염증기에는 간격이 벌어지면 다시 원점으로 돌아갑니다. 이틀 뒤 수요일이나 목요일 중 언제가 괜찮으세요?\"",
         revenueImpactManwon: 0,
-        formulaNote: "※ 내원 주기 단축 효과는 '2차·3차 정착률' 기대효과에 통합 반영 (중복 합산 제외)",
+        formulaNote: "※ 내원 주기 단축 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)",
       },
     },
     {
@@ -1098,9 +1124,7 @@ export function evaluateDualTrackStats(
           "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
         revenueImpactManwon: gainReFirstManwon,
         formulaNote:
-          needReFirst > 0
-            ? `${needReFirst}명 부족 × 평균 2.5회(초진1+재진1.5) × 평균 ${avgFeeStr}만 원 (65세↓ 5만·65세↑ 2만 원 가중단가)`
-            : "목표 달성 완료",
+          "※ 재초진은 재방문 시점을 예측·통제하기 어려운 장기 브랜드 지표이므로 월 확정 기대매출 합산에서 제외",
       },
     },
     {
@@ -1111,38 +1135,36 @@ export function evaluateDualTrackStats(
       subMetric: knownAge > 0 ? `65세↑ ${seniorRate}%` : "나이 미기입",
       currentValue: under65Rate,
       valueDisplay: knownAge === 0 ? "나이 미기입" : `65세↓ ${under65Rate}%`,
-      targetValue: 80,
-      targetDisplay: "목표 65세↓ 80%↑ (고령 20%↓)",
+      targetValue: targetUnder65,
+      targetDisplay: `목표 고령 ${ageHealthyCap}%↓ (동네 ${regSenior}%)`,
       gapDisplay:
         knownAge === 0
           ? "나이 입력 필요"
-          : seniorRate <= 20
-          ? `황금비율 (고령 ${seniorRate}%)`
+          : seniorRate <= ageHealthyCap
+          ? `동네대비 양호 (GDI ${gdi}배)`
           : `동네고령 ${regSenior}% · GDI ${gdi}배`,
       status: age65Status,
       conclusion:
         knownAge === 0
           ? "차트 연령(나이) 항목을 포함하세요"
-          : seniorRate <= 20
-          ? "65세↓ 80% 이상 황금 연령대 유지"
+          : seniorRate <= ageHealthyCap
+          ? "동네 인구 대비 청장년 비율 양호"
           : seniorRate <= ageWarningCap
           ? `2050 청장년 초진 +${needUnder65}명 보강 권장`
-          : "고령 편중 위험 · 젊은 신환 유입 시급",
+          : "동네 대비 고령 편중 · 젊은 신환 유입 시급",
       modal: {
-        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%, 1회 5만원) : 65세 이상 ${senior65}명(${seniorRate}%, 1회 2만원)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
+        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
         benchmarkReason:
-          `1회 평균 진료비가 65세 미만(5만 원)과 65세 이상(2만 원, 노인정액구간)에서 2.5배 차이나고 고령층의 베드 점유 승수가 3배에 달하므로, 초진·재초진 인원 기준 '65세 미만 80% : 65세 이상 20% 이하(가중 1회 단가 4.4만 원)'가 한의원 활력과 수익성을 지키는 황금 기준점입니다. (단, ${demographic.regionName} 고령화율 ${regSenior}% 특성상 최대 상한 마지노선은 ${ageWarningCap}%로 보정)`,
+          `획일적인 절대 비율 대신 우리 동네(${demographic.regionName}) 실제 65세 이상 고령화율(${regSenior}%)을 기준으로 비교합니다. 동네 고령화율 이하(GDI 1.0배 이하)로 유지하면 베드 점유와 진료 활력이 균형 있게 유지됩니다.`,
         riskWarning:
-          "초진 인원 중 65세 이상이 30%를 넘으면 방문 빈도 승수 효과로 실제 대기실·치료베드 점유율은 65~70%가 고령층으로 채워지며, 경제학 구축 효과(Crowding-Out)로 인해 고부가가치 20~50대 환자가 이탈합니다.",
+          "동네 평균보다 고령층 비중이 1.3배 이상 과도하게 치우치면 베드 점유율 편중으로 20~50대 신규 환자 유입이 위축될 수 있습니다.",
         actionInstruction:
-          "순수초진의 65세 이상 비중이 20%를 초과한다면 야간/점심 직장인 추나·약침, 교통사고, 소아·여성·다이어트 키워드 노출을 보강해 20~50대 신환 비율을 80% 선으로 맞추세요.",
+          "순수초진의 65세 이상 비중이 동네 고령화율을 크게 상회한다면 야간/점심 직장인 추나·약침, 교통사고, 여성·소아 키워드 노출을 보강하세요.",
         scriptExample:
           "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 피로회복 보약도 저녁 진료 시간에 편하게 예약해 주세요.\"",
         revenueImpactManwon: gainAge65Manwon,
         formulaNote:
-          excessSenior65 > 0
-            ? `고령 20% 초과분 ${excessSenior65}명 × 단가차액 3만 원(65세↓ 5만 - 65세↑ 2만) × 평균 ${actualAvgVisits}회 내원`
-            : "65세↓ 80% : 65세↑ 20% 황금비율 기준 충족",
+          "※ 65세 비율은 동네 고령화율 대비 환자층 건강도 진단 지표로 월 확정 기대매출 합산에서 제외",
       },
     },
     {

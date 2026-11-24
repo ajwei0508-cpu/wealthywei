@@ -29,6 +29,8 @@ import { FirstVisitRow, FirstVisitTrack } from "@/types/firstVisit";
 import {
   DemographicData,
   DEFAULT_DEMOGRAPHIC,
+  DEFAULT_INSURANCE_AVG_FEE_MANWON,
+  MIN_BODYPART_SAMPLE,
   DualTrackIndicator,
   BodyPartRetentionItem,
   evaluateDualTrackStats,
@@ -137,10 +139,16 @@ export default function FirstVisitAnalyticsView({
     female: number | null;
   }>({ male: null, female: null });
 
+  // 보험(원장) 1회 평균 객단가 직접 입력 상태 (비급여 제외 · 본부금 + 공단청구, 만원 단위)
+  const [insuranceFeeInput, setInsuranceFeeInput] = useState<string>(
+    String(DEFAULT_INSURANCE_AVG_FEE_MANWON)
+  );
+  const [customInsuranceFee, setCustomInsuranceFee] = useState<number | null>(null);
+
   // 아이콘(ⓘ) 클릭 시 열리는 상세 설명 모달 상태
   const [activeModal, setActiveModal] = useState<ModalPayload | null>(null);
 
-  // 성별 수동 보정값 로컬 저장소 복원
+  // 성별 수동 보정값 & 보험 평균 객단가 로컬 저장소 복원
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -154,8 +162,44 @@ export default function FirstVisitAnalyticsView({
           });
         }
       }
+      const savedFee = localStorage.getItem("barun_fv_insurance_avg_fee");
+      if (savedFee) {
+        const num = parseFloat(savedFee);
+        if (!isNaN(num) && num > 0 && num <= 100) {
+          setCustomInsuranceFee(num);
+          setInsuranceFeeInput(String(num));
+        }
+      }
     } catch {}
   }, []);
+
+  const handleInsuranceFeeChange = (raw: string) => {
+    setInsuranceFeeInput(raw);
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      setCustomInsuranceFee(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("barun_fv_insurance_avg_fee");
+      }
+      return;
+    }
+    const num = parseFloat(trimmed);
+    if (!isNaN(num) && num > 0 && num <= 100) {
+      setCustomInsuranceFee(num);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("barun_fv_insurance_avg_fee", String(num));
+      }
+    }
+  };
+
+  const resetInsuranceFee = () => {
+    setCustomInsuranceFee(null);
+    setInsuranceFeeInput(String(DEFAULT_INSURANCE_AVG_FEE_MANWON));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("barun_fv_insurance_avg_fee");
+    }
+    toast.success(`기본 보험 객단가(${DEFAULT_INSURANCE_AVG_FEE_MANWON}만 원)로 복원되었습니다.`);
+  };
 
   const updateGenderInput = (field: "male" | "female", raw: string) => {
     const trimmed = raw.trim();
@@ -308,10 +352,10 @@ export default function FirstVisitAnalyticsView({
     } catch {}
   };
 
-  // 2트랙 정밀 계산 (선택된 전체/월별 범위 기준)
+  // 2트랙 정밀 계산 (선택된 전체/월별 범위 + 입력한 보험 평균 객단가 기준)
   const evaluation = useMemo(
-    () => evaluateDualTrackStats(scopedRows, demographic, genderOverride),
-    [scopedRows, demographic, genderOverride]
+    () => evaluateDualTrackStats(scopedRows, demographic, genderOverride, customInsuranceFee),
+    [scopedRows, demographic, genderOverride, customInsuranceFee]
   );
 
   const currentSummary = track === "insurance" ? evaluation.insurance : evaluation.nonCovered;
@@ -561,11 +605,43 @@ export default function FirstVisitAnalyticsView({
                   : "기준점 달성 완료"}
               </span>
             </div>
-            <p className="text-[11px] text-[#7A5B1F] font-semibold truncate">
-              {track === "insurance"
-                ? `65세↓ 5만 · 65세↑ 2만 (평균 ${Number(evaluation.feeBasis.avgVisitFeeManwon.toFixed(2))}만/회)`
-                : "비급여·한약·패키지 중복제외 추정"}
-            </p>
+            {track === "insurance" ? (
+              <div className="pt-1.5 border-t border-[#E6D5B3]/70 space-y-1">
+                <div className="flex items-center justify-between gap-1.5 text-[11px]">
+                  <span className="font-extrabold text-[#7A5B1F] shrink-0">보험 객단가</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.5"
+                      max="50"
+                      value={insuranceFeeInput}
+                      onChange={(e) => handleInsuranceFeeChange(e.target.value)}
+                      className="w-14 px-1.5 py-0.5 rounded-md border border-[#D4AF37] bg-white text-right font-black text-[#111111] focus:outline-none focus:ring-1 focus:ring-[#0F5132]"
+                      title="비급여 제외 · 보험 1회 평균 진료비(본인부담금+공단청구액) 만원 단위"
+                    />
+                    <span className="font-bold text-[#7A5B1F]">만원</span>
+                    {customInsuranceFee !== null && (
+                      <button
+                        type="button"
+                        onClick={resetInsuranceFee}
+                        title={`기본값(${DEFAULT_INSURANCE_AVG_FEE_MANWON}만원)으로 복원`}
+                        className="p-0.5 rounded hover:bg-[#F3E9D2] text-[#8C6B2D] cursor-pointer"
+                      >
+                        <RotateCcw size={11} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#7A5B1F]/85 font-semibold truncate">
+                  본부금+청구 (비급여 제외) · 2·3차 기준
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#7A5B1F] font-semibold truncate">
+                비급여·한약·패키지 중복제외 추정
+              </p>
+            )}
           </div>
         </div>
 
@@ -761,9 +837,13 @@ export default function FirstVisitAnalyticsView({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                   <div className="px-3 py-2 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] flex flex-wrap items-center gap-1.5">
                     <span className="font-extrabold text-[#0F5132] shrink-0">잘 잡는 질환:</span>
-                    {evaluation.bodyPartRetention.filter((p) => p.thirdRate >= 70).length > 0 ? (
+                    {evaluation.bodyPartRetention.filter(
+                      (p) => p.patients >= MIN_BODYPART_SAMPLE && p.thirdRate >= 70 && !p.isConsultOnly
+                    ).length > 0 ? (
                       evaluation.bodyPartRetention
-                        .filter((p) => p.thirdRate >= 70)
+                        .filter(
+                          (p) => p.patients >= MIN_BODYPART_SAMPLE && p.thirdRate >= 70 && !p.isConsultOnly
+                        )
                         .map((p) => (
                           <button
                             key={p.id}
@@ -776,7 +856,7 @@ export default function FirstVisitAnalyticsView({
                         ))
                     ) : (
                       <span className="text-[#555555] text-[11px] font-semibold">
-                        아직 70%↑ 달성 부위 없음
+                        5명↑ 누적된 70% 달성 부위 대기
                       </span>
                     )}
                   </div>
@@ -784,10 +864,12 @@ export default function FirstVisitAnalyticsView({
                   <div className="px-3 py-2 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] flex flex-wrap items-center gap-1.5">
                     <span className="font-extrabold text-[#7A5B1F] shrink-0">놓치는 질환:</span>
                     {evaluation.bodyPartRetention.filter(
-                      (p) => p.thirdRate < 70 && !p.isConsultOnly
+                      (p) => p.patients >= MIN_BODYPART_SAMPLE && p.thirdRate < 70 && !p.isConsultOnly
                     ).length > 0 ? (
                       evaluation.bodyPartRetention
-                        .filter((p) => p.thirdRate < 70 && !p.isConsultOnly)
+                        .filter(
+                          (p) => p.patients >= MIN_BODYPART_SAMPLE && p.thirdRate < 70 && !p.isConsultOnly
+                        )
                         .sort((a, b) => a.thirdRate - b.thirdRate)
                         .map((p) => (
                           <button
@@ -801,7 +883,11 @@ export default function FirstVisitAnalyticsView({
                         ))
                     ) : (
                       <span className="text-[#0F5132] text-[11px] font-extrabold">
-                        전 진료부위 70%↑ 안정 유지
+                        {evaluation.bodyPartRetention.some(
+                          (p) => p.patients >= MIN_BODYPART_SAMPLE && !p.isConsultOnly
+                        )
+                          ? "전 판정 부위 70%↑ 안정 유지"
+                          : `표본 ${MIN_BODYPART_SAMPLE}명 미만 부위 누적 중`}
                       </span>
                     )}
                   </div>
@@ -809,15 +895,17 @@ export default function FirstVisitAnalyticsView({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                   {evaluation.bodyPartRetention.map((part) => {
-                    const isGood = part.thirdRate >= 70;
-                    const isLowSample = !isGood && (part.patients < 2 || part.isConsultOnly);
-                    const isCrit = !isGood && !isLowSample && part.thirdRate < 50;
+                    const isLowSample = part.patients < MIN_BODYPART_SAMPLE || Boolean(part.isConsultOnly);
+                    const isGood = !isLowSample && part.thirdRate >= 70;
+                    const isCrit = !isLowSample && part.thirdRate < 50;
 
                     return (
                       <div
                         key={part.id}
                         className={`p-3.5 rounded-xl border transition-all ${
-                          isGood
+                          isLowSample
+                            ? "bg-[#FAFAFA] border-dashed border-[#D4D4D4]"
+                            : isGood
                             ? "bg-[#FAFAFA] border-[#E5E5E5]"
                             : isCrit
                             ? "bg-white border-[#111111]"
@@ -841,17 +929,17 @@ export default function FirstVisitAnalyticsView({
                             <span className="text-[10px] text-[#737373] font-semibold">
                               ({part.thirdCount}/{part.patients})
                             </span>
-                            {isGood ? (
-                              <span className="px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
-                                강점
-                              </span>
-                            ) : part.isConsultOnly ? (
+                            {part.isConsultOnly ? (
                               <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
                                 첩약군
                               </span>
-                            ) : part.patients < 2 ? (
-                              <span className="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666] text-[10px] font-bold">
-                                표본1명
+                            ) : part.patients < MIN_BODYPART_SAMPLE ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#666666] text-[10px] font-bold">
+                                누적중 ({part.patients}/{MIN_BODYPART_SAMPLE}명)
+                              </span>
+                            ) : isGood ? (
+                              <span className="px-1.5 py-0.5 rounded bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
+                                강점
                               </span>
                             ) : isCrit ? (
                               <span className="px-1.5 py-0.5 rounded bg-[#111111] text-[#D4AF37] text-[10px] font-extrabold">
@@ -1183,32 +1271,23 @@ export default function FirstVisitAnalyticsView({
                   {track === "insurance" ? (
                     <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] space-y-1.5">
                       <strong className="font-extrabold text-[#7A5B1F] block">
-                        보험(원장) 1회 진료비 산출 기준
+                        보험(원장) 월 매출 증대 예상치 산출 공식
                       </strong>
                       <div className="text-[#111111] font-bold">
-                        · 65세 이하(미만): <span className="text-[#0F5132]">1회 5만 원</span> / 65세 이상:{" "}
-                        <span className="text-[#0F5132]">1회 2만 원</span>
+                        · 적용 단가: 보험 1회 평균{" "}
+                        <span className="text-[#0F5132]">
+                          {Number(evaluation.feeBasis.insuranceAvgFeeManwon.toFixed(2))}만 원
+                        </span>{" "}
+                        <span className="text-[11px] font-semibold text-[#666666]">
+                          ({evaluation.feeBasis.isCustomInput ? "원장님 직접 입력" : "기본값 · 비급여 제외 본부금+공단청구"})
+                        </span>
                       </div>
-                      <div className="text-[11px] text-[#555555]">
-                        {evaluation.feeBasis.isDefaultRatioUsed ? (
-                          <span>
-                            → 현재 나이 미기입 상태로 권장 연령비(80:20) 가중단가{" "}
-                            <strong className="text-[#111111]">1회 4.4만 원</strong> 적용 중
-                          </span>
-                        ) : (
-                          <span>
-                            → 실측 연령 확인 {evaluation.feeBasis.knownAgeCount}명(65세↓{" "}
-                            {evaluation.feeBasis.under65Count}명 · 65세↑{" "}
-                            {evaluation.feeBasis.senior65Count}명) 반영 가중단가{" "}
-                            <strong className="text-[#111111]">
-                              1회 {Number(evaluation.feeBasis.avgVisitFeeManwon.toFixed(2))}만 원
-                            </strong>{" "}
-                            적용
-                          </span>
-                        )}
+                      <div className="text-[11px] text-[#333333] font-semibold">
+                        → 산출식: <strong>(2차 80% 부족 인원 + 3차 70% 부족 인원) × {Number(evaluation.feeBasis.insuranceAvgFeeManwon.toFixed(2))}만 원</strong>
                       </div>
-                      <p className="text-[10px] text-[#737373] pt-1 border-t border-[#E6D5B3]/60">
-                        * 2차·3차 내원은 각각 순수 1회분씩만 계산하며, 예약확정·골든타임·부위별 삼진율 등 연결 지표는 중복 합산에서 제외했습니다.
+                      <p className="text-[10px] text-[#666666] pt-1 border-t border-[#E6D5B3]/60 leading-relaxed">
+                        * 2차 부족분은 &apos;2회차 방문 진료비&apos;, 3차 부족분은 &apos;3회차 방문 진료비&apos;로 날짜·결제가 별도 발생하므로 같은 환자라도 중복 계산이 없습니다.<br />
+                        * 예측·통제가 어려운 재초진·65세 연령 비율·부위별 삼진율·예약률 등은 거품 방지를 위해 기대매출 합산에서 제외했습니다.
                       </p>
                     </div>
                   ) : (
