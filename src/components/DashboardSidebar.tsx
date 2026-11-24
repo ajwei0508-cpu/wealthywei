@@ -237,7 +237,7 @@ export default function DashboardSidebar() {
       items: [
         { label: "접수실 영상 교육", url: "/employee/reception" },
         { label: "치료실 영상 교육", url: "/employee/treatment" },
-        { label: "실장 시뮬레이션", url: "https://gemini.google.com/gem/1F2jSey3V-y6B-RuweyZRLtJK5cBmdfuI?usp=sharing" },
+        { label: "실장 시뮬레이션", url: "https://gemini.google.com/customize/skills/d/1N7pxEmsjqjMMivv00CLEUAQl8MAVwGTJ?usp=sharing" },
         { label: "교육 자료실 (PPT)", url: "/training-board" }
       ] 
     },
