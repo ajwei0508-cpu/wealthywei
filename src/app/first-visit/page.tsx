@@ -486,6 +486,7 @@ function FirstVisitSystemContent() {
       let workingRows = [...rows];
       const newLogs: UploadHistoryLog[] = [];
       let totalAdded = 0;
+      let totalUpdated = 0;
       let totalRevisits = 0;
       let totalPureSkipped = 0;
       let lastEmr = workspace?.lastDetectedEmr || "";
@@ -537,6 +538,7 @@ function FirstVisitSystemContent() {
         workingRows = mergeResult.mergedRows;
         lastEmr = mergeResult.emrDetected;
         totalAdded += mergeResult.newPatientsAdded;
+        totalUpdated += mergeResult.existingRowsUpdated;
         totalRevisits += mergeResult.revisitsUpdated;
         totalPureSkipped += mergeResult.pureRevisitsSkipped;
 
@@ -560,10 +562,12 @@ function FirstVisitSystemContent() {
       await handleSaveWorkspace(workingRows, combinedLogs, lastEmr, true);
 
       toast.success(
-        `업로드 완료! 초진·재초진 ${totalAdded}명 정리 · 재내원(2·3회) ${totalRevisits}건 자동 반영${
+        `업로드 완료! 신규 ${totalAdded}명${
+          totalUpdated > 0 ? ` · 기존 환자 정보(성별·나이 등) ${totalUpdated}건 자동 보강` : ""
+        } · 재내원(2·3회) ${totalRevisits}건 반영${
           totalPureSkipped > 0 ? ` (일반 구환 재진 ${totalPureSkipped}명 자동 제외)` : ""
         }`,
-        { id: toastId, duration: 5000 }
+        { id: toastId, duration: 5500 }
       );
 
       if (workingRows.length > 0) {

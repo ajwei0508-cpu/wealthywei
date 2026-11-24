@@ -196,10 +196,18 @@ export function extractFallbackDateISO(fileName: string, topRows: any[][]): stri
       return `${fnFull[1]}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
     }
   }
-  const fnKor = fileName.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+  const fnKor = fileName.match(/(\d{1,2})\s*월\s*(\d{1,2})(?:\s*일)?(?=\D|$)/);
   if (fnKor) {
-    const y = Number(getTodayKSTISO().slice(0, 4));
-    return `${y}-${String(Number(fnKor[1])).padStart(2, "0")}-${String(Number(fnKor[2])).padStart(2, "0")}`;
+    const mo = Number(fnKor[1]);
+    const da = Number(fnKor[2]);
+    if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
+      const y = Number(getTodayKSTISO().slice(0, 4));
+      return `${y}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+    }
+  }
+  const fnShort6 = fileName.match(/(?:^|\D)(2\d|30)(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(?=\D|$)/);
+  if (fnShort6) {
+    return `20${fnShort6[1]}-${fnShort6[2]}-${fnShort6[3]}`;
   }
   return "";
 }
@@ -887,12 +895,12 @@ export function convertRawTableToEvents(
   };
 
   const chartCols = pickCols("chartNo", ["차트번호", "챠트번호", "등록번호", "병록번호", "환자번호", "고객번호", "차트"]);
-  const phoneCols = pickCols("phone", ["휴대폰", "연락처", "전화번호", "핸드폰"]);
+  const phoneCols = pickCols("phone", ["휴대폰", "휴대번호", "핸드폰", "모바일", "연락처", "전화번호"]);
   const birthCols = pickCols("birthOrRrn", ["주민번호", "주민등록번호", "생년월일"]);
 
   const dateCols = pickCols(
     "visitDate",
-    ["진료일자", "수진일자", "수진일", "내원일자", "내원일", "진료일", "방문일자", "방문일", "접수일자", "접수일", "일자", "날짜"],
+    ["진료일자", "수진일자", "수진일", "내원일자", "내원일", "최근내원일", "최근내원", "최종내원일", "최종내원", "진료일", "방문일자", "방문일", "접수일자", "접수일", "일자", "날짜"],
     ["예약", "생년", "초진일", "최초", "재내원"]
   );
   const nameCols = pickCols(
@@ -900,8 +908,17 @@ export function convertRawTableToEvents(
     ["환자이름", "환자명", "수진자명", "수진자", "환자성명", "고객명", "성명", "이름"],
     ["원장", "의사", "담당", "소개자", "보호자"]
   );
-  const genderCols = pickCols("gender", ["성별", "남녀", "남여", "sex", "gender", "성별나이", "성별연령"]);
-  const ageCols = pickCols("age", ["만나이", "나이", "연령", "성별나이", "성별연령"]);
+  // 성별·나이는 명시적 헤더가 존재하면 AI 오매핑을 방지하기 위해 규칙 기반 정확 매칭을 최우선으로 결합
+  const exactGenderCols = findCols(["성별", "남녀", "남여", "sex", "gender", "성별나이", "성별연령"]);
+  const genderCols =
+    exactGenderCols.length > 0
+      ? exactGenderCols
+      : pickCols("gender", ["성별", "남녀", "남여", "sex", "gender", "성별나이", "성별연령"]);
+  const exactAgeCols = findCols(["만나이", "나이", "연령", "성별나이", "성별연령"]);
+  const ageCols =
+    exactAgeCols.length > 0
+      ? exactAgeCols
+      : pickCols("age", ["만나이", "나이", "연령", "성별나이", "성별연령"]);
   const visitTypeCols = pickCols(
     "visitType",
     ["초진재초진", "초재진", "초재구분", "초진구분", "신구환", "내원구분", "방문구분", "진료구분", "초재"],
@@ -1001,7 +1018,8 @@ export function convertRawTableToEvents(
     if (!name) return;
 
     const chartNo = chartCols.length > 0 ? cleanStr(r[chartCols[0]]) : "";
-    const phone = phoneCols.length > 0 ? cleanStr(r[phoneCols[0]]) : "";
+    const phone =
+      phoneCols.map((cIdx) => cleanStr(r[cIdx])).find((v) => v.length > 0) || "";
 
     let rowDateISO = "";
     if (dateCols.length > 0) {
@@ -1261,6 +1279,41 @@ export function mergeParsedEventsIntoRows(
   let revisitsUpdated = 0;
   let pureRevisitsSkipped = 0;
 
+  const backfillPatientDemographics = (incomingRow: FirstVisitRow): number => {
+    const incGender = cleanStr(incomingRow.gender);
+    const incAge = cleanStr(incomingRow.age);
+    const incChart = cleanStr(incomingRow.chartNo);
+    const incPhone = cleanStr(incomingRow.phone);
+    if (!incGender && !incAge && !incChart && !incPhone) return 0;
+
+    let updatedCount = 0;
+    for (const existingRow of rows) {
+      if (!isSamePatient(existingRow, incomingRow)) continue;
+      let rowTouched = false;
+      if (incGender && !cleanStr(existingRow.gender)) {
+        existingRow.gender = incGender;
+        rowTouched = true;
+      }
+      if (incAge && !cleanStr(existingRow.age)) {
+        existingRow.age = incAge;
+        rowTouched = true;
+      }
+      if (incChart && !cleanStr(existingRow.chartNo)) {
+        existingRow.chartNo = incChart;
+        rowTouched = true;
+      }
+      if (incPhone && !cleanStr(existingRow.phone)) {
+        existingRow.phone = incPhone;
+        rowTouched = true;
+      }
+      if (rowTouched) {
+        existingRow.updatedAt = new Date().toISOString();
+        updatedCount++;
+      }
+    }
+    return updatedCount;
+  };
+
   for (const ev of sortedEvents) {
     const incoming = ev.row;
     const visitISO = incoming.visitDateISO || incoming.firstVisitISO;
@@ -1295,12 +1348,20 @@ export function mergeParsedEventsIntoRows(
         target.thirdVisitDate = incoming.thirdVisitDate;
         touched = true;
       }
-      if (!target.chartNo && incoming.chartNo) target.chartNo = incoming.chartNo;
-      if (!target.phone && incoming.phone) target.phone = incoming.phone;
+      if (!target.chartNo && incoming.chartNo) {
+        target.chartNo = incoming.chartNo;
+        touched = true;
+      }
+      if (!target.phone && incoming.phone) {
+        target.phone = incoming.phone;
+        touched = true;
+      }
       if (touched) {
         target.updatedAt = new Date().toISOString();
         existingRowsUpdated++;
       }
+      // 동일 환자의 다른 에피소드 행에도 공란인 성별·나이·차트번호·연락처가 있다면 함께 보강
+      existingRowsUpdated += backfillPatientDemographics(incoming);
       continue;
     }
 
@@ -1356,6 +1417,8 @@ export function mergeParsedEventsIntoRows(
     };
 
     if (ev.kind === "revisit_only") {
+      // 재진 명부라도 기존 환자의 공란 성별·나이·연락처가 포함되어 있으면 자동 보강
+      existingRowsUpdated += backfillPatientDemographics(incoming);
       const prior = findPriorEpisode();
       if (prior && visitISO) {
         if (applyRevisitDate(prior, visitISO)) {
@@ -1367,10 +1430,11 @@ export function mergeParsedEventsIntoRows(
       continue;
     }
 
-    // 초진/재초진 컬럼이 공란("")인 일일 명부에서 기존 최근 초진 환자가 다시 등장한 경우 -> 재내원(2·3회)으로 자동 연결!
+    // 초진/재초진 컬럼이 공란("")인 일일 명부에서 기존 최근 초진 환자가 다시 등장한 경우 -> 성별·나이 보강 + 재내원(2·3회) 자동 연결!
     if (!incoming.visitType && visitISO) {
       const prior = findPriorEpisode();
       if (prior) {
+        existingRowsUpdated += backfillPatientDemographics(incoming);
         if (applyRevisitDate(prior, visitISO)) {
           revisitsUpdated++;
         }
@@ -1378,7 +1442,8 @@ export function mergeParsedEventsIntoRows(
       }
     }
 
-    // 3. 신규 초진/재초진 행으로 추가
+    // 3. 신규 초진/재초진 행으로 추가 (기존 동일 환자의 다른 행에 공란 성별·나이가 있으면 함께 보강)
+    existingRowsUpdated += backfillPatientDemographics(incoming);
     rows.push(incoming);
     newPatientsAdded++;
   }
