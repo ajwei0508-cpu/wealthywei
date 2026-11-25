@@ -14,7 +14,8 @@ export interface FirstVisitRow {
   visitType: string;                // 5. 초진/재초진 ("초진" | "재초진" | "")
   insuranceType: string;            // 6. 환자구분 (건보 / 자보 / 비급여 | "")
   treatmentDetail: string;          // 7. 환자 진료 내역 (약침 / 추나 / 한약 /비급여 유무)
-  nextReservation: string;          // 8. 다음 진료 예약 안내 ("유" | "무" | "")
+  chunaType?: string;               // 8. 추나 ("단순" | "복잡" | "")
+  nextReservation: string;          // 9. 다음 진료 예약 안내 ("유" | "무" | "")
   firstVisitDate: string;           // 9. [초진일] 1회
   firstVisitISO: string;
   secondVisitDate: string;          // 10. [재내원일] 2회
@@ -45,6 +46,7 @@ export type SheetColumnKey =
   | "visitType"
   | "insuranceType"
   | "treatmentDetail"
+  | "chunaType"
   | "nextReservation"
   | "firstVisitDate"
   | "secondVisitDate"
@@ -152,8 +154,19 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
     track: "insurance",
   },
   {
-    key: "nextReservation",
+    key: "chunaType",
     index: 7,
+    label: "추나",
+    shortLabel: "추나",
+    widthClass: "min-w-[82px]",
+    options: ["", "단순", "복잡"],
+    directorGuideWhenMissing: "추나 시행 환자(단순/복잡)를 선택하면 추나 3회 정착 매출에 자동 반영됩니다.",
+    category: "core",
+    track: "insurance",
+  },
+  {
+    key: "nextReservation",
+    index: 8,
     label: "예약 안내",
     shortLabel: "예약 안내",
     widthClass: "min-w-[90px]",
@@ -164,7 +177,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "firstVisitDate",
-    index: 8,
+    index: 9,
     groupHeader: "초진일",
     label: "1회",
     shortLabel: "1회(초진)",
@@ -176,7 +189,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "secondVisitDate",
-    index: 9,
+    index: 10,
     groupHeader: "재내원일",
     label: "2회",
     shortLabel: "2회(재내원)",
@@ -188,7 +201,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "thirdVisitDate",
-    index: 10,
+    index: 11,
     groupHeader: "재내원일",
     label: "3회",
     shortLabel: "3회(재내원)",
@@ -200,7 +213,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "visitRoute",
-    index: 11,
+    index: 12,
     label: "내원경로",
     shortLabel: "내원경로",
     widthClass: "min-w-[115px]",
@@ -212,7 +225,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   // === 내원경로 이후: 비급여(실장) 중점 컬럼 ===
   {
     key: "nonCoveredList",
-    index: 12,
+    index: 13,
     label: "비급여 목록",
     shortLabel: "비급여 목록",
     widthClass: "min-w-[150px]",
@@ -223,7 +236,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "nonCoveredCount",
-    index: 13,
+    index: 14,
     label: "비급여 판매건수",
     shortLabel: "비급여 판매건수",
     widthClass: "min-w-[125px]",
@@ -234,7 +247,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "immediatePaymentCount",
-    index: 14,
+    index: 15,
     label: "상담후 즉시결제",
     shortLabel: "상담후 즉시결제",
     widthClass: "min-w-[125px]",
@@ -245,7 +258,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "herbalMonthlySummary",
-    index: 15,
+    index: 16,
     label: "한약 건수·목적",
     shortLabel: "한약 건수·목적",
     widthClass: "min-w-[170px]",
@@ -256,7 +269,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "packageCount",
-    index: 16,
+    index: 17,
     label: "패키지 건수",
     shortLabel: "패키지 건수",
     widthClass: "min-w-[110px]",
@@ -267,7 +280,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "herbalFollowupPayment",
-    index: 17,
+    index: 18,
     label: "1제후 연복유무",
     shortLabel: "1제후 연복",
     widthClass: "min-w-[125px]",
@@ -278,7 +291,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "packageRenewal",
-    index: 18,
+    index: 19,
     label: "패키지 종료연장",
     shortLabel: "패키지 연장",
     widthClass: "min-w-[130px]",
@@ -289,7 +302,7 @@ export const SHEET_COLUMNS: SheetColumnMeta[] = [
   },
   {
     key: "delayedPaymentWithinMonth",
-    index: 19,
+    index: 20,
     label: "1달이내 지연결제",
     shortLabel: "1달이내 결제",
     widthClass: "min-w-[165px]",

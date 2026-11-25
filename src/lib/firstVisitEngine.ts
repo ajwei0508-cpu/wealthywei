@@ -598,6 +598,20 @@ export function normalizeInsuranceType(
 }
 
 /**
+ * 추나 유형("단순" | "복잡" | "") 정규화
+ */
+export function normalizeChunaType(raw?: any, fallbackDetail?: string): string {
+  const check = (v: any): string => {
+    const s = cleanStr(v).replace(/\s+/g, "");
+    if (!s) return "";
+    if (s.includes("복잡") || s.includes("특수")) return "복잡";
+    if (s.includes("단순")) return "단순";
+    return "";
+  };
+  return check(raw) || check(fallbackDetail) || "";
+}
+
+/**
  * 다음 진료 예약 안내 ("유" / "무" / "") 정규화
  */
 export function normalizeReservation(
@@ -713,6 +727,9 @@ export function convertRawTableToEvents(
         h.includes("치료내역") ||
         h.includes("증상")
     );
+    const cChuna = claimCol(
+      (h) => h === "추나" || h === "추나유형" || h.includes("추나구분")
+    );
     const cResv = claimCol(
       (h) =>
         h.includes("다음진료예약") ||
@@ -823,6 +840,7 @@ export function convertRawTableToEvents(
         visitType: visitTypeVal,
         insuranceType: normalizeInsuranceType(pick(r, cInsType)),
         treatmentDetail: cleanStr(pick(r, cDetail)),
+        chunaType: normalizeChunaType(pick(r, cChuna), cleanStr(pick(r, cDetail))),
         nextReservation: normalizeReservation(pick(r, cResv)),
         firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : cleanStr(firstRaw),
         firstVisitISO: firstISO,
@@ -953,6 +971,7 @@ export function convertRawTableToEvents(
       "첩건",
     ]
   );
+  const chunaCols = pickCols("chunaType", ["추나구분", "추나유형", "추나"]);
   const resvCols = pickCols("nextReservation", [
     "다음진료예약안내",
     "다음예약",
@@ -984,6 +1003,7 @@ export function convertRawTableToEvents(
     visitType: visitTypeCols,
     insuranceType: insCols,
     treatmentDetail: detailCols,
+    chunaType: chunaCols,
     nextReservation: resvCols,
     firstVisitDate: firstVisitCols.length > 0 ? firstVisitCols : dateCols,
     secondVisitDate: secondVisitCols,
@@ -1129,6 +1149,10 @@ export function convertRawTableToEvents(
       visitType: normalizedVType === "재진" ? "" : normalizedVType,
       insuranceType: insuranceVal,
       treatmentDetail,
+      chunaType: normalizeChunaType(
+        chunaCols.length > 0 ? r[chunaCols[0]] : "",
+        treatmentDetail
+      ),
       nextReservation: resvVal,
       firstVisitDate: firstISO ? formatISOToKoreanMD(firstISO) : "",
       firstVisitISO: firstISO,
@@ -1497,16 +1521,21 @@ export function computeMissingDataReport(rows: FirstVisitRow[]): MissingDataRepo
     };
   });
 
-  // 2회·3회 재내원일은 미방문 시 공란이 자연스러우므로 전체 공란일 때만 참고 안내로 분리
+  // 2회·3회 재내원일 및 추나(미시행 시 공란 자연스러움)는 누락 경고에서 제외
   const completelyBlankColumns = allStats.filter(
-    (s) => s.isCompletelyBlank && s.key !== "secondVisitDate" && s.key !== "thirdVisitDate"
+    (s) =>
+      s.isCompletelyBlank &&
+      s.key !== "secondVisitDate" &&
+      s.key !== "thirdVisitDate" &&
+      s.key !== "chunaType"
   );
   const partialBlankColumns = allStats.filter(
     (s) =>
       !s.isCompletelyBlank &&
       s.missingCount > 0 &&
       s.key !== "secondVisitDate" &&
-      s.key !== "thirdVisitDate"
+      s.key !== "thirdVisitDate" &&
+      s.key !== "chunaType"
   );
 
   const directorMessages: string[] = [];
@@ -2055,9 +2084,9 @@ export function buildFallbackAiReport(
  * 2번 구글 시트 100% 동일 레이아웃(.xlsx) 내보내기
  */
 export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?: string) {
-  const row0 = Array(20).fill("");
-  row0[8] = "초진일";
-  row0[9] = "재내원일";
+  const row0 = Array(21).fill("");
+  row0[9] = "초진일";
+  row0[10] = "재내원일";
 
   const row1 = SHEET_COLUMNS.map((c) => c.label);
 
@@ -2069,6 +2098,7 @@ export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?:
     r.visitType || "",
     r.insuranceType || "",
     r.treatmentDetail || "",
+    r.chunaType || "",
     r.nextReservation || "",
     r.firstVisitDate || "",
     r.secondVisitDate || "",
@@ -2086,8 +2116,8 @@ export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?:
 
   const ws = XLSX.utils.aoa_to_sheet([row0, row1, ...dataMatrix]);
 
-  // J1:K1 "재내원일" 병합
-  ws["!merges"] = [{ s: { r: 0, c: 9 }, e: { r: 0, c: 10 } }];
+  // K1:L1 "재내원일" 병합
+  ws["!merges"] = [{ s: { r: 0, c: 10 }, e: { r: 0, c: 11 } }];
 
   ws["!cols"] = [
     { wch: 11 }, // 일자
@@ -2097,6 +2127,7 @@ export function exportFirstVisitWorkbookXlsx(rows: FirstVisitRow[], clinicName?:
     { wch: 11 }, // 초진/재초진
     { wch: 14 }, // 환자구분
     { wch: 32 }, // 환자 진료 내역
+    { wch: 9 },  // 추나
     { wch: 13 }, // 예약 안내
     { wch: 11 }, // 1회
     { wch: 11 }, // 2회

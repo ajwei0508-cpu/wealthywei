@@ -1741,7 +1741,8 @@ export function evaluateDualTrackStats(
     } else if (isNonMskOnly) {
       chunaExcludedNonMsk++;
     } else {
-      if (/추나/.test(det)) currentChunaCount++;
+      const chVal = clean(r.chunaType);
+      if (chVal === "단순" || chVal === "복잡" || /추나/.test(det)) currentChunaCount++;
     }
   }
 

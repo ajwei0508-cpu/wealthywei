@@ -62,6 +62,7 @@ interface ManualEntryDraft {
   visitType: string;
   insuranceType: string;
   treatmentDetail: string;
+  chunaType: string;
   nextReservation: string;
   firstVisitDate: string;
   secondVisitDate: string;
@@ -87,6 +88,7 @@ function createInitialDraft(dateISO: string): ManualEntryDraft {
     visitType: "초진",
     insuranceType: "건보",
     treatmentDetail: "",
+    chunaType: "",
     nextReservation: "유",
     firstVisitDate: label,
     secondVisitDate: "",
@@ -122,6 +124,7 @@ const SINGLE_WORD_COLUMN_LABEL: Record<SheetColumnKey, string> = {
   visitType: "구분",
   insuranceType: "보험",
   treatmentDetail: "진료",
+  chunaType: "추나",
   nextReservation: "예약",
   firstVisitDate: "초진일",
   secondVisitDate: "2회",
@@ -769,6 +772,7 @@ function FirstVisitSystemContent() {
       visitType: manualDraft.visitType,
       insuranceType: manualDraft.insuranceType,
       treatmentDetail: manualDraft.treatmentDetail.trim(),
+      chunaType: manualDraft.chunaType,
       nextReservation: manualDraft.nextReservation,
       firstVisitDate: firstLabel,
       firstVisitISO: firstISO,
@@ -825,6 +829,7 @@ function FirstVisitSystemContent() {
       visitType: "초진",
       insuranceType: "",
       treatmentDetail: "",
+      chunaType: "",
       nextReservation: "",
       firstVisitDate: todayLabel,
       firstVisitISO: todayISO,
@@ -1374,11 +1379,11 @@ function FirstVisitSystemContent() {
 
               {/* 2줄: 진료내역 · 내원경로 · 재내원일 */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
-                <div className="lg:col-span-4 space-y-1">
+                <div className="lg:col-span-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-white/60">진료 내역</label>
                     <div className="flex items-center gap-1">
-                      {["약침", "추나", "한약", "비급여"].map((tag) => (
+                      {["약침", "한약", "비급여"].map((tag) => (
                         <button
                           key={tag}
                           type="button"
@@ -1410,7 +1415,34 @@ function FirstVisitSystemContent() {
                   />
                 </div>
 
-                <div className="lg:col-span-5 space-y-1">
+                <div className="lg:col-span-2 space-y-1">
+                  <label className="text-[11px] font-bold text-white/60 block">추나</label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {["단순", "복잡"].map((ct) => (
+                      <button
+                        key={ct}
+                        type="button"
+                        onClick={() =>
+                          setManualDraft((prev) => ({
+                            ...prev,
+                            chunaType: prev.chunaType === ct ? "" : ct,
+                          }))
+                        }
+                        className={`py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                          manualDraft.chunaType === ct
+                            ? ct === "복잡"
+                              ? "bg-amber-400/25 border-amber-400 text-amber-200"
+                              : "bg-teal-500/25 border-teal-400 text-teal-200"
+                            : "bg-black/30 border-white/15 text-white/55 hover:text-white"
+                        }`}
+                      >
+                        {ct}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-white/60">내원경로</label>
                   </div>
@@ -2002,6 +2034,10 @@ function FirstVisitSystemContent() {
                                     className={`w-full px-2 py-1.5 rounded-lg text-xs font-bold focus:outline-none focus:ring-1 focus:ring-emerald-400 transition ${
                                       isBlank
                                         ? "bg-amber-500/[0.06] text-white/35 border border-dashed border-amber-400/20"
+                                        : val === "복잡"
+                                        ? "bg-amber-500/20 text-amber-200"
+                                        : val === "단순"
+                                        ? "bg-teal-500/20 text-teal-200"
                                         : val === "초진" || val === "유" || val === "건보"
                                         ? "bg-emerald-500/15 text-emerald-200"
                                         : val === "재초진" || val === "자보"
