@@ -78,6 +78,65 @@ export interface BodyPartRetentionItem {
 export const DEFAULT_INSURANCE_AVG_FEE_MANWON = 3.8; // 비급여 제외 · 보험(본부금+공단청구) 1회 평균 기본값
 export const MIN_BODYPART_SAMPLE = 5; // 부위별 삼진율 통계 판정 최소 표본수
 
+export type ChunaType = "complex" | "simple";
+export type ChunaTargetPct = 10 | 30 | 50;
+export type Herbal40TargetPct = 5 | 8 | 10;
+
+export interface InsuranceSimulationSettings {
+  chunaType: ChunaType;                 // "complex" (복잡추나) | "simple" (단순추나)
+  chunaTargetPct: ChunaTargetPct;       // 추나 유효 대상자 중 목표 비율 (10 | 30 | 50)
+  includeChunaInTotal: boolean;         // 상단 목표 도달 기대효과 합산 포함 여부
+  herbal40TargetPct: Herbal40TargetPct; // 전체 초진 중 급여 첩약 40일분 목표 비율 (5 | 8 | 10)
+  includeHerbal40InTotal: boolean;      // 상단 목표 도달 기대효과 합산 포함 여부
+}
+
+export const DEFAULT_INSURANCE_SIM_SETTINGS: InsuranceSimulationSettings = {
+  chunaType: "complex",
+  chunaTargetPct: 50,
+  includeChunaInTotal: true,
+  herbal40TargetPct: 10,
+  includeHerbal40InTotal: true,
+};
+
+export const CHUNA_FEES = {
+  complex: {
+    label: "복잡추나",
+    firstWon: 107080,
+    revisitWon: 91860,
+    total3VisitsManwon: 29.08, // 107,080 + 91,860 × 2 = 290,800원
+  },
+  simple: {
+    label: "단순추나",
+    firstWon: 88960,
+    revisitWon: 46730,
+    total3VisitsManwon: 18.24, // 88,960 + 46,730 × 2 = 182,420원
+  },
+} as const;
+
+export const HERBAL_40DAY_FEE_MANWON = 60; // 급여 첩약 40일분 (2개 질환 × 각 20일 = 10일 × 4회 × 15만원)
+
+export interface InsuranceSimulationSummary {
+  settings: InsuranceSimulationSettings;
+  chunaEligibleCount: number;
+  chunaExcludedSenior: number;
+  chunaExcludedAuto: number;
+  chunaExcludedNonMsk: number;
+  isFallbackEligibilityUsed: boolean;
+  currentChunaCount: number;
+  targetChunaCount: number;
+  additionalChunaCount: number;
+  chunaLabel: string;
+  chunaFirstWon: number;
+  chunaRevisitWon: number;
+  chuna3VisitTotalManwon: number;
+  baseline3VisitManwon: number;
+  perPatientNetGainManwon: number;
+  chunaGainManwon: number;
+  herbal40TargetCount: number;
+  herbal40GainManwon: number;
+  herbal40CannibalWarning: boolean;
+}
+
 export interface FeeBasisSummary {
   insuranceAvgFeeManwon: number; // 적용된 보험 1회 평균 객단가 (본부금+공단청구, 만원)
   isCustomInput: boolean;        // 원장님 직접 입력 여부 (false면 기본 3.8만원)
@@ -136,6 +195,7 @@ export interface DualTrackEvaluation {
   effectiveMale: number;
   effectiveFemale: number;
   feeBasis: FeeBasisSummary;     // 보험 1회 평균 객단가 산출 기준 (본부금+공단청구)
+  insuranceSimulation: InsuranceSimulationSummary; // 추나(3회 기준) & 급여 첩약(40일분) 시뮬레이션
   bodyPartRetention: BodyPartRetentionItem[]; // 진료부위별 삼진율 정밀 분석
   unclassifiedBodyPartCount: number;          // 부위 미기입 인원
   insurance: TrackSummary;       // 보험 (원장) — 내원경로까지
@@ -447,7 +507,8 @@ export function evaluateDualTrackStats(
   rows: FirstVisitRow[],
   demographic: DemographicData,
   genderOverride?: { male?: number | null; female?: number | null },
-  customInsuranceFeeManwon?: number | null
+  customInsuranceFeeManwon?: number | null,
+  simSettingsOverride?: Partial<InsuranceSimulationSettings>
 ): DualTrackEvaluation {
   const district = classifyDistrict(demographic);
   const totalPatients = rows.length;
@@ -1649,6 +1710,116 @@ export function evaluateDualTrackStats(
     };
   };
 
+  // --- 추나(3회 내원 = 초진1 + 재진2) & 급여 첩약(40일분 = 60만원) 시뮬레이션 계산 ---
+  const simSettings: InsuranceSimulationSettings = {
+    ...DEFAULT_INSURANCE_SIM_SETTINGS,
+    ...(simSettingsOverride || {}),
+  };
+
+  let chunaExcludedSenior = 0;
+  let chunaExcludedAuto = 0;
+  let chunaExcludedNonMsk = 0;
+  let currentChunaCount = 0;
+
+  const NON_MSK_ONLY_RE = /보약|다이어트|비염|소화|체기|피부|여드름|감기|기침|소아|난임|갱년기|불면|공진단|경옥고|한약/;
+  const MSK_RE = /허리|요통|디스크|협착|목통|목결림|경추|어깨|오십견|회전근개|무릎|관절|발목|손목|팔꿈치|골반|척추|추나|통증|염좌|담결림|낙침|근육|좌골|손저림/;
+
+  for (const r of rows) {
+    const ins = clean(r.insuranceType);
+    const det = clean(r.treatmentDetail);
+    const ageNum = parseInt(clean(r.age).replace(/[^0-9]/g, ""), 10);
+    const isAuto = /자보|자동차|교통사고/.test(ins) || /자보|교통사고|TA/i.test(det);
+    const isSenior = !isNaN(ageNum) && ageNum >= 65;
+    const isNonMskOnly =
+      (NON_MSK_ONLY_RE.test(det) || (Boolean(clean(r.herbalMonthlySummary)) && !det)) &&
+      !MSK_RE.test(det);
+
+    if (isAuto) {
+      chunaExcludedAuto++;
+    } else if (isSenior) {
+      chunaExcludedSenior++;
+    } else if (isNonMskOnly) {
+      chunaExcludedNonMsk++;
+    } else {
+      if (/추나/.test(det)) currentChunaCount++;
+    }
+  }
+
+  const rawExcludedTotal = chunaExcludedAuto + chunaExcludedSenior + chunaExcludedNonMsk;
+  const isFallbackEligibilityUsed = totalPatients > 0 && knownAge === 0 && rawExcludedTotal === 0;
+  const chunaEligibleCount =
+    totalPatients === 0
+      ? 0
+      : isFallbackEligibilityUsed
+      ? Math.round(totalPatients * 0.65)
+      : Math.max(0, totalPatients - rawExcludedTotal);
+
+  const chunaFeeSpec = CHUNA_FEES[simSettings.chunaType];
+  const targetChunaCount =
+    chunaEligibleCount === 0
+      ? 0
+      : Math.ceil((chunaEligibleCount * simSettings.chunaTargetPct) / 100);
+  const additionalChunaCount = Math.max(0, targetChunaCount - currentChunaCount);
+  const baseline3VisitManwon = Number((avgVisitFeeManwon * 3).toFixed(2));
+  const perPatientNetGainManwon = Math.max(
+    0,
+    Number((chunaFeeSpec.total3VisitsManwon - baseline3VisitManwon).toFixed(2))
+  );
+  const chunaGainManwon =
+    totalPatients === 0 ? 0 : Math.round(additionalChunaCount * perPatientNetGainManwon);
+
+  const herbal40TargetCount =
+    totalPatients === 0
+      ? 0
+      : Math.ceil((totalPatients * simSettings.herbal40TargetPct) / 100);
+  const herbal40GainManwon = herbal40TargetCount * HERBAL_40DAY_FEE_MANWON;
+
+  const insuranceSimulation: InsuranceSimulationSummary = {
+    settings: simSettings,
+    chunaEligibleCount,
+    chunaExcludedSenior,
+    chunaExcludedAuto,
+    chunaExcludedNonMsk,
+    isFallbackEligibilityUsed,
+    currentChunaCount,
+    targetChunaCount,
+    additionalChunaCount,
+    chunaLabel: chunaFeeSpec.label,
+    chunaFirstWon: chunaFeeSpec.firstWon,
+    chunaRevisitWon: chunaFeeSpec.revisitWon,
+    chuna3VisitTotalManwon: chunaFeeSpec.total3VisitsManwon,
+    baseline3VisitManwon,
+    perPatientNetGainManwon,
+    chunaGainManwon,
+    herbal40TargetCount,
+    herbal40GainManwon,
+    herbal40CannibalWarning: simSettings.herbal40TargetPct >= 10,
+  };
+
+  const insuranceSummary = buildTrackSummary("insurance", "보험 (원장)", insIndicators);
+  if (totalPatients > 0) {
+    if (simSettings.includeChunaInTotal && chunaGainManwon > 0) {
+      insuranceSummary.potentialBreakdown.push({
+        label: `${chunaFeeSpec.label} 3회 정착 (${simSettings.chunaTargetPct}%)`,
+        gainManwon: chunaGainManwon,
+        detail: `유효 ${chunaEligibleCount}명 중 ${simSettings.chunaTargetPct}% (목표 ${targetChunaCount}명 · 추가 +${additionalChunaCount}명)`,
+        formula: `추가 ${additionalChunaCount}명 × 3회 순증 ${perPatientNetGainManwon}만 원 (${chunaFeeSpec.label} 3회 ${chunaFeeSpec.total3VisitsManwon}만 - 기존 3회 ${baseline3VisitManwon}만)`,
+      });
+    }
+    if (simSettings.includeHerbal40InTotal && herbal40GainManwon > 0) {
+      insuranceSummary.potentialBreakdown.push({
+        label: `급여 첩약 40일분 (${simSettings.herbal40TargetPct}%)`,
+        gainManwon: herbal40GainManwon,
+        detail: `전체 ${totalPatients}명 중 ${simSettings.herbal40TargetPct}% (${herbal40TargetCount}명 · 1.5~2개월 누적)`,
+        formula: `${herbal40TargetCount}명 × 40일분(2개 질환 각 20일) ${HERBAL_40DAY_FEE_MANWON}만 원`,
+      });
+    }
+    insuranceSummary.potentialMonthlyGainManwon = insuranceSummary.potentialBreakdown.reduce(
+      (s, x) => s + x.gainManwon,
+      0
+    );
+  }
+
   return {
     evaluatedAt: new Date().toISOString(),
     districtType: district.type,
@@ -1661,9 +1832,10 @@ export function evaluateDualTrackStats(
     effectiveMale,
     effectiveFemale,
     feeBasis,
+    insuranceSimulation,
     bodyPartRetention,
     unclassifiedBodyPartCount,
-    insurance: buildTrackSummary("insurance", "보험 (원장)", insIndicators),
+    insurance: insuranceSummary,
     nonCovered: buildTrackSummary("non_covered", "비급여 (실장)", ncIndicators),
   };
 }

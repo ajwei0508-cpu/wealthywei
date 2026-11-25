@@ -30,9 +30,16 @@ import {
   DemographicData,
   DEFAULT_DEMOGRAPHIC,
   DEFAULT_INSURANCE_AVG_FEE_MANWON,
+  DEFAULT_INSURANCE_SIM_SETTINGS,
+  CHUNA_FEES,
+  HERBAL_40DAY_FEE_MANWON,
   MIN_BODYPART_SAMPLE,
   DualTrackIndicator,
   BodyPartRetentionItem,
+  InsuranceSimulationSettings,
+  ChunaType,
+  ChunaTargetPct,
+  Herbal40TargetPct,
   evaluateDualTrackStats,
 } from "@/lib/firstVisitStatsEngine";
 
@@ -66,7 +73,9 @@ type ModalPayload =
   | { kind: "bodyPart"; part: BodyPartRetentionItem }
   | { kind: "demographic" }
   | { kind: "mission" }
-  | { kind: "revenue" };
+  | { kind: "revenue" }
+  | { kind: "chunaSim" }
+  | { kind: "herbalSim" };
 
 export default function FirstVisitAnalyticsView({
   existingFirstVisitRows = [],
@@ -145,10 +154,15 @@ export default function FirstVisitAnalyticsView({
   );
   const [customInsuranceFee, setCustomInsuranceFee] = useState<number | null>(null);
 
+  // 추나(3회 기준) & 급여 첩약(40일분) 시뮬레이션 세부설정 (기본: 최대치 복잡추나 50% + 급여첩약 10%)
+  const [simSettings, setSimSettings] = useState<InsuranceSimulationSettings>(
+    DEFAULT_INSURANCE_SIM_SETTINGS
+  );
+
   // 아이콘(ⓘ) 클릭 시 열리는 상세 설명 모달 상태
   const [activeModal, setActiveModal] = useState<ModalPayload | null>(null);
 
-  // 성별 수동 보정값 & 보험 평균 객단가 로컬 저장소 복원
+  // 성별 수동 보정값 & 보험 평균 객단가 & 시뮬레이션 세부설정 로컬 저장소 복원
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -170,8 +184,54 @@ export default function FirstVisitAnalyticsView({
           setInsuranceFeeInput(String(num));
         }
       }
+      const savedSim = localStorage.getItem("barun_fv_insurance_sim_settings");
+      if (savedSim) {
+        const parsedSim = JSON.parse(savedSim);
+        if (parsedSim && typeof parsedSim === "object") {
+          setSimSettings((prev) => ({
+            ...prev,
+            ...(parsedSim.chunaType === "complex" || parsedSim.chunaType === "simple"
+              ? { chunaType: parsedSim.chunaType }
+              : {}),
+            ...(parsedSim.chunaTargetPct === 10 ||
+            parsedSim.chunaTargetPct === 30 ||
+            parsedSim.chunaTargetPct === 50
+              ? { chunaTargetPct: parsedSim.chunaTargetPct }
+              : {}),
+            ...(typeof parsedSim.includeChunaInTotal === "boolean"
+              ? { includeChunaInTotal: parsedSim.includeChunaInTotal }
+              : {}),
+            ...(parsedSim.herbal40TargetPct === 5 ||
+            parsedSim.herbal40TargetPct === 8 ||
+            parsedSim.herbal40TargetPct === 10
+              ? { herbal40TargetPct: parsedSim.herbal40TargetPct }
+              : {}),
+            ...(typeof parsedSim.includeHerbal40InTotal === "boolean"
+              ? { includeHerbal40InTotal: parsedSim.includeHerbal40InTotal }
+              : {}),
+          }));
+        }
+      }
     } catch {}
   }, []);
+
+  const updateSimSettings = (patch: Partial<InsuranceSimulationSettings>) => {
+    setSimSettings((prev) => {
+      const next = { ...prev, ...patch };
+      if (typeof window !== "undefined") {
+        localStorage.setItem("barun_fv_insurance_sim_settings", JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const resetSimSettingsToMax = () => {
+    setSimSettings(DEFAULT_INSURANCE_SIM_SETTINGS);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("barun_fv_insurance_sim_settings");
+    }
+    toast.success("기본 최대치(복잡추나 50% · 급여첩약 10%)로 복원되었습니다.");
+  };
 
   const handleInsuranceFeeChange = (raw: string) => {
     setInsuranceFeeInput(raw);
@@ -352,11 +412,20 @@ export default function FirstVisitAnalyticsView({
     } catch {}
   };
 
-  // 2트랙 정밀 계산 (선택된 전체/월별 범위 + 입력한 보험 평균 객단가 기준)
+  // 2트랙 정밀 계산 (선택된 전체/월별 범위 + 입력한 보험 평균 객단가 + 추나/첩약 세부설정 기준)
   const evaluation = useMemo(
-    () => evaluateDualTrackStats(scopedRows, demographic, genderOverride, customInsuranceFee),
-    [scopedRows, demographic, genderOverride, customInsuranceFee]
+    () =>
+      evaluateDualTrackStats(
+        scopedRows,
+        demographic,
+        genderOverride,
+        customInsuranceFee,
+        simSettings
+      ),
+    [scopedRows, demographic, genderOverride, customInsuranceFee, simSettings]
   );
+
+  const sim = evaluation.insuranceSimulation;
 
   const currentSummary = track === "insurance" ? evaluation.insurance : evaluation.nonCovered;
 
@@ -634,7 +703,7 @@ export default function FirstVisitAnalyticsView({
                   </div>
                 </div>
                 <p className="text-[10px] text-[#7A5B1F]/85 font-semibold truncate">
-                  본부금+청구 (비급여 제외) · 2·3차 기준
+                  본부금+청구 · 2·3차{sim.settings.includeChunaInTotal ? `+${sim.chunaLabel}${sim.settings.chunaTargetPct}%` : ""}{sim.settings.includeHerbal40InTotal ? `+첩약${sim.settings.herbal40TargetPct}%` : ""} (ⓘ 세부설정)
                 </p>
               </div>
             ) : (
@@ -804,6 +873,140 @@ export default function FirstVisitAnalyticsView({
             );
           })}
         </div>
+
+        {/* 3-A. 보험(원장) 전용: 추나(3회 기준) & 급여 첩약(40일분) 매출 시뮬레이션 카드 (기존 카드 동일 디자인 · ⓘ 클릭 시 세부설정) */}
+        {track === "insurance" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {/* 카드 1: 추나 3회 정착 시뮬레이션 */}
+            <div className="bg-white rounded-2xl p-5 border border-[#D4AF37] transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-extrabold text-[#111111] truncate">
+                      추나 3회 정착 매출
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#737373] shrink-0">
+                      유효 {sim.chunaEligibleCount}명
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
+                      {sim.chunaLabel} {sim.settings.chunaTargetPct}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal({ kind: "chunaSim" })}
+                      className="w-6 h-6 rounded-full bg-[#F5F5F5] hover:bg-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center transition-colors cursor-pointer"
+                      title="추나 유형(복잡/단순) 및 비율(10/30/50%) 세부설정"
+                    >
+                      <Info size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2 mb-2.5">
+                  <span className="text-3xl font-black tracking-tight text-[#111111]">
+                    {scopedRows.length === 0
+                      ? "-"
+                      : `+${sim.chunaGainManwon.toLocaleString()}만`}
+                  </span>
+                  <div className="text-right">
+                    <span className="text-[11px] font-bold text-[#666666] block">
+                      3회 기준 (초1+재2)
+                    </span>
+                    <span className="text-[11px] font-extrabold text-[#0F5132]">
+                      추가 +{sim.additionalChunaCount}명 ({sim.perPatientNetGainManwon}만/명)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-1.5 w-full bg-[#F0F0F0] rounded-full overflow-hidden mb-3">
+                  <div
+                    className="h-full rounded-full bg-[#0F5132] transition-all duration-500"
+                    style={{ width: `${Math.min(100, sim.settings.chunaTargetPct * 2)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="px-3 py-2 rounded-xl text-xs font-extrabold truncate bg-[#F4F8F5] text-[#0F5132]">
+                → {sim.chunaLabel} 3회 유도 시 순증 +{sim.perPatientNetGainManwon}만/명 · ⓘ 눌러 유형·비율 설정
+              </div>
+            </div>
+
+            {/* 카드 2: 급여 첩약 (40일분) 시뮬레이션 */}
+            <div className="bg-white rounded-2xl p-5 border border-[#D4AF37] transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-extrabold text-[#111111] truncate">
+                      급여 첩약 (40일분) 매출
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#737373] shrink-0">
+                      {sim.herbal40TargetCount}/{scopedRows.length}명
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        sim.herbal40CannibalWarning
+                          ? "bg-[#FBF7EE] text-[#8C6B2D]"
+                          : "bg-[#ECFDF5] text-[#0F5132]"
+                      }`}
+                    >
+                      목표 {sim.settings.herbal40TargetPct}%
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveModal({ kind: "herbalSim" })}
+                      className="w-6 h-6 rounded-full bg-[#F5F5F5] hover:bg-[#111111] text-[#555555] hover:text-[#D4AF37] flex items-center justify-center transition-colors cursor-pointer"
+                      title="급여 첩약 40일분 목표 비율(5/8/10%) 세부설정"
+                    >
+                      <Info size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-baseline justify-between gap-2 mb-2.5">
+                  <span className="text-3xl font-black tracking-tight text-[#111111]">
+                    {scopedRows.length === 0
+                      ? "-"
+                      : `+${sim.herbal40GainManwon.toLocaleString()}만`}
+                  </span>
+                  <div className="text-right">
+                    <span className="text-[11px] font-bold text-[#666666] block">
+                      40일분 {HERBAL_40DAY_FEE_MANWON}만/명
+                    </span>
+                    <span className="text-[11px] font-extrabold text-[#B8924A]">
+                      1.5~2개월 누적 기준
+                    </span>
+                  </div>
+                </div>
+
+                <div className="h-1.5 w-full bg-[#F0F0F0] rounded-full overflow-hidden mb-3">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      sim.herbal40CannibalWarning ? "bg-[#C5A059]" : "bg-[#0F5132]"
+                    }`}
+                    style={{ width: `${Math.min(100, sim.settings.herbal40TargetPct * 10)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`px-3 py-2 rounded-xl text-xs font-extrabold truncate ${
+                  sim.herbal40CannibalWarning
+                    ? "bg-[#FBF7EE] text-[#7A5B1F]"
+                    : "bg-[#F4F8F5] text-[#0F5132]"
+                }`}
+              >
+                →{" "}
+                {sim.herbal40CannibalWarning
+                  ? "상한(10%) · 비급여 한약 잠식 주의 · ⓘ 눌러 비율 설정"
+                  : "비급여 한약 방어 + 보험 첩약 최적 균형 · ⓘ 눌러 설정"}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 3-B. 보험(원장) 전용: 진료부위별 삼진율(3회 내원율) 강·약점 진단 보드 */}
         {track === "insurance" && (
@@ -1064,7 +1267,11 @@ export default function FirstVisitAnalyticsView({
                     ? "동네 배후 인구 & 상권 기준"
                     : activeModal.kind === "mission"
                     ? "최우선 목표 실행 가이드"
-                    : "목표 도달 잠재 매출 시뮬레이션"}
+                    : activeModal.kind === "chunaSim"
+                    ? "추나 3회 정착 매출 · 세부설정"
+                    : activeModal.kind === "herbalSim"
+                    ? "급여 첩약 (40일분) · 세부설정"
+                    : "목표 도달 기대효과 · 세부설정"}
                 </span>
                 <h3 className="text-base font-black mt-0.5">
                   {activeModal.kind === "indicator"
@@ -1075,6 +1282,10 @@ export default function FirstVisitAnalyticsView({
                     ? demographic.regionName
                     : activeModal.kind === "mission"
                     ? currentSummary.focusMission
+                    : activeModal.kind === "chunaSim"
+                    ? `${sim.chunaLabel} ${sim.settings.chunaTargetPct}% (3회 기준 +${sim.chunaGainManwon.toLocaleString()}만 원)`
+                    : activeModal.kind === "herbalSim"
+                    ? `급여 첩약 40일분 ${sim.settings.herbal40TargetPct}% (+${sim.herbal40GainManwon.toLocaleString()}만 원)`
                     : `월 +${currentSummary.potentialMonthlyGainManwon.toLocaleString()}만 원 기대효과 산출식`}
                 </h3>
               </div>
@@ -1266,30 +1477,311 @@ export default function FirstVisitAnalyticsView({
                 </div>
               )}
 
+              {activeModal.kind === "chunaSim" && (
+                <div className="space-y-4">
+                  {/* 세부설정 컨트롤 */}
+                  <div className="p-4 rounded-2xl bg-[#FAFAFA] border border-[#E5E5E5] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-xs font-extrabold text-[#111111]">
+                        1. 추나 청구 유형 선택 (3회 내원 = 초진1 + 재진2 기준)
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={resetSimSettingsToMax}
+                        className="text-[10px] font-bold text-[#8C6B2D] hover:underline cursor-pointer"
+                      >
+                        최대치 복원
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["complex", "simple"] as ChunaType[]).map((t) => {
+                        const spec = CHUNA_FEES[t];
+                        const active = sim.settings.chunaType === t;
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => updateSimSettings({ chunaType: t })}
+                            className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                              active
+                                ? "bg-[#0F5132] text-white border-[#0F5132] shadow-sm"
+                                : "bg-white text-[#111111] border-[#D4D4D4] hover:border-[#0F5132]"
+                            }`}
+                          >
+                            <div className="font-black text-xs flex items-center justify-between">
+                              <span>{spec.label}</span>
+                              {t === "complex" && (
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${active ? "bg-white/20 text-[#F3D899]" : "bg-[#FBF7EE] text-[#8C6B2D]"}`}>
+                                  최대치
+                                </span>
+                              )}
+                            </div>
+                            <div className={`text-[10px] mt-1 ${active ? "text-white/85" : "text-[#666666]"}`}>
+                              초진 {spec.firstWon.toLocaleString()}원 · 재진 {spec.revisitWon.toLocaleString()}원
+                            </div>
+                            <div className={`text-[10px] font-bold mt-0.5 ${active ? "text-[#F3D899]" : "text-[#0F5132]"}`}>
+                              3회 총액 {spec.total3VisitsManwon}만 원
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div>
+                      <strong className="text-xs font-extrabold text-[#111111] block mb-2">
+                        2. 추나 유효 대상자 중 목표 비율
+                      </strong>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([10, 30, 50] as ChunaTargetPct[]).map((pct) => {
+                          const active = sim.settings.chunaTargetPct === pct;
+                          return (
+                            <button
+                              key={pct}
+                              type="button"
+                              onClick={() => updateSimSettings({ chunaTargetPct: pct })}
+                              className={`py-2 rounded-xl border text-xs font-black transition cursor-pointer ${
+                                active
+                                  ? "bg-[#111111] text-[#D4AF37] border-[#111111]"
+                                  : "bg-white text-[#333333] border-[#D4D4D4] hover:border-[#111111]"
+                              }`}
+                            >
+                              {pct}% {pct === 50 ? "(최대치)" : ""}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <label className="flex items-center justify-between pt-2 border-t border-[#E5E5E5] cursor-pointer">
+                      <span className="text-[11px] font-bold text-[#333333]">
+                        상단 「목표 도달 기대효과」 합산에 포함
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={sim.settings.includeChunaInTotal}
+                        onChange={(e) => updateSimSettings({ includeChunaInTotal: e.target.checked })}
+                        className="w-4 h-4 accent-[#0F5132] cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  {/* 유효 모수 & 순증 계산 내역 */}
+                  <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] space-y-1.5">
+                    <strong className="text-[#0F5132] font-extrabold block">
+                      실측 유효 대상자 &amp; 3회 순증 산출식
+                    </strong>
+                    <div className="text-[11px] text-[#1F2937]">
+                      · 추나 유효 대상자: <strong>{sim.chunaEligibleCount}명</strong>{" "}
+                      {sim.isFallbackEligibilityUsed ? (
+                        <span className="text-[#666666]">(연령·상병 미기입으로 전체 × 65% 안전계수 적용)</span>
+                      ) : (
+                        <span className="text-[#555555]">
+                          (전체 {scopedRows.length}명 중 65세↑ {sim.chunaExcludedSenior}명 · 자보{" "}
+                          {sim.chunaExcludedAuto}명 · 순수한약/비근골격 {sim.chunaExcludedNonMsk}명 제외)
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-[#1F2937]">
+                      · 1인당 3회 순증액: <strong>+{sim.perPatientNetGainManwon}만 원</strong>{" "}
+                      <span className="text-[#555555]">
+                        ({sim.chunaLabel} 3회 {sim.chuna3VisitTotalManwon}만 - 기존 보험 3회{" "}
+                        {sim.baseline3VisitManwon}만)
+                      </span>
+                    </div>
+                    <div className="text-xs font-black text-[#0F5132] pt-1 border-t border-[#C6DFCE]">
+                      ▶ 추가 {sim.additionalChunaCount}명(목표 {sim.targetChunaCount}명 - 현재 {sim.currentChunaCount}명) × {sim.perPatientNetGainManwon}만 원 = +월 {sim.chunaGainManwon.toLocaleString()}만 원
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeModal.kind === "herbalSim" && (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-[#FAFAFA] border border-[#E5E5E5] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-xs font-extrabold text-[#111111]">
+                        급여 첩약 40일분 (60만 원) 목표 비율 선택
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={resetSimSettingsToMax}
+                        className="text-[10px] font-bold text-[#8C6B2D] hover:underline cursor-pointer"
+                      >
+                        최대치 복원
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([5, 8, 10] as Herbal40TargetPct[]).map((pct) => {
+                        const active = sim.settings.herbal40TargetPct === pct;
+                        return (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => updateSimSettings({ herbal40TargetPct: pct })}
+                            className={`py-2.5 rounded-xl border text-xs font-black transition cursor-pointer ${
+                              active
+                                ? "bg-[#111111] text-[#D4AF37] border-[#111111]"
+                                : "bg-white text-[#333333] border-[#D4D4D4] hover:border-[#111111]"
+                            }`}
+                          >
+                            {pct}% {pct === 8 ? "(권장)" : pct === 10 ? "(최대치)" : "(안정)"}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <label className="flex items-center justify-between pt-2 border-t border-[#E5E5E5] cursor-pointer">
+                      <span className="text-[11px] font-bold text-[#333333]">
+                        상단 「목표 도달 기대효과」 합산에 포함
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={sim.settings.includeHerbal40InTotal}
+                        onChange={(e) =>
+                          updateSimSettings({ includeHerbal40InTotal: e.target.checked })
+                        }
+                        className="w-4 h-4 accent-[#0F5132] cursor-pointer"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] space-y-1.5">
+                    <strong className="text-[#0F5132] font-extrabold block">
+                      40일분 급여 첩약 산출 공식 (본부금+공단청구)
+                    </strong>
+                    <div className="text-[11px] text-[#1F2937]">
+                      · 6대 질환(디스크·소화불량·비염·월경통·안면마비 등) 중 2개 질환 각 20일분 완주 = 10일 × 4회 × 15만 원 = <strong>1인당 {HERBAL_40DAY_FEE_MANWON}만 원</strong>
+                    </div>
+                    <div className="text-xs font-black text-[#0F5132] pt-1 border-t border-[#C6DFCE]">
+                      ▶ 전체 {scopedRows.length}명 × {sim.settings.herbal40TargetPct}% ({sim.herbal40TargetCount}명) × {HERBAL_40DAY_FEE_MANWON}만 원 = +{sim.herbal40GainManwon.toLocaleString()}만 원 (1.5~2개월 누적)
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] text-[11px] text-[#555555]">
+                    <strong className="text-[#7A5B1F] block mb-1">
+                      비급여 한약 잠식(매출 역전) 방어 기준
+                    </strong>
+                    40일분 급여 첩약이 초진의 <strong>12%를 넘으면</strong> 원래 고마진 비급여 한약(35~45만 원)을 결제할 환자까지 급여로 이동해 순이익이 줄어들 수 있습니다. 권장 구간은 <strong>6~8%</strong>이며, 10% 설정 시 비급여 한약 전환율과 반드시 함께 관리하세요.
+                  </div>
+                </div>
+              )}
+
               {activeModal.kind === "revenue" && (
                 <div className="space-y-3">
                   {track === "insurance" ? (
-                    <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] space-y-1.5">
-                      <strong className="font-extrabold text-[#7A5B1F] block">
-                        보험(원장) 월 매출 증대 예상치 산출 공식
-                      </strong>
-                      <div className="text-[#111111] font-bold">
-                        · 적용 단가: 보험 1회 평균{" "}
-                        <span className="text-[#0F5132]">
-                          {Number(evaluation.feeBasis.insuranceAvgFeeManwon.toFixed(2))}만 원
-                        </span>{" "}
-                        <span className="text-[11px] font-semibold text-[#666666]">
-                          ({evaluation.feeBasis.isCustomInput ? "원장님 직접 입력" : "기본값 · 비급여 제외 본부금+공단청구"})
-                        </span>
+                    <>
+                      {/* ⓘ 모달 내 원클릭 세부설정 퀵 패널 */}
+                      <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-[#E5E5E5] space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <strong className="font-extrabold text-[#111111]">
+                            시뮬레이션 세부설정 (기본: 최대치)
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={resetSimSettingsToMax}
+                            className="text-[10px] font-bold text-[#8C6B2D] hover:underline cursor-pointer"
+                          >
+                            최대치 복원
+                          </button>
+                        </div>
+
+                        {/* 추나 설정 줄 */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                          <label className="inline-flex items-center gap-1.5 font-bold text-[#111111] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sim.settings.includeChunaInTotal}
+                              onChange={(e) =>
+                                updateSimSettings({ includeChunaInTotal: e.target.checked })
+                              }
+                              className="accent-[#0F5132] cursor-pointer"
+                            />
+                            <span>추나 (3회 기준)</span>
+                          </label>
+                          <div className="flex items-center gap-1">
+                            {(["complex", "simple"] as ChunaType[]).map((t) => (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => updateSimSettings({ chunaType: t })}
+                                className={`px-2 py-0.5 rounded-md font-extrabold cursor-pointer ${
+                                  sim.settings.chunaType === t
+                                    ? "bg-[#0F5132] text-white"
+                                    : "bg-white border border-[#D4D4D4] text-[#555555]"
+                                }`}
+                              >
+                                {t === "complex" ? "복잡" : "단순"}
+                              </button>
+                            ))}
+                            <span className="text-[#CCCCCC] mx-0.5">|</span>
+                            {([10, 30, 50] as ChunaTargetPct[]).map((pct) => (
+                              <button
+                                key={pct}
+                                type="button"
+                                onClick={() => updateSimSettings({ chunaTargetPct: pct })}
+                                className={`px-2 py-0.5 rounded-md font-extrabold cursor-pointer ${
+                                  sim.settings.chunaTargetPct === pct
+                                    ? "bg-[#111111] text-[#D4AF37]"
+                                    : "bg-white border border-[#D4D4D4] text-[#555555]"
+                                }`}
+                              >
+                                {pct}%
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 급여 첩약 설정 줄 */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-1.5 border-t border-[#EAEAEA]">
+                          <label className="inline-flex items-center gap-1.5 font-bold text-[#111111] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sim.settings.includeHerbal40InTotal}
+                              onChange={(e) =>
+                                updateSimSettings({ includeHerbal40InTotal: e.target.checked })
+                              }
+                              className="accent-[#0F5132] cursor-pointer"
+                            />
+                            <span>급여 첩약 (40일분)</span>
+                          </label>
+                          <div className="flex items-center gap-1">
+                            {([5, 8, 10] as Herbal40TargetPct[]).map((pct) => (
+                              <button
+                                key={pct}
+                                type="button"
+                                onClick={() => updateSimSettings({ herbal40TargetPct: pct })}
+                                className={`px-2 py-0.5 rounded-md font-extrabold cursor-pointer ${
+                                  sim.settings.herbal40TargetPct === pct
+                                    ? "bg-[#111111] text-[#D4AF37]"
+                                    : "bg-white border border-[#D4D4D4] text-[#555555]"
+                                }`}
+                              >
+                                {pct}%
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#333333] font-semibold">
-                        → 산출식: <strong>(2차 80% 부족 인원 + 3차 70% 부족 인원) × {Number(evaluation.feeBasis.insuranceAvgFeeManwon.toFixed(2))}만 원</strong>
+
+                      <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3] space-y-1.5">
+                        <strong className="font-extrabold text-[#7A5B1F] block">
+                          보험(원장) 매출 증대 예상치 산출 기준
+                        </strong>
+                        <div className="text-[#111111] font-bold">
+                          · 적용 단가: 보험 1회 평균{" "}
+                          <span className="text-[#0F5132]">
+                            {Number(evaluation.feeBasis.insuranceAvgFeeManwon.toFixed(2))}만 원
+                          </span>{" "}
+                          <span className="text-[11px] font-semibold text-[#666666]">
+                            ({evaluation.feeBasis.isCustomInput ? "원장님 직접 입력" : "기본값 · 본부금+공단청구"})
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-[#666666] pt-1 border-t border-[#E6D5B3]/60 leading-relaxed">
+                          * 2차·3차는 각 방문 진료비 1회분씩 계산되어 중복이 없으며, 추나는 기존 보험 3회 진료비를 차감한 순증액만 합산합니다.<br />
+                          * 예측·통제가 어려운 재초진·자보·65세 연령 비율은 거품 방지를 위해 제외했습니다.
+                        </p>
                       </div>
-                      <p className="text-[10px] text-[#666666] pt-1 border-t border-[#E6D5B3]/60 leading-relaxed">
-                        * 2차 부족분은 &apos;2회차 방문 진료비&apos;, 3차 부족분은 &apos;3회차 방문 진료비&apos;로 날짜·결제가 별도 발생하므로 같은 환자라도 중복 계산이 없습니다.<br />
-                        * 예측·통제가 어려운 재초진·65세 연령 비율·부위별 삼진율·예약률 등은 거품 방지를 위해 기대매출 합산에서 제외했습니다.
-                      </p>
-                    </div>
+                    </>
                   ) : (
                     <p className="text-[#555555]">
                       비급여·한약·패키지 미달 지표를 권장 기준점까지 달성했을 때 중복 항목을 제외하고 추산한 월간 기대 매출입니다.
