@@ -1008,17 +1008,22 @@ export default function FirstVisitAnalyticsView({
           </div>
         )}
 
-        {/* 3-B. 보험(원장) 전용: 진료부위별 삼진율(3회 내원율) 강·약점 진단 보드 */}
+        {/* 3-B. 보험(원장) 전용: 입력 질환별 삼진율(3회 내원율) 통합 진단 보드 */}
         {track === "insurance" && (
           <div className="bg-white border border-[#E5E5E5] rounded-2xl p-5 shadow-sm space-y-3.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-[#111111]">
-                  진료부위별 삼진율 (3회 내원율)
+                  입력 질환별 삼진율 (3회 내원율)
                 </span>
                 <span className="px-2 py-0.5 rounded-md bg-[#F4F8F5] text-[#0F5132] text-[10px] font-extrabold">
                   목표 70%↑
                 </span>
+                {evaluation.bodyPartRetention.length > 0 && (
+                  <span className="text-[11px] font-bold text-[#737373]">
+                    {evaluation.bodyPartRetention.length}개 질환 자동분류
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-3 text-[11px] font-bold">
@@ -1189,7 +1194,7 @@ export default function FirstVisitAnalyticsView({
               </>
             ) : (
               <div className="p-3.5 rounded-xl bg-[#FAFAFA] border border-dashed border-[#D4D4D4] text-xs text-[#666666]">
-                시트의 &apos;환자 진료 내역&apos;란에 통증·질환 부위(허리, 목, 어깨, 무릎, 발목, 손목, 소화 등)가 입력되면 잘 잡는 질환과 놓치는 질환이 자동 분류됩니다.
+                시트의 &apos;환자 진료 내역&apos;란에 질환·증상을 입력하면 고정 틀 없이 입력된 질환별로 인원과 삼진율이 자동 분류됩니다.
               </div>
             )}
           </div>
@@ -1328,7 +1333,7 @@ export default function FirstVisitAnalyticsView({
                     evaluation.bodyPartRetention.length > 0 && (
                       <div className="border border-[#EAEAEA] rounded-xl overflow-hidden">
                         <div className="bg-[#FAFAFA] px-3.5 py-2 text-[11px] font-extrabold text-[#111111] flex justify-between border-b border-[#EAEAEA]">
-                          <span>진료부위 (인원)</span>
+                          <span>입력 질환 (인원)</span>
                           <span>2차 → 삼진율(3회)</span>
                         </div>
                         <div className="divide-y divide-[#F2F2F2]">

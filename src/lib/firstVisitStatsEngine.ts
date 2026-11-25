@@ -1,6 +1,7 @@
 "use client";
 
 import { getSemiAnnualCensusDates } from "./censusUtils";
+import { classifySymptomCategories } from "./firstVisitEngine";
 import type { FirstVisitRow, FirstVisitTrack } from "@/types/firstVisit";
 
 export { getSemiAnnualCensusDates };
@@ -621,15 +622,38 @@ export function evaluateDualTrackStats(
       }
     }
 
-    // 진료부위별 분류 및 2·3회 내원 추적
+    // 입력 질환별 자동 분류 및 2·3회 내원 추적 (고정 질환 틀 없이 실제 입력된 질환명 그대로 집계)
     const detail = clean(r.treatmentDetail);
-    const matchedParts = classifyClinicalBodyParts(detail, clean(r.insuranceType));
-    if (matchedParts.length > 0) {
-      for (const def of matchedParts) {
-        if (!bodyPartStatsMap.has(def.id)) {
-          bodyPartStatsMap.set(def.id, { def, patients: 0, second: 0, third: 0 });
+    const enteredDiseases = classifySymptomCategories(detail);
+    if (enteredDiseases.length > 0) {
+      const insStr = clean(r.insuranceType);
+      for (const diseaseLabel of enteredDiseases) {
+        const normKey = diseaseLabel.replace(/\s+/g, "").toLowerCase();
+        if (!bodyPartStatsMap.has(normKey)) {
+          const matchedHint = CLINICAL_BODY_PARTS.find((d) => d.match(diseaseLabel, insStr));
+          const isConsultOnly =
+            Boolean(matchedHint?.isConsultOnly) ||
+            (/보약|다이어트|공진단|경옥고/.test(diseaseLabel) &&
+              !/통증|염좌|디스크|협착|허리|목|어깨|무릎|발목|손목/.test(diseaseLabel));
+          const dynamicDef: ClinicalBodyPartDef = {
+            id: normKey,
+            label: diseaseLabel,
+            shortName: diseaseLabel.length > 6 ? `${diseaseLabel.slice(0, 6)}..` : diseaseLabel,
+            isConsultOnly,
+            match: () => true,
+            dropoutReason:
+              matchedHint?.dropoutReason ||
+              `'${diseaseLabel}' 증상 환자가 1~2회차 초기 호전 후 자가 종결(조기 이탈)하여 재발로 이어지는 패턴입니다.`,
+            prescriptionGuide:
+              matchedHint?.prescriptionGuide ||
+              `초진 당일 '${diseaseLabel}'의 회복 단계(1회 급성완화 → 2회 원인교정 → 3회 안정화)를 명확히 안내하고 2~4일 내 다음 예약을 확정하세요.`,
+            scriptExample:
+              matchedHint?.scriptExample ||
+              `"${diseaseLabel} 증상은 겉통증이 줄어들 때 멈추면 금방 재발합니다. 최소 3회차까지 연속으로 잡아드려야 안전하게 마무리됩니다."`,
+          };
+          bodyPartStatsMap.set(normKey, { def: dynamicDef, patients: 0, second: 0, third: 0 });
         }
-        const st = bodyPartStatsMap.get(def.id)!;
+        const st = bodyPartStatsMap.get(normKey)!;
         st.patients++;
         if (has2) st.second++;
         if (has3) st.third++;
@@ -982,13 +1006,13 @@ export function evaluateDualTrackStats(
       id: "ins_bodypart_3rd",
       track: "insurance",
       order: 3,
-      title: "진료부위별 삼진율",
+      title: "입력 질환별 삼진율",
       subMetric:
         bestBodyPart && totalPatients > 0
           ? `강점 ${bestBodyPart.shortName} ${bestBodyPart.thirdRate}%`
           : clinicalBodyParts.length > 0
           ? `표본 누적 중 (${MIN_BODYPART_SAMPLE}명↑ 판정)`
-          : "부위 진단",
+          : "질환 자동분류",
       currentValue: weakestBodyPart ? weakestBodyPart.thirdRate : 0,
       valueDisplay:
         totalPatients === 0
@@ -996,12 +1020,12 @@ export function evaluateDualTrackStats(
           : !weakestBodyPart
           ? clinicalBodyParts.length > 0
             ? "표본 누적 중"
-            : "부위 미기입"
+            : "질환 미기입"
           : weakestBodyPart.thirdRate >= 70
           ? `최저 ${weakestBodyPart.thirdRate}%`
           : `${weakestBodyPart.shortName} ${weakestBodyPart.thirdRate}%`,
       targetValue: 70,
-      targetDisplay: "부위별 70%↑",
+      targetDisplay: "질환별 70%↑",
       gapDisplay:
         totalPatients === 0
           ? "데이터 대기"
@@ -1010,18 +1034,18 @@ export function evaluateDualTrackStats(
             ? `${MIN_BODYPART_SAMPLE}명↑부터 판정`
             : "진료내역 기입"
           : weakestBodyPart.thirdRate >= 70
-          ? "전 부위 70%↑"
-          : `통과 ${healthyBodyPartCount}/${qualifiedParts.length}부위`,
+          ? "전 질환 70%↑"
+          : `통과 ${healthyBodyPartCount}/${qualifiedParts.length}질환`,
       status: bodyPartCardStatus,
       conclusion:
         totalPatients === 0
           ? "환자 시트를 업로드하세요"
           : !weakestBodyPart
           ? clinicalBodyParts.length > 0
-            ? `부위별 ${MIN_BODYPART_SAMPLE}명 이상 누적 시 강·약점 자동 판정`
-            : "진료내역에 통증 부위를 기입하세요"
+            ? `입력 질환별 ${MIN_BODYPART_SAMPLE}명 이상 누적 시 강·약점 자동 판정`
+            : "진료내역에 질환·증상을 기입하세요"
           : weakestBodyPart.thirdRate >= 70
-          ? `전 부위 우수 (최고 ${bestBodyPart?.shortName} ${bestBodyPart?.thirdRate}%)`
+          ? `전 질환 우수 (최고 ${bestBodyPart?.shortName} ${bestBodyPart?.thirdRate}%)`
           : bestBodyPart && bestBodyPart.id !== weakestBodyPart.id
           ? `잘됨 ${bestBodyPart.shortName}(${bestBodyPart.thirdRate}%) · 보완 ${weakestBodyPart.shortName}(${weakestBodyPart.thirdRate}%)`
           : `${weakestBodyPart.label} 3회 티업 강화 (+${weakestBodyPart.neededFor70}명)`,
@@ -1036,24 +1060,24 @@ export function evaluateDualTrackStats(
                     })`
                 )
                 .join(" · ")}${
-                unclassifiedBodyPartCount > 0 ? ` | 부위 미기입 ${unclassifiedBodyPartCount}명` : ""
+                unclassifiedBodyPartCount > 0 ? ` | 질환 미기입 ${unclassifiedBodyPartCount}명` : ""
               }`
-            : "진료내역에서 통증·질환 부위가 확인된 환자가 아직 없습니다.",
+            : "진료내역에 입력된 질환·증상이 아직 없습니다.",
         benchmarkReason:
-          `소표본(5명 미만)의 통계 착시를 막기 위해 부위별 ${MIN_BODYPART_SAMPLE}명 이상 쌓인 질환군만 정식 판정합니다. 전체 평균에 가려진 취약 질환의 조기 이탈을 찾아 타깃 교정하는 핵심 진단 지표입니다.`,
+          `고정 질환 틀 없이 시트에 실제 입력된 질환명 그대로 자동 분류하며, 소표본(5명 미만) 왜곡을 막기 위해 질환별 ${MIN_BODYPART_SAMPLE}명 이상 쌓인 항목만 정식 판정합니다.`,
         riskWarning:
           weakestBodyPart && weakestBodyPart.thirdRate < 70
             ? `현재 '${weakestBodyPart.label}'(${weakestBodyPart.patients}명) 환자의 삼진율이 ${weakestBodyPart.thirdRate}%로 가장 낮습니다. ${weakestBodyPart.dropoutReason}`
-            : "특정 부위(예: 발목 염좌, 단순 담결림, 손목·팔꿈치)에서 1회 치료 후 자가 종결이 누적되면 전체 정착률이 70% 아래로 무너집니다.",
+            : "특정 질환에서 1~2회 치료 후 자가 종결이 누적되면 전체 정착률이 70% 아래로 무너집니다.",
         actionInstruction:
           weakestBodyPart && weakestBodyPart.thirdRate < 70
             ? `[최우선 보완: ${weakestBodyPart.label}] ${weakestBodyPart.prescriptionGuide}`
-            : "하단 부위별 보드에서 각 질환 옆 ⓘ 아이콘을 눌러 질환별 맞춤 3회 티업 멘트를 진료실 표준으로 유지하세요.",
+            : "하단 입력 질환별 삼진율 보드에서 각 질환 옆 ⓘ 아이콘을 눌러 맞춤 3회 티업 멘트를 진료실 표준으로 유지하세요.",
         scriptExample:
           weakestBodyPart?.scriptExample ||
-          "\"통증이 줄어드는 것과 손상된 속근육·인대가 아무는 것은 다릅니다. 재발 방지를 위해 3회차까지는 꼭 체크하겠습니다.\"",
+          "\"통증이 줄어드는 것과 손상된 조직이 완전히 회복되는 것은 다릅니다. 재발 방지를 위해 3회차까지는 꼭 체크하겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote: "※ 부위별 개선 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)",
+        formulaNote: "※ 질환별 개선 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)",
       },
     },
     {
