@@ -193,44 +193,73 @@ export default function FirstVisitAiReportView({
 
             <div className="bg-[#FAFAFA] rounded-2xl p-4 border border-[#EAEAEA]">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-extrabold text-[#111111]">주요 증상군 인원 · 삼진율</span>
+                <span className="text-xs font-extrabold text-[#111111]">
+                  입력 질환별 인원 · 삼진율
+                  {analytics.symptomDistribution.length > 0 && (
+                    <span className="ml-1.5 text-[10px] font-bold text-[#0F5132]">
+                      ({analytics.symptomDistribution.length}개 질환 자동분류)
+                    </span>
+                  )}
+                </span>
                 <span className="text-[11px] text-[#737373]">삼진 목표 70%↑</span>
               </div>
-              <div className="h-44 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={analytics.symptomDistribution}
-                    layout="vertical"
-                    margin={{ top: 4, right: 64, left: 16, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAEAEA" />
-                    <XAxis type="number" allowDecimals={false} hide />
-                    <YAxis
-                      type="category"
-                      dataKey="category"
-                      width={95}
-                      tick={{ fill: "#111111", fontSize: 11, fontWeight: 700 }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: "#111111", border: "none", borderRadius: "10px", color: "#fff", fontSize: "11px" }}
-                      formatter={(val: any, _n: any, item: any) => [
-                        `${val}명 (2차 ${item?.payload?.secondVisitRate ?? 0}% · 삼진 ${item?.payload?.thirdVisitRate ?? 0}%)`,
-                        "집계",
-                      ]}
-                    />
-                    <Bar dataKey="count" fill="#C5A059" radius={[0, 4, 4, 0]} barSize={18}>
-                      <LabelList
-                        dataKey="count"
-                        position="right"
-                        formatter={(val: any) => `${val}명`}
-                        style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }}
+              {analytics.symptomDistribution.length === 0 ? (
+                <div className="h-44 w-full flex items-center justify-center text-center px-4 text-xs text-[#737373] font-semibold">
+                  시트의 &apos;환자 진료 내역&apos;에 질환·증상을 입력하면 고정 틀 없이 입력된 질환별로 자동 분류됩니다.
+                </div>
+              ) : (
+                <div
+                  className="w-full"
+                  style={{
+                    height: `${Math.max(
+                      176,
+                      Math.min(440, analytics.symptomDistribution.length * 32 + 24)
+                    )}px`,
+                  }}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={analytics.symptomDistribution.map((s) => ({
+                        ...s,
+                        barLabel: `${s.count}명 (${s.thirdVisitRate}%)`,
+                      }))}
+                      layout="vertical"
+                      margin={{ top: 4, right: 86, left: 12, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EAEAEA" />
+                      <XAxis type="number" allowDecimals={false} hide />
+                      <YAxis
+                        type="category"
+                        dataKey="category"
+                        width={105}
+                        tick={{ fill: "#111111", fontSize: 11, fontWeight: 700 }}
+                        axisLine={false}
+                        tickLine={false}
                       />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "#111111",
+                          border: "none",
+                          borderRadius: "10px",
+                          color: "#fff",
+                          fontSize: "11px",
+                        }}
+                        formatter={(val: any, _n: any, item: any) => [
+                          `${val}명 (2차 ${item?.payload?.secondVisitRate ?? 0}% · 삼진 ${item?.payload?.thirdVisitRate ?? 0}%)`,
+                          item?.payload?.category || "집계",
+                        ]}
+                      />
+                      <Bar dataKey="count" fill="#C5A059" radius={[0, 4, 4, 0]} barSize={18}>
+                        <LabelList
+                          dataKey="barLabel"
+                          position="right"
+                          style={{ fill: "#111111", fontSize: 10, fontWeight: 800 }}
+                        />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
         )}

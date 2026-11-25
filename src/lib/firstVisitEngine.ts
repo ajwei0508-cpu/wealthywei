@@ -1563,52 +1563,51 @@ export function computeMissingDataReport(rows: FirstVisitRow[]): MissingDataRepo
 }
 
 /**
- * 3번 구글 문서(Doc)와 동일한 증상/진료 부위 6대 분류기
+ * 고정된 질환 틀 없이, 시트('환자 진료 내역')에 실제 입력된 질환·증상 텍스트를
+ * 구분자로 자동 분리·정제하여 입력된 질환명 그대로 동적 분류
  */
 export function classifySymptomCategories(detail: string): string[] {
-  const s = cleanStr(detail);
-  if (!s) return [];
+  const raw = cleanStr(detail);
+  if (!raw) return [];
 
-  const matched: string[] = [];
-  const cleanedUpper = s.replace(/발등/g, "족배").replace(/발목|손목/g, "관절");
+  // 괄호 안에 단순 처치 태그(예: "(약침 / 추나)")가 붙어있고 앞쪽에 질환명이 있으면 처치 태그만 분리 제거
+  const strippedParen = raw
+    .replace(
+      /\(\s*(?:(?:약침|봉침|추나|단순추나|복잡추나|첩약|첩건|한약|비급여|침|부항|뜸|전침|물리치료|물치|도수|유|무|O|X|Y|N)(?:\s*[:/·,+\-]\s*[^)]*)?)\s*\)/gi,
+      ""
+    )
+    .trim();
+  const baseText = strippedParen || raw;
 
-  if (
-    /어깨|어꺠|오십견|회전근개|경추|경항|항강|뒷목|거북목|일자목|낙침|승모근|등\s*(?:통증|결림|담|아픔|뻐근)|흉추|날개뼈|견갑|견배|담결림|담걸림|쇄골|갈비|늑간|(?<![항품과세주])목(?![적록요소리구멍])|^등[\s,/]/.test(
-      cleanedUpper
+  // 구분자(, / + · & ; | 줄바꿈)로 복수 질환 자동 분리
+  const rawTokens = baseText
+    .split(/[,/+·&;|\n]+/)
+    .map((t) =>
+      t
+        .replace(/^[\s\-•▪▶*]+|[\s\-•▪▶*]+$/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
     )
-  ) {
-    matched.push("어깨/목/등/담");
-  }
+    .filter((t) => t.length > 0 && !/^(?:유|무|없음|x|o|y|n|-|\.|0)$/i.test(t));
 
-  if (/허리|요통|요추|요각통|디스크|협착|골반|엉치|고관절|좌골|옆구리|천장관절/.test(s)) {
-    matched.push("허리/요통");
-  }
-  if (
-    /무릎|슬관절|슬통|오금|슬와|다리|하체|하지|정강이|종아리|허벅지|대퇴|발목|족관절|염좌|접질|삐끗|발바닥|족저|발가락|발등|족배|뒤꿈치|아킬레스|쥐남|(?<![재출다모유폭])발(?![생열진한목등바닥가락])/.test(
-      s
-    )
-  ) {
-    matched.push("무릎/하체/발");
-  }
-  if (
-    /팔꿈치|주관절|엘보|상과염|아래팔|윗팔|전완|상완|손목|완관절|손가락|손바닥|손저림|손떨림|수근관|터널|건초염|방아쇠|팔통증|팔저림|(?<![양재])팔(?![월십])|(?<![파훼결손])손(?![실상해님])/.test(
-      s
-    )
-  ) {
-    matched.push("팔/손/상체");
-  }
-  if (/비염|콧물|코막힘|축농증|기침|마른기침|가래|천식|감기|인후|호흡|기관지/.test(s)) {
-    matched.push("비염/호흡기");
-  }
-  if (
-    /다이어트|비만|보약|녹용|공진단|경옥고|청심원|한약\s*(?:상담|처방)|성장|소화|담적|체함|체기|식도염|역류성|위염|속쓰림|속안좋음|설사|변비|복통|복부|팽만|장염|불면|불안|우울|화병|놀람|무기력|기력|피로|기운|어지럼|현훈|이석증|두통|편두통|이명|난청|구안와사|안면|벨마비|턱관절|악관절|소변|절박뇨|전립선|생리|자궁|산후|갱년기|피부|두드러기|가려움|열감|노란끼/.test(
-      s
-    )
-  ) {
-    matched.push("한약/내과/다이어트");
-  }
+  if (rawTokens.length === 0) return [];
 
-  return Array.from(new Set(matched));
+  // 단순 처치명 토큰은 실제 질환/증상 토큰이 함께 있을 때만 제외 (처치명 단독 입력 시 유지)
+  const MODALITY_ONLY_RE =
+    /^(?:약침|봉침|추나|단순추나|복잡추나|첩약|침|침치료|부항|뜸|전침|물리치료|물치|비급여|급여|보험|건보|자보)(?:\s*\d*(?:회|건|제)?)?$/i;
+  const diseaseTokens = rawTokens.filter((t) => !MODALITY_ONLY_RE.test(t));
+  const finalTokens = diseaseTokens.length > 0 ? diseaseTokens : rawTokens;
+
+  // 동일 행 내 띄어쓰기 차이 중복 제거
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const tok of finalTokens) {
+    const key = tok.replace(/\s+/g, "").toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(tok);
+  }
+  return result;
 }
 
 export function classifyAgeGroup(ageStr: string): string {
@@ -1643,14 +1642,6 @@ export function classifyRouteCategory(routeStr: string): string {
 export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAnalytics {
   const totalPatients = rows.length;
   const ageLabels = ["10대 이하", "20대", "30대", "40대", "50대", "60대", "70대", "80대 이상"];
-  const symptomLabels = [
-    "무릎/하체/발",
-    "비염/호흡기",
-    "어깨/목/등/담",
-    "팔/손/상체",
-    "한약/내과/다이어트",
-    "허리/요통",
-  ];
 
   if (totalPatients === 0) {
     return {
@@ -1686,15 +1677,7 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
       recordedRouteCount: 0,
       missingRouteCount: 0,
       missingRoutePct: 0,
-      symptomDistribution: symptomLabels.map((category) => ({
-        category,
-        count: 0,
-        sharePct: 0,
-        secondVisitCount: 0,
-        thirdVisitCount: 0,
-        secondVisitRate: 0,
-        thirdVisitRate: 0,
-      })),
+      symptomDistribution: [],
       missingSymptomCount: 0,
       insuranceBreakdown: [],
       nonCoveredRecordedRows: 0,
@@ -1743,8 +1726,10 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
   const routeMap = new Map<string, { count: number; second: number; third: number }>();
   let missingRouteCount = 0;
 
-  const symptomMap = new Map<string, { count: number; second: number; third: number }>();
-  symptomLabels.forEach((s) => symptomMap.set(s, { count: 0, second: 0, third: 0 }));
+  const symptomMap = new Map<
+    string,
+    { label: string; count: number; second: number; third: number }
+  >();
   let missingSymptomCount = 0;
 
   const insMap = new Map<string, number>();
@@ -1825,12 +1810,15 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
       missingRouteCount++;
     }
 
-    // 주요 증상 및 진료 부위 (복합 부위 중복 집계 + 부위별 2·3차 재내원 추적)
+    // 입력된 질환별 자동 분류 (고정 틀 없이 실제 입력된 질환명 기준으로 공백 정규화 병합 + 2·3차 추적)
     const syms = classifySymptomCategories(r.treatmentDetail);
     if (syms.length > 0) {
       syms.forEach((sym) => {
-        if (!symptomMap.has(sym)) symptomMap.set(sym, { count: 0, second: 0, third: 0 });
-        const sStat = symptomMap.get(sym)!;
+        const normKey = sym.replace(/\s+/g, "").toLowerCase();
+        if (!symptomMap.has(normKey)) {
+          symptomMap.set(normKey, { label: sym, count: 0, second: 0, third: 0 });
+        }
+        const sStat = symptomMap.get(normKey)!;
         sStat.count++;
         if (has2nd) sStat.second++;
         if (has3rd) sStat.third++;
@@ -1907,18 +1895,22 @@ export function computeFirstVisitAnalytics(rows: FirstVisitRow[]): FirstVisitAna
     }))
     .sort((a, b) => b.count - a.count);
 
-  const symptomDistribution: SymptomGroupStat[] = symptomLabels.map((category) => {
-    const st = symptomMap.get(category) || { count: 0, second: 0, third: 0 };
-    return {
-      category,
+  const symptomDistribution: SymptomGroupStat[] = Array.from(symptomMap.values())
+    .map((st) => ({
+      category: st.label,
       count: st.count,
       sharePct: pct(st.count, totalPatients),
       secondVisitCount: st.second,
       thirdVisitCount: st.third,
       secondVisitRate: pct(st.second, st.count),
       thirdVisitRate: pct(st.third, st.count),
-    };
-  });
+    }))
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        b.thirdVisitRate - a.thirdVisitRate ||
+        a.category.localeCompare(b.category, "ko")
+    );
 
   const insuranceBreakdown = Array.from(insMap.entries())
     .map(([label, count]) => ({
