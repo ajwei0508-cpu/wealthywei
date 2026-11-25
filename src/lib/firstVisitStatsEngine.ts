@@ -724,8 +724,9 @@ export function evaluateDualTrackStats(
   const reFirstSeniorRate = reFirstKnownAge > 0 ? pct(reFirstSenior65, reFirstKnownAge) : 0;
   const regSenior = demographic.seniorRatio || 22.2;
   const gdi = regSenior > 0 && knownAge > 0 ? Number((seniorRate / regSenior).toFixed(2)) : 0;
-  const ageHealthyCap = Math.max(20, Number(regSenior.toFixed(1)));
-  const ageWarningCap = Math.max(30, Number((regSenior * 1.3).toFixed(1)));
+  // 어느 상권이든 경영 건강도 절대선 고정: 65세↑ 20% 이하 정상 / 20.1~30% 주의 / 30% 초과 미달
+  const ageHealthyCap = 20;
+  const ageWarningCap = 30;
   const age65Status: RiskLevel =
     knownAge === 0
       ? "EMPTY"
@@ -734,7 +735,7 @@ export function evaluateDualTrackStats(
       : seniorRate <= ageWarningCap
       ? "WARNING"
       : "CRITICAL";
-  const targetUnder65 = Number((100 - ageHealthyCap).toFixed(1));
+  const targetUnder65 = 80;
   const needUnder65 = knownAge > 0 ? neededCount(under65Count, knownAge, targetUnder65) : 0;
 
   // 보험 1회 평균 객단가 (비급여 제외 · 본부금 + 공단청구 / 원장님 직접 입력 우선, 미입력 시 기본 3.8만원)
@@ -1143,35 +1144,35 @@ export function evaluateDualTrackStats(
       currentValue: under65Rate,
       valueDisplay: knownAge === 0 ? "나이 미기입" : `65세↓ ${under65Rate}%`,
       targetValue: targetUnder65,
-      targetDisplay: `목표 고령 ${ageHealthyCap}%↓ (동네 ${regSenior}%)`,
+      targetDisplay: "목표 65세↓ 80%↑ (고령 20%↓)",
       gapDisplay:
         knownAge === 0
           ? "나이 입력 필요"
           : seniorRate <= ageHealthyCap
-          ? `동네대비 양호 (GDI ${gdi}배)`
+          ? `황금비율 (고령 ${seniorRate}%)`
           : `동네고령 ${regSenior}% · GDI ${gdi}배`,
       status: age65Status,
       conclusion:
         knownAge === 0
           ? "차트 연령(나이) 항목을 포함하세요"
           : seniorRate <= ageHealthyCap
-          ? "동네 인구 대비 청장년 비율 양호"
+          ? "65세↓ 80% 이상 황금 연령대 유지"
           : seniorRate <= ageWarningCap
           ? `2050 청장년 초진 +${needUnder65}명 보강 권장`
-          : "동네 대비 고령 편중 · 젊은 신환 유입 시급",
+          : "고령 30% 초과 위험 · 젊은 신환 유입 시급",
       modal: {
-        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
+        exactCounts: `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 참고: 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`,
         benchmarkReason:
-          `획일적인 절대 비율 대신 우리 동네(${demographic.regionName}) 실제 65세 이상 고령화율(${regSenior}%)을 기준으로 비교합니다. 동네 고령화율 이하(GDI 1.0배 이하)로 유지하면 베드 점유와 진료 활력이 균형 있게 유지됩니다.`,
+          `어느 상권이든 경영 건강도 절대 기준은 '65세 미만 80%↑ : 65세 이상 20%↓'입니다. 노인 인구가 많은 상권(${demographic.regionName} 고령 ${regSenior}%)일수록 자연 방치 시 노인 편중이 빨라지므로, 반경 3~5km 청장년 유입으로 20% 이하를 지켜내는 것이 핵심입니다.`,
         riskWarning:
-          "동네 평균보다 고령층 비중이 1.3배 이상 과도하게 치우치면 베드 점유율 편중으로 20~50대 신규 환자 유입이 위축될 수 있습니다.",
+          "초진 중 65세 이상이 30%를 넘으면 방문 빈도 승수 효과로 실제 대기실·치료베드의 60~70%가 노인정액제 환자로 채워져 젊은 고단가 신환이 이탈(구축 효과)합니다.",
         actionInstruction:
-          "순수초진의 65세 이상 비중이 동네 고령화율을 크게 상회한다면 야간/점심 직장인 추나·약침, 교통사고, 여성·소아 키워드 노출을 보강하세요.",
+          "순수초진의 65세 이상 비중이 20%를 초과한다면 야간/점심 직장인 추나·약침, 교통사고, 여성·소아 키워드 노출을 보강해 20~50대 신환 비율을 80% 선으로 맞추세요.",
         scriptExample:
           "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 피로회복 보약도 저녁 진료 시간에 편하게 예약해 주세요.\"",
         revenueImpactManwon: gainAge65Manwon,
         formulaNote:
-          "※ 65세 비율은 동네 고령화율 대비 환자층 건강도 진단 지표로 월 확정 기대매출 합산에서 제외",
+          "※ 65세 비율은 환자층 건강도·베드 활력 진단 지표로 월 확정 기대매출 합산에서 제외",
       },
     },
     {
