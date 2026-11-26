@@ -459,6 +459,7 @@ export interface FirstVisitWorkspace {
   ownerEmail: string;
   clinicName: string;
   directorName: string;
+  clinicOpenYear?: number | null;
   rows: FirstVisitRow[];
   uploadLogs: UploadHistoryLog[];
   lastDetectedEmr?: string;

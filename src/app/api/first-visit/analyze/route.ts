@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 [실측 집계 데이터]
 - 기간: ${analytics.periodLabel} / 총 ${analytics.totalPatients}명 (초진 ${analytics.firstVisitCount}명, 재초진 ${analytics.reFirstVisitCount}명)
 - 성별: 남성 ${maleCnt}명, 여성 ${femaleCnt}명 (미기입 ${Math.max(0, analytics.totalPatients - maleCnt - femaleCnt)}명)
-- 재내원: 2차 ${analytics.overallSecondVisitRate}% (${analytics.overallSecondVisitCount}명, 권장목표 80%↑), 3차 ${analytics.overallThirdVisitRate}% (${analytics.overallThirdVisitCount}명, 권장목표 70%↑ — 10명 중 타지역·1회성 3명 제외 7명 완주 기준), 다음예약 '유' ${analytics.overallReservationYesRate}% (권장목표 85%↑)
+- 재내원: 2차 ${analytics.overallSecondVisitRate}% (${analytics.overallSecondVisitCount}명, 권장목표 80%↑), 3차 ${analytics.overallThirdVisitRate}% (${analytics.overallThirdVisitCount}명, 권장목표 70%↑ — 10명 중 타지역·1회성 3명 제외 7명 완주 기준), 다음예약 '유' ${analytics.overallReservationYesRate}% (권장목표 85%↑), 권장 내원 주기: 첫 주는 매일 내원 → 둘째 주부터 주 3회 지속 (초진→2차 간격 중간값 2일 이내 권장)
 - 연령별 분포(권장목표: 65세 미만 80%↑ : 65세 이상 20%↓ 황금비율 / 1회 진료비 기준: 65세 미만 5만원, 65세 이상 2만원): ${JSON.stringify(analytics.ageDistribution)}
 - 내원경로 분포(기록 ${analytics.recordedRouteCount}명 / 미기재 ${analytics.missingRouteCount}명, 권장목표: 순수초진 중 소개 70% : 광고·간판·검색·블로그 외부 신규창출 30%): ${JSON.stringify(analytics.routeDistribution)}
 - 진료부위(증상군)별 인원 및 삼진율(권장목표: 부위별 3차 내원율 70%↑, 강점 질환 vs 조기이탈 취약 질환 구분 필수): ${JSON.stringify(analytics.symptomDistribution)}

@@ -61,10 +61,18 @@ export async function POST(req: NextRequest) {
       auth.directorName
     );
 
+    const parsedOpenYear =
+      body.clinicOpenYear === null
+        ? null
+        : typeof body.clinicOpenYear === "number" && Number.isFinite(body.clinicOpenYear)
+          ? Math.trunc(body.clinicOpenYear)
+          : existing.clinicOpenYear ?? null;
+
     const updated: FirstVisitWorkspace = {
       ownerEmail: auth.targetEmail,
       clinicName: body.clinicName || existing.clinicName || auth.clinicName,
       directorName: body.directorName || existing.directorName || auth.directorName,
+      clinicOpenYear: parsedOpenYear,
       rows: Array.isArray(body.rows) ? body.rows : existing.rows,
       uploadLogs: Array.isArray(body.uploadLogs) ? body.uploadLogs : existing.uploadLogs,
       lastDetectedEmr:

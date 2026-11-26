@@ -42,6 +42,9 @@ interface Props {
   onMonthChange?: (month: string) => void;
   availableMonths?: MonthScopeOption[];
   totalAllRowsCount?: number;
+  clinicOpenYear?: number | null;
+  workspaceOwnerEmail?: string;
+  onClinicOpenYearChange?: (year: number) => void;
 }
 
 export default function FirstVisitAiReportView({
@@ -58,6 +61,9 @@ export default function FirstVisitAiReportView({
   onMonthChange,
   availableMonths,
   totalAllRowsCount,
+  clinicOpenYear,
+  workspaceOwnerEmail,
+  onClinicOpenYearChange,
 }: Props) {
   const [internalTrack, setInternalTrack] = useState<FirstVisitTrack>("insurance");
   const activeTrack = controlledTrack ?? internalTrack;
@@ -95,6 +101,9 @@ export default function FirstVisitAiReportView({
         onMonthChange={onMonthChange}
         availableMonths={availableMonths}
         totalAllRowsCount={totalAllRowsCount}
+        clinicOpenYear={clinicOpenYear}
+        workspaceOwnerEmail={workspaceOwnerEmail}
+        onClinicOpenYearChange={onClinicOpenYearChange}
       />
 
       {/* 2. 심플 AI 핵심 결론 바 (글자 최소화 + ⓘ 아이콘 클릭 시 상세 컨설팅 모달) */}

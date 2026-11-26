@@ -47,6 +47,19 @@ export type RiskLevel = "HEALTHY" | "WARNING" | "CRITICAL" | "EMPTY";
 
 export type GrowthTier = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM" | "MASTER";
 
+export interface ModalVsComparison {
+  leftLabel: string;
+  leftValue: string;
+  leftSub: string;
+  leftPct?: number;
+  rightLabel: string;
+  rightValue: string;
+  rightSub: string;
+  rightPct?: number;
+  rightTone?: "danger" | "safe";
+  highlightBadge?: string;
+}
+
 export interface IndicatorModalDetail {
   exactCounts: string;           // 실제 분자/분모 집계 내역
   benchmarkReason: string;       // 1. 왜 이 기준점인가? (고정 설명 안내문)
@@ -54,10 +67,12 @@ export interface IndicatorModalDetail {
   riskLossBadge?: string;        // 2. 크게 표시할 핵심 마이너스 매출 또는 체감 위험 수치
   riskLossSub?: string;          // 2. 큰 수치 옆 보조 표기 (예: "(연 -360만 원)")
   riskLossTone?: "loss" | "cause" | "warn" | "safe"; // 2. 시각 강조 톤
+  vsComparison?: ModalVsComparison; // 2. 직관적 좌·우 VS 비교 카드 (예약 O vs X, 권장 vs 현재)
   riskWarning: string;           // 2. 한 문장 핵심 리스크 / 강점 요약
   actionTitle?: string;          // 3. 상황 맞춤 실전 멘트 제목
   actionInstruction: string;     // 최우선 미션 모달 연동용 실행 지시 (지표 팝업 3번에서는 실전 멘트만 표시)
-  scriptExample: string;         // 3. 현재 상황 맞춤 현장 실전 스크립트
+  avoidScript?: string;          // 3. 절대 피해야 할 금지 멘트 (❌)
+  scriptExample: string;         // 3. 현재 상황 맞춤 현장 실전 스크립트 (⭕)
   revenueImpactManwon: number;   // 상단 목표 도달 기대효과 집계용 (팝업 하단 산출식은 미표시)
   formulaNote?: string;          // 상단 기대효과 모달 산출식 연동용
 }
@@ -510,9 +525,9 @@ const CLINICAL_BODY_PARTS: ClinicalBodyPartDef[] = [
     dropoutReason:
       "스마트폰·PC·가사 등 일상 사용을 쉬지 못해 1~2회 치료 후 재자극이 오면 회복이 더디다고 느껴 이탈하기 쉽습니다.",
     prescriptionGuide:
-      "매일 쓰는 건초·힘줄 부위 특성을 설명하고, 사용량을 이기는 초기 3회 약침·테이핑 집중 주기를 이틀 간격으로 잡으세요.",
+      "매일 쓰는 건초·힘줄 부위 특성을 설명하고, 사용량을 이기는 첫 주 매일 약침·테이핑 집중 치료 후 둘째 주부터 주 3회 지속 주기를 안내하세요.",
     scriptExample:
-      "\"손목·팔꿈치는 매일 쓰시는 부위라 1회 치료만으론 사용량을 못 이깁니다. 처음 3회는 간격을 좁혀 염증부터 꺾어야 합니다.\"",
+      "\"손목·팔꿈치는 매일 쓰시는 부위라 1회 치료만으론 사용량을 못 이깁니다. 첫 주는 매일 오셔서 염증부터 꺾고, 둘째 주부터 주 3회로 지속할게요.\"",
   },
   {
     id: "neuro_head",
@@ -543,9 +558,9 @@ const CLINICAL_BODY_PARTS: ClinicalBodyPartDef[] = [
     dropoutReason:
       "급성 체기·코막힘이 1회 침·보험한약으로 호전되면 한의원 내과 진료를 1회성 응급처치로만 인식하고 재방문을 생략합니다.",
     prescriptionGuide:
-      "급성 증상 완화 후 위장 운동성·점막 면역 회복을 위해 3일치 보험/과립제 처방과 함께 3일 뒤 2·3차 경과 진료를 연결하세요.",
+      "급성 증상 완화 후 위장 운동성·점막 면역 회복을 위해 첫 주 매일 집중 치료 후 둘째 주부터 주 3회 지속 리듬으로 2·3차 경과 진료를 연결하세요.",
     scriptExample:
-      "\"오늘 급한 체기는 내렸지만 위장 운동이 아직 멈춰 있습니다. 3일치 약 드신 뒤 금요일에 맥과 복진 상태를 꼭 다시 봐야 합니다.\"",
+      "\"오늘 급한 증상은 내렸지만 위장·점막 기능이 아직 안정되지 않았습니다. 첫 주는 매일 경과를 보며 회복시키고, 둘째 주부터 주 3회로 지속할게요.\"",
   },
   {
     id: "herbal_diet",
@@ -571,9 +586,9 @@ const TRAFFIC_FALLBACK_DEF: ClinicalBodyPartDef = {
   dropoutReason:
     "사고 직후 통증이 경미하다고 방치하거나 초기 집중 치료 골든타임 안내 부족 시 조기 종결됩니다.",
   prescriptionGuide:
-    "편타성 손상은 사고 3~7일 뒤 어혈 통증이 본격화됨을 고지하고 첫 주 최소 3회 연속 내원 스케줄을 즉시 확정하세요.",
+    "편타성 손상은 사고 3~7일 뒤 어혈 통증이 본격화됨을 고지하고 첫 주 매일 연속 내원 후 둘째 주부터 주 3회 지속 스케줄을 즉시 확정하세요.",
   scriptExample:
-    "\"교통사고 긴장은 사흘 뒤부터 통증이 더 올라옵니다. 후유증이 남지 않게 이번 주 3회 연속 치료 일정을 먼저 잡겠습니다.\"",
+    "\"교통사고 긴장은 며칠 뒤부터 어혈 통증이 더 올라옵니다. 후유증이 남지 않게 첫 주는 매일 내원하시고, 둘째 주부터는 주 3회로 지속할게요.\"",
 };
 
 function classifyClinicalBodyParts(detail: string, insType: string): ClinicalBodyPartDef[] {
@@ -924,7 +939,8 @@ export function evaluateDualTrackStats(
       ? "WARNING"
       : "CRITICAL";
 
-  // 방문 간격(골든타임): 극단치(1~2명 지연)에 흔들리지 않도록 중앙값(Median) 기준 판정
+  // 방문 간격(골든타임): 첫 주 매일 내원 → 둘째 주부터 주 3회 지속 프로토콜 기준 (휴진일 감안 중간값 2일 이내 합격)
+  const GOLDEN_INTERVAL_TARGET_DAYS = 2.0;
   const sortedIntervals = [...intervals].sort((a, b) => a - b);
   const medianInterval =
     sortedIntervals.length > 0
@@ -945,9 +961,9 @@ export function evaluateDualTrackStats(
   const intervalStatus: RiskLevel =
     intervals.length === 0
       ? "EMPTY"
-      : medianInterval <= 4.5
+      : medianInterval <= GOLDEN_INTERVAL_TARGET_DAYS
       ? "HEALTHY"
-      : medianInterval <= 7.0
+      : medianInterval <= 4.0
       ? "WARNING"
       : "CRITICAL";
 
@@ -1130,9 +1146,9 @@ export function evaluateDualTrackStats(
         riskLossTone: "warn",
         riskWarning: "환자 시트를 업로드하면 1회 이탈로 발생하는 실시간 마이너스 매출을 자동 산출합니다.",
         actionTitle: "3. 실전 멘트",
-        actionInstruction: "초진 시트를 업로드한 뒤 초진 당일 2회차 예약 확정 현황을 점검하세요.",
+        actionInstruction: "초진 시트를 업로드한 뒤 '첫 주 매일 내원 → 둘째 주부터 주 3회 지속' 기준에 맞춰 초진 당일 2회차 예약 확정 현황을 점검하세요.",
         scriptExample:
-          "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 합니다.\"",
+          "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 효과를 이어가려면 첫 주는 매일 내원하시고 둘째 주부터 주 3회로 지속할게요. 내일 바로 오셔서 2단계 치료 이어가겠습니다.\"",
         revenueImpactManwon: gain2ndManwon,
         formulaNote,
       };
@@ -1160,7 +1176,7 @@ export function evaluateDualTrackStats(
     }
 
     const isDeskResvCause = resvNo > 0 && resvRate < targetResv;
-    const isIntervalCause = intervals.length > 0 && medianInterval > 4.5;
+    const isIntervalCause = intervals.length > 0 && medianInterval > GOLDEN_INTERVAL_TARGET_DAYS;
     const isNoShowCause = resvYes > 0 && resvRate >= targetResv;
 
     if (isDeskResvCause) {
@@ -1173,9 +1189,9 @@ export function evaluateDualTrackStats(
         riskLossTone: "loss",
         riskWarning: `목표 대비 ${need2nd}명이 1회 후 이탈했으며, 특히 미예약자 ${resvNo}명의 2차율이 ${resvLiftNo}%에 그쳐 데스크 예약 누락이 핵심 원인입니다.`,
         actionTitle: "3. 실전 멘트 — 데스크 예약 누락 차단",
-        actionInstruction: `예약 확정률(${resvRate}%)을 높이기 위해 원장님이 재내원일을 지정하고 데스크는 양자택일로 즉시 예약표를 잡으세요.`,
+        actionInstruction: `예약 확정률(${resvRate}%)을 높이기 위해 원장님이 '첫 주 매일 내원 · 둘째 주부터 주 3회' 주기를 지정하고 데스크는 내일 시간대 양자택일로 즉시 예약표를 잡으세요.`,
         scriptExample:
-          "\"오늘 급성 염증을 풀었고 3일 뒤 반응 확인이 꼭 필요합니다. 데스크에서 목요일 오전 11시와 오후 3시 중 편한 시간으로 바로 잡아드리고 가세요.\"",
+          "\"초기 집중 회복을 위해 첫 주는 매일 내원하시고 둘째 주부터는 주 3회로 지속할게요. 데스크에서 내일 오전 11시와 오후 3시 중 편한 시간으로 바로 예약하고 가세요.\"",
         revenueImpactManwon: gain2ndManwon,
         formulaNote,
       };
@@ -1189,11 +1205,11 @@ export function evaluateDualTrackStats(
         riskLossBadge: formatCashLossMain(gain2ndManwon),
         riskLossSub: formatCashLossSub(gain2ndManwon, "방어 완료"),
         riskLossTone: "loss",
-        riskWarning: `목표 대비 ${need2nd}명이 1회 후 이탈했으며, 초진→2차 간격이 중간값 ${medianInterval}일로 벌어져 치료 동기가 식은 상태입니다.`,
-        actionTitle: "3. 실전 멘트 — 2차 간격 3일 이내 단축",
-        actionInstruction: `초진→2차 간격(현재 ${medianInterval}일)을 4.5일 이내로 당겨 부족한 ${need2nd}명의 이탈을 차단하세요.`,
+        riskWarning: `목표 대비 ${need2nd}명이 1회 후 이탈했으며, 초진→2차 간격이 중간값 ${medianInterval}일로 벌어져 초기 집중 치료 동기가 식은 상태입니다.`,
+        actionTitle: "3. 실전 멘트 — 첫 주 매일 내원(2일 이내) 정착",
+        actionInstruction: `초진→2차 간격(현재 ${medianInterval}일)을 '첫 주 매일 내원 → 둘째 주부터 주 3회'(중간값 2일 이내)로 당겨 부족한 ${need2nd}명의 이탈을 차단하세요.`,
         scriptExample:
-          "\"첫 치료 후 3일이 넘어가면 뭉친 근육이 다시 원점으로 돌아갑니다. 이번 주 수요일이나 목요일 중에 꼭 한 번 더 오셔서 2단계 치료를 받으셔야 합니다.\"",
+          "\"첫 치료 효과가 빠지기 전에 연속 자극이 들어가야 회복이 빠릅니다. 첫 주는 매일 내원하시고 둘째 주부터는 주 3회로 지속할게요. 내일 바로 오셔서 2단계 치료 이어가겠습니다.\"",
         revenueImpactManwon: gain2ndManwon,
         formulaNote,
       };
@@ -1211,12 +1227,12 @@ export function evaluateDualTrackStats(
         : `현재 2차 재내원율 ${rate2nd}%로 목표 대비 ${need2nd}명이 1회 시술 후 이탈하며 '밑 빠진 독' 누수가 발생하고 있습니다.`,
       actionTitle: isNoShowCause
         ? "3. 실전 멘트 — 예약 후 노쇼 방어"
-        : "3. 실전 멘트 — 진료실 3회 원칙 선언",
+        : "3. 실전 멘트 — 진료실 첫 주 매일 내원 선언",
       actionInstruction: isNoShowCause
-        ? `예약 확정률(${resvRate}%) 대비 실제 내원이 낮으므로 초진 마지막 30초 의학적 명분 고지와 예약 전날 알림톡 리마인드를 가동하세요.`
-        : `초진 마지막 30초에 원장님이 '3회 집중 치료 원칙'을 선언하고 2~4일 내 2차 내원일을 확정해 부족한 ${need2nd}명을 안착시키세요.`,
+        ? `예약 확정률(${resvRate}%) 대비 실제 내원이 낮으므로 초진 마지막 30초 '첫 주 매일 · 둘째 주 주 3회' 의학적 명분 고지와 예약 전날 알림톡 리마인드를 가동하세요.`
+        : `초진 마지막 30초에 원장님이 '첫 주는 매일, 둘째 주부터는 주 3회' 치료 주기를 선언하고 내일(1~2일 내) 2차 내원일을 확정해 부족한 ${need2nd}명을 안착시키세요.`,
       scriptExample:
-        "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 재발을 막을 수 있습니다.\"",
+        "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 첫 주는 매일 오셔서 집중 치료하고 둘째 주부터는 주 3회로 지속해야 재발을 막을 수 있습니다. 내일 바로 뵙겠습니다.\"",
       revenueImpactManwon: gain2ndManwon,
       formulaNote,
     };
@@ -1318,13 +1334,13 @@ export function evaluateDualTrackStats(
     };
   })();
 
-  // [지표 3] 재내원 골든타임 — 원인 연동 핵심 수치 크게 + 1문장 + 실전 멘트
+  // [지표 3] 재내원 골든타임 — 첫 주 매일 내원 → 둘째 주부터 주 3회 지속 프로토콜 (초심플 VS 직관형)
   const intervalModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
-      "유난히 늦게 재방문한 1~2명 때문에 평균이 왜곡되지 않도록 '중간값(Median)'을 적용했습니다. 초진 후 3~4.5일 이내가 침·약침 자극 반응과 치료 동기가 살아있는 골든타임입니다.";
+      "첫 주는 매일 치료해 염증을 빠르게 꺾고, 둘째 주부터 주 3회로 유지해야 회복과 재방문이 안정됩니다. 휴진일을 감안해 초진→2차 간격 중간값 2일 이내가 골든타임입니다.";
     const exactCounts =
       intervals.length > 0
-        ? `2회 내원자 ${intervals.length}명의 1→2회 방문 간격 중간값 ${medianInterval}일 (산술평균 ${avgInterval}일)`
+        ? `2회 내원자 ${intervals.length}명의 1→2회 방문 간격 중간값 ${medianInterval}일 (평균 ${avgInterval}일)`
         : "아직 1회·2회 날짜가 모두 기입된 환자가 없습니다.";
 
     if (intervals.length === 0) {
@@ -1334,66 +1350,127 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 2회 방문일 집계 대기",
         riskLossBadge: "간격 데이터 대기",
         riskLossTone: "warn",
-        riskWarning: "1회·2회 방문 날짜가 누적되면 간격 지연에 따른 이탈 위험을 자동 진단합니다.",
-        actionTitle: "3. 실전 멘트",
-        actionInstruction: "초진 환자에게 무조건 2~4일 내 다음 내원 날짜를 먼저 제시하세요.",
+        riskWarning: "1회·2회 방문 날짜가 쌓이면 내원 간격 지연으로 인한 이탈 위험을 바로 진단합니다.",
+        actionTitle: "3. 진료실·데스크 바로 쓰는 한 줄 멘트",
+        actionInstruction: "초진 환자에게 '첫 주는 매일, 둘째 주부터 주 3회'를 안내하고 내일 2차 예약을 먼저 잡으세요.",
+        avoidScript: "\"며칠 쉬다가 3~4일 뒤에 시간 될 때 오세요.\"",
         scriptExample:
-          "\"초기 염증기에는 간격이 벌어지면 다시 원점으로 돌아갑니다. 이틀 뒤 수요일이나 목요일 중 언제가 괜찮으세요?\"",
+          "\"첫 주는 매일 오셔야 빨리 잡히고, 둘째 주부터는 주 3회로 이어갑니다. 내일 오전 11시와 오후 3시 중 언제가 편하세요?\"",
         revenueImpactManwon: 0,
       };
     }
 
-    if (medianInterval <= 4.5) {
+    if (medianInterval <= GOLDEN_INTERVAL_TARGET_DAYS) {
       return {
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 이탈 방어 현황",
-        riskLossBadge: "지연 손실 0원",
-        riskLossSub: `(중간값 ${medianInterval}일 합격)`,
+        riskLossBadge: "첫주 매일 내원 합격",
+        riskLossSub: `(중간값 ${medianInterval}일 · 지연 손실 0원)`,
         riskLossTone: "safe",
-        riskWarning: `초진→2차 간격 중간값이 ${medianInterval}일로 4.5일 골든타임 안에 완벽히 안착해 간격 이탈 위험이 없습니다.`,
-        actionTitle: "3. 실전 멘트 — 2→3차 연속 주기 유지",
-        actionInstruction: `초진→2차 간격(${medianInterval}일) 리듬을 2→3차에도 동일하게 유지해 3차 정착률을 70% 이상으로 고정하세요.`,
+        vsComparison: {
+          leftLabel: "권장 기준 (첫주 매일)",
+          leftValue: "2일 이내",
+          leftSub: "첫 주 매일 → 2주차 주 3회",
+          leftPct: 100,
+          rightLabel: "우리 병원 현재",
+          rightValue: `${medianInterval}일`,
+          rightSub: "초기 집중 골든타임 안착",
+          rightPct: 100,
+          rightTone: "safe",
+          highlightBadge: "골든타임 통과",
+        },
+        riskWarning: `초진 후 ${medianInterval}일 만에 바로 재방문하고 있어 초기 집중 리듬이 완벽합니다. 둘째 주부터 주 3회로 자연스럽게 이어가세요.`,
+        actionTitle: "3. 진료실·데스크 바로 쓰는 한 줄 멘트",
+        actionInstruction: `현재 리듬(${medianInterval}일)을 첫 주 내내 유지한 뒤, 둘째 주부터 주 3회로 이어가 3차 정착률을 70% 이상으로 고정하세요.`,
         scriptExample:
-          "\"3일 만에 바로 잘 오셔서 염증 반응이 확 가라앉았습니다. 이 흐름 놓치지 않게 3일 뒤 한 번 더 보고 안정화 마무리하겠습니다.\"",
+          "\"연이어 잘 오셔서 회복 속도가 아주 빠릅니다. 이번 첫 주는 매일 치료로 확실히 잡고, 둘째 주부터 주 3회로 편하게 이어갈게요.\"",
         revenueImpactManwon: 0,
       };
     }
 
-    const delayDays = (medianInterval - 4.5).toFixed(1);
-    const isSevereDelay = medianInterval > 7.0;
+    const delayDays = (medianInterval - GOLDEN_INTERVAL_TARGET_DAYS).toFixed(1);
+    const isSevereDelay = medianInterval > 4.0;
+    const currentBarPct = Math.max(
+      14,
+      Math.min(82, Math.round((GOLDEN_INTERVAL_TARGET_DAYS / Math.max(1, medianInterval)) * 100))
+    );
     return {
       exactCounts,
       benchmarkReason,
-      riskTitle: "2. 기준 미달 시 경영 리스크 (2·3차 누수 원인)",
-      riskLossBadge:
-        totalRetentionLossManwon > 0
-          ? "2·3차 누수 직접 원인"
-          : `+${delayDays}일 지연 (이탈위험 2.4배)`,
+      riskTitle: "2. 내원 간격이 벌어지면 환자가 이렇게 식습니다",
+      riskLossBadge: `목표보다 +${delayDays}일 지연 내원`,
       riskLossSub:
         totalRetentionLossManwon > 0
-          ? `(+${delayDays}일 지연 · 2·3차 -${totalRetentionLossManwon.toLocaleString()}만 원에 포함)`
-          : `(중간값 ${medianInterval}일)`,
-      riskLossTone: "cause",
-      riskWarning: `초진→2차 간격이 중간값 ${medianInterval}일로 골든타임보다 ${delayDays}일 지연돼 환자의 치료 의지가 식으며 노쇼·이탈 위험이 2.4배 높아졌습니다.`,
-      actionTitle: isSevereDelay
-        ? "3. 실전 멘트 — '1주일 뒤' 관행 폐기"
-        : "3. 실전 멘트 — 2차 예약일 1~2일 단축",
-      actionInstruction: isSevereDelay
-        ? `현재 재방문 간격(${medianInterval}일)이 '1주일 뒤' 패턴으로 굳어졌으므로 진료실과 데스크 모두 2~3일 뒤 날짜만 먼저 제시하세요.`
-        : `목표(4.5일)보다 ${delayDays}일만 당기면 합격이므로 수납 시 이번 주 내(3~4일 뒤) 두 시간대를 먼저 제안하세요.`,
-      scriptExample: isSevereDelay
-        ? "\"일주일 뒤에 오시면 침 효과가 다 빠져 처음부터 다시 시작해야 합니다. 효과를 이어가려면 모레나 글피 중 꼭 한 번 들르셔야 합니다.\""
-        : "\"초기 염증기에는 3~4일 안에 한 번 더 자극이 들어가야 회복이 두 배 빠릅니다. 이번 주 목요일 오후나 금요일 오전 중 언제가 편하세요?\"",
+          ? `(현재 ${medianInterval}일 · 2·3차 손실 -${totalRetentionLossManwon.toLocaleString()}만 원 연관)`
+          : `(중간값 ${medianInterval}일 · 이탈위험 2.4배)`,
+      riskLossTone: "loss",
+      vsComparison: {
+        leftLabel: "권장 기준 (첫주 매일)",
+        leftValue: "2일 이내",
+        leftSub: "첫 주 매일 → 둘째 주 주 3회",
+        leftPct: 100,
+        rightLabel: "우리 병원 현재",
+        rightValue: `${medianInterval}일 뒤`,
+        rightSub: isSevereDelay
+          ? "효과가 다 빠져 처음부터 다시 시작"
+          : `기준보다 +${delayDays}일 벌어져 이탈 위험↑`,
+        rightPct: currentBarPct,
+        rightTone: "danger",
+        highlightBadge: `+${delayDays}일 지연`,
+      },
+      riskWarning: `초진 후 ${medianInterval}일 뒤에야 다시 오고 있습니다. 간격이 벌어지면 통증이 다시 올라와 치료 의지가 식고 그대로 이탈합니다.`,
+      actionTitle: "3. 진료실·데스크 바로 쓰는 한 줄 멘트",
+      actionInstruction: `현재 간격(${medianInterval}일)을 '첫 주 매일 · 둘째 주 주 3회'(2일 이내)로 당기기 위해 수납 시 내일 두 시간대를 먼저 제시하세요.`,
+      avoidScript: isSevereDelay
+        ? "\"며칠 지켜보시다가 다음 주에 한 번 더 오세요.\""
+        : "\"3~4일 뒤에 시간 되실 때 한 번 더 들르세요.\"",
+      scriptExample:
+        "\"첫 주는 매일 오셔야 염증이 빨리 잡히고, 둘째 주부터는 주 3회로 지속할게요. 내일 오전 11시와 오후 3시 중 언제가 편하세요?\"",
       revenueImpactManwon: 0,
     };
   })();
 
-  // [지표 4] 다음 예약 확정률 — 원인 연동 핵심 수치 크게 + 1문장 + 실전 멘트
+  // [지표 4] 다음 예약 확정률 — 직관적 예약 O/X 비교 + 증발 인원 경고 + ❌/⭕ 초심플 멘트
   const reservationModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
-      "행동경제학 디폴트 효과(Default Effect)에 따라, 수납 시 다음 예약 시간을 확정하는 것만으로 2차 내원율이 평균 2~3배 상승합니다.";
-    const exactCounts = `예약 '유' ${resvYes}명 (2차 내원율 ${resvLiftYes}%) vs 예약 '무' ${resvNo}명 (2차 내원율 ${resvLiftNo}%)`;
+      "환자는 병원을 나서는 순간 바쁜 일상에 치여 재방문을 미룹니다. 수납할 때 다음 예약 시간만 바로 잡아도 재방문율이 평균 2~3배 뛰어오릅니다.";
+    const exactCounts = `예약 O ${resvYes}명 (재방문 ${resvLiftYes}%) vs 예약 X ${resvNo}명 (재방문 ${resvLiftNo}%)`;
+
+    const resvNoLost = Math.max(0, resvNo - resvNo2nd);
+    const hasBothGroups = resvYes > 0 && resvNo > 0;
+    const liftRatio =
+      hasBothGroups && resvLiftNo > 0
+        ? Number((resvLiftYes / resvLiftNo).toFixed(1))
+        : 0;
+    const yesOutOf10 = Math.round(resvLiftYes / 10);
+    const noLostOutOf10 = Math.max(0, 10 - Math.round(resvLiftNo / 10));
+
+    const buildResvComparison = (isSafe: boolean): ModalVsComparison | undefined => {
+      if (!hasBothGroups) return undefined;
+      return {
+        leftLabel: "예약 잡고 귀가",
+        leftValue: `${resvLiftYes}%`,
+        leftSub: `${resvYes}명 중 ${resvYes2nd}명 재방문 (10명 중 ${yesOutOf10}명)`,
+        leftPct: Math.min(100, Math.max(6, resvLiftYes)),
+        rightLabel: "예약 없이 귀가",
+        rightValue: `${resvLiftNo}%`,
+        rightSub:
+          resvNoLost > 0
+            ? `${resvNo}명 중 ${resvNoLost}명 사라짐 (10명 중 ${noLostOutOf10}명 이탈)`
+            : `${resvNo}명 중 ${resvNo2nd}명 재방문`,
+        rightPct: Math.min(100, Math.max(6, resvLiftNo)),
+        rightTone: isSafe && resvLiftNo >= 70 ? "safe" : "danger",
+        highlightBadge:
+          liftRatio >= 1.2
+            ? `재방문 ${liftRatio}배 추락`
+            : resvLiftNo === 0 && resvLiftYes > 0
+            ? "미예약 전원 증발"
+            : resvLiftGap > 0
+            ? `-${resvLiftGap.toFixed(1)}%p 추락`
+            : undefined,
+      };
+    };
 
     if (totalPatients === 0) {
       return {
@@ -1402,11 +1479,12 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 예약 데이터 집계 대기",
         riskLossBadge: "예약 유/무 대기",
         riskLossTone: "warn",
-        riskWarning: "시트에 다음 예약 유/무가 기록되면 미예약 이탈 격차를 자동 분석합니다.",
-        actionTitle: "3. 실전 멘트",
-        actionInstruction: "수납 시 다음 예약 유/무를 빠짐없이 기록하고 양자택일 예약을 적용하세요.",
+        riskWarning: "시트에 예약 유/무가 쌓이면 예약 없이 귀가한 환자가 얼마나 사라지는지 바로 보여줍니다.",
+        actionTitle: "3. 데스크 바로 쓰는 한 줄 멘트",
+        actionInstruction: "수납 시 예약 유/무를 빠짐없이 기록하고, 내일 오전/오후 둘 중 하나를 고르게 하세요.",
+        avoidScript: "\"다음에 시간 되실 때 예약하고 오세요~\" / \"예약 잡아드릴까요?\"",
         scriptExample:
-          "\"원장님께서 금요일쯤 경과 체크 말씀하셨는데, 오전 11시와 오후 3시 중 어느 시간이 편하실까요?\"",
+          "\"원장님께서 첫 주는 매일 오셔야 빨리 낫는다고 하셨어요. 내일 오전 11시와 오후 3시 중 언제가 편하세요?\"",
         revenueImpactManwon: 0,
       };
     }
@@ -1416,47 +1494,71 @@ export function evaluateDualTrackStats(
       return {
         exactCounts,
         benchmarkReason,
-        riskTitle: isNoShowIssue ? "2. 예약은 양호하나 노쇼 주의" : "2. 현재 강점 및 예약 방어 현황",
-        riskLossBadge: isNoShowIssue ? `2차율 ${rate2nd}% 노쇼 주의` : "미예약 손실 0원",
-        riskLossSub: isNoShowIssue ? `(예약 ${resvRate}% 합격)` : `(예약 ${resvRate}% 합격)`,
+        riskTitle: isNoShowIssue ? "2. 예약은 잘 잡았는데 노쇼가 많습니다" : "2. 예약이 환자 이탈을 막아주고 있습니다",
+        riskLossBadge: isNoShowIssue ? `예약 후 미방문 주의 (2차율 ${rate2nd}%)` : `예약 확정률 ${resvRate}% 합격`,
+        riskLossSub: isNoShowIssue ? `(예약률 ${resvRate}% · 전날 알림톡 필수)` : `(목표 ${targetResv}% 방어 완료)`,
         riskLossTone: isNoShowIssue ? "warn" : "safe",
+        vsComparison: buildResvComparison(!isNoShowIssue),
         riskWarning: isNoShowIssue
-          ? `데스크 예약률(${resvRate}%)은 합격이나 실제 2차 내원율이 ${rate2nd}%에 그쳐 예약 후 노쇼·취소가 발생하고 있습니다.`
-          : `다음 예약 확정률 ${resvRate}%로 데스크 예약 클로징이 목표(85%)를 안정적으로 방어하고 있습니다.`,
+          ? `예약은 ${resvRate}%로 잘 잡았지만 실제 2차 내원이 ${rate2nd}%에 그쳤습니다. 예약 전날 리마인드 톡으로 노쇼만 막아도 바로 회복됩니다.`
+          : `환자 10명 중 ${Math.round(resvRate / 10)}명이 다음 시간을 확정하고 귀가해 이탈 손실을 탄탄하게 막고 있습니다.`,
         actionTitle: isNoShowIssue
-          ? "3. 실전 멘트 — 예약 후 노쇼 방어"
-          : "3. 실전 멘트 — 2→3회차 연속 예약",
+          ? "3. 노쇼 막는 바로 쓰는 한 줄 멘트"
+          : "3. 2회→3회 연속 예약 한 줄 멘트",
         actionInstruction: isNoShowIssue
-          ? "예약 전날 알림톡 리마인드 발송과 진료실에서의 '2회차 필수 이유' 설명을 보강해 예약 노쇼를 막으세요."
-          : "초진 데스크 양자택일 예약 루틴을 2회차 수납 시에도 동일하게 적용해 3회 완주까지 연결하세요.",
+          ? "예약 전날 확인 알림톡 발송과 진료실에서의 '첫 주 매일 · 둘째 주 주 3회' 이유 설명을 보강하세요."
+          : "초진 수납 예약 루틴을 2회차 수납 시에도 그대로 이어가 첫 주 매일 내원과 둘째 주 주 3회까지 안착시키세요.",
+        avoidScript: isNoShowIssue
+          ? "\"예약해 드렸으니 잊지 말고 오세요~\" (확인 안내 없이 종료)"
+          : "\"다음 예약은 어떻게 하실래요?\"",
         scriptExample: isNoShowIssue
-          ? "\"예약해 드린 목요일 오후 3시 전날에 확인 알림톡을 보내드립니다. 혹시 시간 변동 생기시면 미리 톡 주시면 바로 조정해 드릴게요.\""
-          : "\"오늘 2회차 치료 잘 받으셨습니다. 마지막 3회차 안정화 예약도 월요일 오전과 화요일 오후 중 편한 시간으로 미리 잡아드릴까요?\"",
+          ? "\"내일 오후 3시 예약 전에 확인 톡 보내드릴게요. 혹시 시간 바뀌시면 미리 톡 주시면 바로 맞춰드릴게요.\""
+          : "\"오늘 2회차 잘 받으셨어요. 첫 주 매일 일정에 맞춰 내일 오전 11시와 오후 3시 중 편한 시간으로 바로 잡아드릴까요?\"",
         revenueImpactManwon: 0,
       };
     }
 
+    const headlineBadge =
+      resvNo > 0 && resvNoLost > 0
+        ? `미예약 ${resvNo}명 중 ${resvNoLost}명 증발`
+        : `미예약 ${resvNo}명 이탈 위험`;
+
+    const headlineSub =
+      liftRatio >= 1.2
+        ? `(재방문율 ${liftRatio}배 추락${
+            totalRetentionLossManwon > 0
+              ? ` · 2·3차 손실 -${totalRetentionLossManwon.toLocaleString()}만 원 연관`
+              : ""
+          })`
+        : resvNo > 0 && resvLiftNo === 0 && resvLiftYes > 0
+        ? `(미예약자 재방문 0%${
+            totalRetentionLossManwon > 0
+              ? ` · 2·3차 손실 -${totalRetentionLossManwon.toLocaleString()}만 원 연관`
+              : ""
+          })`
+        : `(예약 확정률 ${resvRate}% / 목표 ${targetResv}%)`;
+
+    const simpleWarning =
+      hasBothGroups && liftRatio >= 1.2
+        ? `예약을 잡느냐 안 잡느냐만으로 재방문이 ${liftRatio}배 차이 납니다. 예약 없이 보낸 ${resvNo}명 중 ${resvNoLost}명이 그대로 사라졌습니다.`
+        : resvNo > 0 && resvNoLost > 0
+        ? `예약 없이 귀가한 ${resvNo}명 중 ${resvNoLost}명이 다시 안 왔습니다. 수납할 때 시간만 먼저 잡아도 대부분 돌아옵니다.`
+        : `예약을 안 잡고 귀가하면 일상에 치여 재방문을 잊습니다. 데스크에서 내일 시간부터 바로 잡아야 합니다.`;
+
     return {
       exactCounts,
       benchmarkReason,
-      riskTitle: "2. 기준 미달 시 경영 리스크 (2·3차 누수 원인)",
-      riskLossBadge:
-        totalRetentionLossManwon > 0 ? "2·3차 누수 직접 원인" : `미예약 ${needResv}명 이탈 위험`,
-      riskLossSub:
-        totalRetentionLossManwon > 0
-          ? `(미예약 ${resvNo}명 · 2·3차 -${totalRetentionLossManwon.toLocaleString()}만 원에 포함)`
-          : `(예약 확정률 ${resvRate}%)`,
-      riskLossTone: "cause",
-      riskWarning: `미예약 귀가자 ${resvNo}명이 일상 복귀 후 재방문을 미루며 이탈${
-        resvLiftGap > 0 ? `(예약 '유' 2차율 ${resvLiftYes}% vs '무' ${resvLiftNo}%)` : ""
-      }해 2·3차 누수를 유발하고 있습니다.`,
-      actionTitle:
-        resvRate < 65
-          ? "3. 실전 멘트 — 수납 양자택일 즉시 교체"
-          : `3. 실전 멘트 — 미예약 ${needResv}명 예약 클로징`,
-      actionInstruction: `미예약자 ${resvNo}명을 줄이기 위해 '예약하시겠어요?' 질문을 금지하고 오전/오후 양자택일로 즉시 예약하세요.`,
+      riskTitle: "2. 예약 안 잡으면 환자가 이렇게 사라집니다",
+      riskLossBadge: headlineBadge,
+      riskLossSub: headlineSub,
+      riskLossTone: "loss",
+      vsComparison: buildResvComparison(false),
+      riskWarning: simpleWarning,
+      actionTitle: "3. 데스크 바로 쓰는 한 줄 멘트",
+      actionInstruction: `미예약 ${resvNo}명 이탈을 막기 위해 '예약하실래요?' 질문을 금지하고, 내일 오전/오후 둘 중 하나를 고르게 하세요.`,
+      avoidScript: "\"다음에 시간 되실 때 예약하고 오세요~\" / \"예약 잡아드릴까요?\"",
       scriptExample:
-        "\"원장님께서 3일 뒤 목요일에 경과 꼭 보자고 하셨는데, 오전 11시와 오후 3시 중 어느 시간이 더 편하실까요?\"",
+        "\"원장님께서 첫 주는 매일 오셔야 빨리 낫는다고 하셨어요. 내일 오전 11시와 오후 3시 중 언제가 편하세요?\"",
       revenueImpactManwon: 0,
     };
   })();
@@ -1893,24 +1995,27 @@ export function evaluateDualTrackStats(
       subMetric: intervals.length > 0 ? `${intervals.length}명 중간값` : "2회일 필요",
       currentValue:
         intervals.length > 0
-          ? Math.max(10, Math.min(100, Math.round((4.5 / Math.max(1, medianInterval)) * 75)))
+          ? Math.max(
+              10,
+              Math.min(100, Math.round((GOLDEN_INTERVAL_TARGET_DAYS / Math.max(1, medianInterval)) * 75))
+            )
           : 0,
       valueDisplay: intervals.length > 0 ? `${medianInterval}일` : "-",
       targetValue: 75,
-      targetDisplay: "중간값 4.5일 이내",
+      targetDisplay: "첫주 매일 (2일 이내)",
       gapDisplay:
         intervals.length === 0
           ? "재내원 집계전"
-          : medianInterval <= 4.5
+          : medianInterval <= GOLDEN_INTERVAL_TARGET_DAYS
           ? "골든타임 합격"
-          : `+${(medianInterval - 4.5).toFixed(1)}일 지연`,
+          : `+${(medianInterval - GOLDEN_INTERVAL_TARGET_DAYS).toFixed(1)}일 지연`,
       status: intervalStatus,
       conclusion:
         intervals.length === 0
           ? "2회 방문일 누적 시 자동 산출"
-          : medianInterval <= 4.5
-          ? "초기 집중 치료 주기 이상적"
-          : "초진 후 3일 이내 2차 예약 당기기",
+          : medianInterval <= GOLDEN_INTERVAL_TARGET_DAYS
+          ? "첫주 매일 · 2주차 주3회 이상적"
+          : "첫주 매일 내원(내일 예약) 유도",
       modal: intervalModal,
     },
     {

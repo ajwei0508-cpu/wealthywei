@@ -360,6 +360,32 @@ function FirstVisitSystemContent() {
       ? `?viewAs=${encodeURIComponent(activeTargetEmail)}`
       : "";
 
+  const handleSaveClinicOpenYear = async (yearNum: number) => {
+    setWorkspace((prev) => (prev ? { ...prev, clinicOpenYear: yearNum } : prev));
+    try {
+      const res = await fetch(`/api/first-visit${buildQuerySuffix()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clinicOpenYear: yearNum }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "개원 연도 저장 실패");
+      }
+      const saved = await res.json();
+      if (saved?.workspace) {
+        setWorkspace((prev) =>
+          prev
+            ? { ...prev, clinicOpenYear: saved.workspace.clinicOpenYear ?? yearNum }
+            : saved.workspace
+        );
+      }
+    } catch (err: any) {
+      console.error("Clinic open year save error:", err);
+      toast.error("개원 연도 서버 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
+
   // Save Workspace Handler
   const handleSaveWorkspace = async (
     customRows?: FirstVisitRow[],
@@ -408,6 +434,9 @@ function FirstVisitSystemContent() {
           uploadLogs: payloadLogs,
           lastDetectedEmr: customEmr ?? workspace?.lastDetectedEmr,
           aiReport: workspace?.aiReport ?? null,
+          ...(workspace?.clinicOpenYear !== undefined
+            ? { clinicOpenYear: workspace.clinicOpenYear }
+            : {}),
         }),
       });
       if (!res.ok) {
@@ -2203,6 +2232,9 @@ function FirstVisitSystemContent() {
             onMonthChange={setSelectedMonth}
             availableMonths={availableMonthOptions}
             totalAllRowsCount={rows.length}
+            clinicOpenYear={workspace?.clinicOpenYear ?? null}
+            workspaceOwnerEmail={workspace?.ownerEmail || activeTargetEmail}
+            onClinicOpenYearChange={handleSaveClinicOpenYear}
           />
         ) : (
           /* 업로드 이력 탭 */

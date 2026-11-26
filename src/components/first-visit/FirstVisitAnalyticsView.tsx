@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   MapPin,
   CheckCircle2,
@@ -69,6 +69,9 @@ interface FirstVisitAnalyticsViewProps {
   onMonthChange?: (month: string) => void;
   availableMonths?: MonthScopeOption[];
   totalAllRowsCount?: number;
+  clinicOpenYear?: number | null;
+  workspaceOwnerEmail?: string;
+  onClinicOpenYearChange?: (year: number) => void;
 }
 
 type ModalPayload =
@@ -89,6 +92,9 @@ export default function FirstVisitAnalyticsView({
   onMonthChange,
   availableMonths: controlledMonths,
   totalAllRowsCount,
+  clinicOpenYear,
+  workspaceOwnerEmail,
+  onClinicOpenYearChange,
 }: FirstVisitAnalyticsViewProps) {
   const [internalTrack, setInternalTrack] = useState<FirstVisitTrack>("insurance");
   const track = controlledTrack ?? internalTrack;
@@ -162,7 +168,7 @@ export default function FirstVisitAnalyticsView({
     DEFAULT_INSURANCE_SIM_SETTINGS
   );
 
-  // 한의원 개원 연도 상태 (미입력 시 연차 연동 지표 계산불가 + 필수 입력 경고창 표시)
+  // 한의원 개원 연도 상태 (한 번 입력 시 수동 변경 전까지 서버 + 브라우저 자동 영구 저장)
   const currentCalendarYear = new Date().getFullYear();
   const [openYear, setOpenYear] = useState<number | null>(null);
   const [openYearInput, setOpenYearInput] = useState<string>("");
@@ -171,10 +177,18 @@ export default function FirstVisitAnalyticsView({
   const [openYearHydrated, setOpenYearHydrated] = useState<boolean>(false);
   const [openYearModalForceOpen, setOpenYearModalForceOpen] = useState<boolean>(false);
 
+  const openYearStorageKey = workspaceOwnerEmail
+    ? `barun_fv_open_year:${workspaceOwnerEmail.toLowerCase().trim()}`
+    : "barun_fv_open_year";
+  const onClinicOpenYearChangeRef = useRef(onClinicOpenYearChange);
+  useEffect(() => {
+    onClinicOpenYearChangeRef.current = onClinicOpenYearChange;
+  }, [onClinicOpenYearChange]);
+
   // 아이콘(ⓘ) 클릭 시 열리는 상세 설명 모달 상태
   const [activeModal, setActiveModal] = useState<ModalPayload | null>(null);
 
-  // 성별 수동 보정값 & 보험 평균 객단가 & 시뮬레이션 세부설정 & 개원 연도 로컬 저장소 복원
+  // 성별 수동 보정값 & 보험 평균 객단가 & 시뮬레이션 세부설정 로컬 저장소 복원
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -224,20 +238,63 @@ export default function FirstVisitAnalyticsView({
           }));
         }
       }
-      const savedOpenYear = localStorage.getItem("barun_fv_open_year");
-      if (savedOpenYear) {
-        const parsedYear = parseInt(savedOpenYear, 10);
-        if (computeClinicYearsActive(parsedYear, currentCalendarYear) !== null) {
-          setOpenYear(parsedYear);
-          setOpenYearInput(String(parsedYear));
-          setOpenYearModalInput(String(parsedYear));
+    } catch {}
+  }, []);
+
+  // 개원 연도 자동 복원 및 서버 영구 동기화 (서버 우선 -> 계정별 로컬 -> 기존 로컬 마이그레이션)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (
+        typeof clinicOpenYear === "number" &&
+        computeClinicYearsActive(clinicOpenYear, currentCalendarYear) !== null
+      ) {
+        setOpenYear(clinicOpenYear);
+        setOpenYearInput(String(clinicOpenYear));
+        setOpenYearModalInput(String(clinicOpenYear));
+        localStorage.setItem(openYearStorageKey, String(clinicOpenYear));
+        setOpenYearHydrated(true);
+        return;
+      }
+
+      let restoredYear: number | null = null;
+      const scopedSaved = localStorage.getItem(openYearStorageKey);
+      if (scopedSaved) {
+        const parsed = parseInt(scopedSaved, 10);
+        if (computeClinicYearsActive(parsed, currentCalendarYear) !== null) {
+          restoredYear = parsed;
         }
+      }
+
+      if (restoredYear === null && openYearStorageKey !== "barun_fv_open_year") {
+        const alreadyMigrated = localStorage.getItem("barun_fv_open_year_migrated");
+        const legacySaved = localStorage.getItem("barun_fv_open_year");
+        if (!alreadyMigrated && legacySaved) {
+          const parsed = parseInt(legacySaved, 10);
+          if (computeClinicYearsActive(parsed, currentCalendarYear) !== null) {
+            restoredYear = parsed;
+            localStorage.setItem(openYearStorageKey, String(parsed));
+            localStorage.setItem("barun_fv_open_year_migrated", "1");
+          }
+        }
+      }
+
+      if (restoredYear !== null) {
+        setOpenYear(restoredYear);
+        setOpenYearInput(String(restoredYear));
+        setOpenYearModalInput(String(restoredYear));
+        // 서버 워크스페이스에도 자동 백업하여 다른 PC/브라우저에서도 영구 유지
+        onClinicOpenYearChangeRef.current?.(restoredYear);
+      } else {
+        setOpenYear(null);
+        setOpenYearInput("");
+        setOpenYearModalInput("");
       }
     } catch {
     } finally {
       setOpenYearHydrated(true);
     }
-  }, [currentCalendarYear]);
+  }, [clinicOpenYear, openYearStorageKey, currentCalendarYear]);
 
   const applyOpenYear = (yearNum: number, showToast = true) => {
     const yrs = computeClinicYearsActive(yearNum, currentCalendarYear);
@@ -249,11 +306,15 @@ export default function FirstVisitAnalyticsView({
     setOpenYearModalError("");
     setOpenYearModalForceOpen(false);
     if (typeof window !== "undefined") {
-      localStorage.setItem("barun_fv_open_year", String(yearNum));
+      localStorage.setItem(openYearStorageKey, String(yearNum));
+      if (openYearStorageKey === "barun_fv_open_year") {
+        localStorage.setItem("barun_fv_open_year", String(yearNum));
+      }
     }
+    onClinicOpenYearChangeRef.current?.(yearNum);
     if (showToast) {
       toast.success(
-        `${yearNum}년 개원 (${yrs}년 차 · ${stage?.shortStageLabel ?? ""}) 기준이 적용되었습니다.`
+        `${yearNum}년 개원 (${yrs}년 차 · ${stage?.shortStageLabel ?? ""}) 기준이 자동 저장되었습니다.`
       );
     }
   };
@@ -273,21 +334,11 @@ export default function FirstVisitAnalyticsView({
 
   const handleTopOpenYearBlur = () => {
     const trimmed = openYearInput.trim();
-    if (trimmed === "") {
-      if (openYear !== null) {
-        setOpenYear(null);
-        setOpenYearModalInput("");
-        setOpenYearModalError("");
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("barun_fv_open_year");
-        }
-      }
-      return;
-    }
     const parsed = parseInt(trimmed, 10);
     if (trimmed.length === 4 && computeClinicYearsActive(parsed, currentCalendarYear) !== null) {
       if (parsed !== openYear) applyOpenYear(parsed, true);
     } else {
+      // 한 번 저장된 개원 연도는 수동으로 유효한 4자리 연도로 변경하기 전까지 유지
       setOpenYearInput(openYear !== null ? String(openYear) : "");
     }
   };
@@ -1486,17 +1537,139 @@ export default function FirstVisitAnalyticsView({
                         )}
                       </div>
                     )}
-                    <p className="text-xs text-[#374151] leading-relaxed">
+                    {activeModal.item.modal.vsComparison && (
+                      <div className="relative grid grid-cols-2 gap-2.5 my-3">
+                        {/* 좌측: 긍정/기준 카드 */}
+                        <div className="p-3 rounded-xl bg-white border border-[#C6DFCE] shadow-2xs flex flex-col justify-between">
+                          <div className="flex items-center gap-1 text-[11px] font-extrabold text-[#0F5132]">
+                            <span>✅</span>
+                            <span className="truncate">{activeModal.item.modal.vsComparison.leftLabel}</span>
+                          </div>
+                          <div className="text-2xl font-black text-[#0F5132] tracking-tight mt-1">
+                            {activeModal.item.modal.vsComparison.leftValue}
+                          </div>
+                          {typeof activeModal.item.modal.vsComparison.leftPct === "number" && (
+                            <div className="h-1.5 w-full rounded-full bg-[#E5F2EA] overflow-hidden my-1.5">
+                              <div
+                                className="h-full rounded-full bg-[#0F5132] transition-all duration-500"
+                                style={{ width: `${activeModal.item.modal.vsComparison.leftPct}%` }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-[11px] font-bold text-[#374151] leading-snug">
+                            {activeModal.item.modal.vsComparison.leftSub}
+                          </p>
+                        </div>
+
+                        {/* 중앙 VS 배지 */}
+                        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-[#111111] text-white text-[10px] font-black flex items-center justify-center shadow-sm ring-2 ring-white">
+                          VS
+                        </div>
+
+                        {/* 우측: 경고/현재 카드 */}
+                        <div
+                          className={`p-3 rounded-xl bg-white border shadow-2xs flex flex-col justify-between ${
+                            activeModal.item.modal.vsComparison.rightTone === "safe"
+                              ? "border-[#C6DFCE]"
+                              : "border-[#FCA5A5]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span
+                              className={`flex items-center gap-1 text-[11px] font-extrabold truncate ${
+                                activeModal.item.modal.vsComparison.rightTone === "safe"
+                                  ? "text-[#0F5132]"
+                                  : "text-[#B91C1C]"
+                              }`}
+                            >
+                              <span>
+                                {activeModal.item.modal.vsComparison.rightTone === "safe" ? "✅" : "🚨"}
+                              </span>
+                              <span className="truncate">
+                                {activeModal.item.modal.vsComparison.rightLabel}
+                              </span>
+                            </span>
+                            {activeModal.item.modal.vsComparison.highlightBadge && (
+                              <span
+                                className={`px-1.5 py-0.5 rounded-md text-[10px] font-black shrink-0 ${
+                                  activeModal.item.modal.vsComparison.rightTone === "safe"
+                                    ? "bg-[#ECFDF5] text-[#0F5132]"
+                                    : "bg-[#FEE2E2] text-[#DC2626]"
+                                }`}
+                              >
+                                {activeModal.item.modal.vsComparison.highlightBadge}
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className={`text-2xl font-black tracking-tight mt-1 ${
+                              activeModal.item.modal.vsComparison.rightTone === "safe"
+                                ? "text-[#0F5132]"
+                                : "text-[#DC2626]"
+                            }`}
+                          >
+                            {activeModal.item.modal.vsComparison.rightValue}
+                          </div>
+                          {typeof activeModal.item.modal.vsComparison.rightPct === "number" && (
+                            <div
+                              className={`h-1.5 w-full rounded-full overflow-hidden my-1.5 ${
+                                activeModal.item.modal.vsComparison.rightTone === "safe"
+                                  ? "bg-[#E5F2EA]"
+                                  : "bg-[#FEE2E2]"
+                              }`}
+                            >
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  activeModal.item.modal.vsComparison.rightTone === "safe"
+                                    ? "bg-[#0F5132]"
+                                    : "bg-[#DC2626]"
+                                }`}
+                                style={{ width: `${activeModal.item.modal.vsComparison.rightPct}%` }}
+                              />
+                            </div>
+                          )}
+                          <p
+                            className={`text-[11px] font-bold leading-snug ${
+                              activeModal.item.modal.vsComparison.rightTone === "safe"
+                                ? "text-[#374151]"
+                                : "text-[#991B1B]"
+                            }`}
+                          >
+                            {activeModal.item.modal.vsComparison.rightSub}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-[#374151] font-medium leading-relaxed">
                       {activeModal.item.modal.riskWarning}
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
-                    <h4 className="text-[11px] font-extrabold text-[#0F5132] mb-2">
+                  <div className="p-4 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] space-y-2.5">
+                    <h4 className="text-[11px] font-extrabold text-[#0F5132]">
                       {activeModal.item.modal.actionTitle || "3. 실전 멘트"}
                     </h4>
-                    <div className="p-3 rounded-lg bg-white border border-[#D4E7DA] text-[13px] leading-relaxed text-[#0F5132] font-bold">
-                      💬 {activeModal.item.modal.scriptExample}
+                    {activeModal.item.modal.avoidScript && (
+                      <div className="p-2.5 rounded-lg bg-[#FEF2F2] border border-[#FECACA] flex items-start gap-2">
+                        <span className="px-1.5 py-0.5 rounded-md bg-[#DC2626] text-white text-[10px] font-black shrink-0 mt-0.5">
+                          ❌ 금지
+                        </span>
+                        <span className="text-xs leading-relaxed text-[#991B1B] font-bold line-through decoration-[#DC2626]/60">
+                          {activeModal.item.modal.avoidScript}
+                        </span>
+                      </div>
+                    )}
+                    <div className="p-3 rounded-lg bg-white border border-[#D4E7DA] flex items-start gap-2">
+                      {activeModal.item.modal.avoidScript ? (
+                        <span className="px-1.5 py-0.5 rounded-md bg-[#0F5132] text-white text-[10px] font-black shrink-0 mt-0.5">
+                          ⭕ 필수
+                        </span>
+                      ) : (
+                        <span className="shrink-0 mt-0.5">💬</span>
+                      )}
+                      <span className="text-[13px] leading-relaxed text-[#0F5132] font-extrabold">
+                        {activeModal.item.modal.scriptExample}
+                      </span>
                     </div>
                   </div>
                 </>

@@ -283,6 +283,7 @@ export async function readWorkspaceFromStorage(
       ownerEmail: targetEmail,
       clinicName: fallbackClinicName,
       directorName: fallbackDirectorName,
+      clinicOpenYear: null,
       rows: [],
       uploadLogs: [],
       aiReport: null,
@@ -298,6 +299,10 @@ export async function readWorkspaceFromStorage(
       ownerEmail: targetEmail,
       clinicName: parsed.clinicName || fallbackClinicName,
       directorName: parsed.directorName || fallbackDirectorName,
+      clinicOpenYear:
+        typeof parsed.clinicOpenYear === "number" && Number.isFinite(parsed.clinicOpenYear)
+          ? parsed.clinicOpenYear
+          : null,
       rows: cleanRows,
       uploadLogs: Array.isArray(parsed.uploadLogs) ? parsed.uploadLogs : [],
       lastDetectedEmr: parsed.lastDetectedEmr,
@@ -309,6 +314,7 @@ export async function readWorkspaceFromStorage(
       ownerEmail: targetEmail,
       clinicName: fallbackClinicName,
       directorName: fallbackDirectorName,
+      clinicOpenYear: null,
       rows: [],
       uploadLogs: [],
       aiReport: null,
