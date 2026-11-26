@@ -34,6 +34,9 @@ import {
   CHUNA_FEES,
   HERBAL_40DAY_FEE_MANWON,
   MIN_BODYPART_SAMPLE,
+  MIN_CLINIC_OPEN_YEAR,
+  computeClinicYearsActive,
+  getClinicStageBenchmark,
   DualTrackIndicator,
   BodyPartRetentionItem,
   InsuranceSimulationSettings,
@@ -159,10 +162,19 @@ export default function FirstVisitAnalyticsView({
     DEFAULT_INSURANCE_SIM_SETTINGS
   );
 
+  // 한의원 개원 연도 상태 (미입력 시 연차 연동 지표 계산불가 + 필수 입력 경고창 표시)
+  const currentCalendarYear = new Date().getFullYear();
+  const [openYear, setOpenYear] = useState<number | null>(null);
+  const [openYearInput, setOpenYearInput] = useState<string>("");
+  const [openYearModalInput, setOpenYearModalInput] = useState<string>("");
+  const [openYearModalError, setOpenYearModalError] = useState<string>("");
+  const [openYearHydrated, setOpenYearHydrated] = useState<boolean>(false);
+  const [openYearModalForceOpen, setOpenYearModalForceOpen] = useState<boolean>(false);
+
   // 아이콘(ⓘ) 클릭 시 열리는 상세 설명 모달 상태
   const [activeModal, setActiveModal] = useState<ModalPayload | null>(null);
 
-  // 성별 수동 보정값 & 보험 평균 객단가 & 시뮬레이션 세부설정 로컬 저장소 복원
+  // 성별 수동 보정값 & 보험 평균 객단가 & 시뮬레이션 세부설정 & 개원 연도 로컬 저장소 복원
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -212,8 +224,98 @@ export default function FirstVisitAnalyticsView({
           }));
         }
       }
-    } catch {}
-  }, []);
+      const savedOpenYear = localStorage.getItem("barun_fv_open_year");
+      if (savedOpenYear) {
+        const parsedYear = parseInt(savedOpenYear, 10);
+        if (computeClinicYearsActive(parsedYear, currentCalendarYear) !== null) {
+          setOpenYear(parsedYear);
+          setOpenYearInput(String(parsedYear));
+          setOpenYearModalInput(String(parsedYear));
+        }
+      }
+    } catch {
+    } finally {
+      setOpenYearHydrated(true);
+    }
+  }, [currentCalendarYear]);
+
+  const applyOpenYear = (yearNum: number, showToast = true) => {
+    const yrs = computeClinicYearsActive(yearNum, currentCalendarYear);
+    if (yrs === null) return;
+    const stage = getClinicStageBenchmark(yrs);
+    setOpenYear(yearNum);
+    setOpenYearInput(String(yearNum));
+    setOpenYearModalInput(String(yearNum));
+    setOpenYearModalError("");
+    setOpenYearModalForceOpen(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("barun_fv_open_year", String(yearNum));
+    }
+    if (showToast) {
+      toast.success(
+        `${yearNum}년 개원 (${yrs}년 차 · ${stage?.shortStageLabel ?? ""}) 기준이 적용되었습니다.`
+      );
+    }
+  };
+
+  const handleTopOpenYearChange = (raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, "").slice(0, 4);
+    setOpenYearInput(digits);
+    if (digits.length === 4) {
+      const parsed = parseInt(digits, 10);
+      if (computeClinicYearsActive(parsed, currentCalendarYear) !== null) {
+        applyOpenYear(parsed, true);
+      } else {
+        toast.error(`개원 연도는 ${MIN_CLINIC_OPEN_YEAR}~${currentCalendarYear}년 사이로 입력해 주세요.`);
+      }
+    }
+  };
+
+  const handleTopOpenYearBlur = () => {
+    const trimmed = openYearInput.trim();
+    if (trimmed === "") {
+      if (openYear !== null) {
+        setOpenYear(null);
+        setOpenYearModalInput("");
+        setOpenYearModalError("");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("barun_fv_open_year");
+        }
+      }
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
+    if (trimmed.length === 4 && computeClinicYearsActive(parsed, currentCalendarYear) !== null) {
+      if (parsed !== openYear) applyOpenYear(parsed, true);
+    } else {
+      setOpenYearInput(openYear !== null ? String(openYear) : "");
+    }
+  };
+
+  const openEditOpenYearModal = () => {
+    setOpenYearModalInput(openYear !== null ? String(openYear) : "");
+    setOpenYearModalError("");
+    setOpenYearModalForceOpen(true);
+  };
+
+  const handleOpenYearModalSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = openYearModalInput.trim();
+    if (!/^\d{4}$/.test(trimmed)) {
+      setOpenYearModalError(
+        `개원 연도 4자리 숫자를 입력해 주세요. (예: 2020, 허용 범위 ${MIN_CLINIC_OPEN_YEAR}~${currentCalendarYear}년)`
+      );
+      return;
+    }
+    const parsed = parseInt(trimmed, 10);
+    if (computeClinicYearsActive(parsed, currentCalendarYear) === null) {
+      setOpenYearModalError(
+        `${MIN_CLINIC_OPEN_YEAR}년 ~ ${currentCalendarYear}년 사이의 올바른 개원 연도를 입력해 주세요.`
+      );
+      return;
+    }
+    applyOpenYear(parsed, true);
+  };
 
   const updateSimSettings = (patch: Partial<InsuranceSimulationSettings>) => {
     setSimSettings((prev) => {
@@ -412,7 +514,7 @@ export default function FirstVisitAnalyticsView({
     } catch {}
   };
 
-  // 2트랙 정밀 계산 (선택된 전체/월별 범위 + 입력한 보험 평균 객단가 + 추나/첩약 세부설정 기준)
+  // 2트랙 정밀 계산 (선택된 전체/월별 범위 + 입력한 보험 평균 객단가 + 추나/첩약 세부설정 + 개원 연도 기준)
   const evaluation = useMemo(
     () =>
       evaluateDualTrackStats(
@@ -420,10 +522,21 @@ export default function FirstVisitAnalyticsView({
         demographic,
         genderOverride,
         customInsuranceFee,
-        simSettings
+        simSettings,
+        openYear
       ),
-    [scopedRows, demographic, genderOverride, customInsuranceFee, simSettings]
+    [scopedRows, demographic, genderOverride, customInsuranceFee, simSettings, openYear]
   );
+
+  const modalPreviewYearNum = /^\d{4}$/.test(openYearModalInput.trim())
+    ? parseInt(openYearModalInput.trim(), 10)
+    : null;
+  const modalPreviewYears = computeClinicYearsActive(modalPreviewYearNum, currentCalendarYear);
+  const modalPreviewStage = getClinicStageBenchmark(modalPreviewYears);
+  const activeClinicStage = getClinicStageBenchmark(evaluation.clinicYearsActive);
+  const showOpenYearModal =
+    openYearHydrated && ((track === "insurance" && openYear === null) || openYearModalForceOpen);
+  const isMandatoryOpenYearLock = openYear === null;
 
   const sim = evaluation.insuranceSimulation;
 
@@ -516,6 +629,43 @@ export default function FirstVisitAnalyticsView({
                   ))}
                 </select>
               </div>
+
+              {/* 개원 연도 입력 → 자동 연차 계산 (미입력 시 계산불가 경고) */}
+              {openYear !== null ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
+                  <span className="text-[11px] font-extrabold text-[#0F5132]">개원</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={openYearInput}
+                    onChange={(e) => handleTopOpenYearChange(e.target.value)}
+                    onBlur={handleTopOpenYearBlur}
+                    placeholder="2020"
+                    className="w-12 px-1.5 py-0.5 rounded-md bg-white border border-[#C6DFCE] text-center text-xs font-black text-[#111111] focus:outline-none focus:border-[#0F5132]"
+                    title="한의원 개원 연도 4자리 (자동 연차 계산)"
+                  />
+                  <span className="text-[11px] font-bold text-[#0F5132]">년</span>
+                  <button
+                    type="button"
+                    onClick={openEditOpenYearModal}
+                    className="px-2 py-0.5 rounded-md bg-[#0F5132] text-white text-[10px] font-extrabold hover:bg-[#0B3D26] transition cursor-pointer"
+                    title="개원 연도 및 연차별 기준 변경"
+                  >
+                    {evaluation.clinicYearsActive}년차 · {activeClinicStage?.shortStageLabel}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openEditOpenYearModal}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#EF4444] text-[#B91C1C] text-xs font-black transition cursor-pointer"
+                  title="개원 연도를 입력해야 초진·재초진 비율과 소개율이 계산됩니다"
+                >
+                  <AlertTriangle size={13} className="shrink-0" />
+                  <span>개원연도 미입력 (계산불가)</span>
+                </button>
+              )}
             </div>
 
             {/* 심플 주소 검색 바 */}
@@ -585,6 +735,23 @@ export default function FirstVisitAnalyticsView({
               <span className="px-2 py-0.5 rounded-md bg-[#F4F8F5] text-[#0F5132] font-bold text-[11px]">
                 {evaluation.districtType}
               </span>
+              {evaluation.clinicOpenYear !== null && evaluation.clinicYearsActive !== null ? (
+                <button
+                  type="button"
+                  onClick={openEditOpenYearModal}
+                  className="px-2 py-0.5 rounded-md bg-[#FBF7EE] border border-[#E6D5B3] text-[#7A5B1F] font-bold text-[11px] hover:bg-[#F3E9D2] transition cursor-pointer"
+                >
+                  {evaluation.clinicOpenYear}년 개원 ({evaluation.clinicYearsActive}년차)
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openEditOpenYearModal}
+                  className="px-2 py-0.5 rounded-md bg-[#FEF2F2] border border-[#FCA5A5] text-[#B91C1C] font-extrabold text-[11px] hover:bg-[#FEE2E2] transition cursor-pointer"
+                >
+                  개원연도 미입력 · 연차 통계 계산불가
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 text-[11px] text-[#737373]">
@@ -717,15 +884,18 @@ export default function FirstVisitAnalyticsView({
         {/* 3. 핵심 지표 카드 그리드 (글자 최소화 · 결론 집중 · ⓘ 아이콘 상세 안내) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {currentSummary.indicators.map((ind) => {
-            const isHealthy = ind.status === "HEALTHY";
-            const isWarning = ind.status === "WARNING";
-            const isCritical = ind.status === "CRITICAL";
+            const isOpenYearMissing = Boolean(ind.requiresOpenYear);
+            const isHealthy = !isOpenYearMissing && ind.status === "HEALTHY";
+            const isWarning = !isOpenYearMissing && ind.status === "WARNING";
+            const isCritical = !isOpenYearMissing && ind.status === "CRITICAL";
 
             return (
               <div
                 key={ind.id}
                 className={`bg-white rounded-2xl p-5 border transition-all flex flex-col justify-between ${
-                  isHealthy
+                  isOpenYearMissing
+                    ? "border-dashed border-[#DC2626] bg-[#FFF8F8]"
+                    : isHealthy
                     ? "border-[#E5E5E5]"
                     : isWarning
                     ? "border-[#D4AF37]"
@@ -742,14 +912,22 @@ export default function FirstVisitAnalyticsView({
                         {ind.title}
                       </span>
                       {ind.subMetric && (
-                        <span className="text-[10px] font-semibold text-[#737373] shrink-0">
+                        <span
+                          className={`text-[10px] font-semibold shrink-0 ${
+                            isOpenYearMissing ? "text-[#B91C1C]" : "text-[#737373]"
+                          }`}
+                        >
                           {ind.subMetric}
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {isHealthy ? (
+                      {isOpenYearMissing ? (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#B91C1C] text-[10px] font-extrabold">
+                          <AlertTriangle size={11} /> 연차 미입력
+                        </span>
+                      ) : isHealthy ? (
                         <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#0F5132] text-[10px] font-extrabold">
                           <CheckCircle2 size={11} /> 정상
                         </span>
@@ -780,16 +958,26 @@ export default function FirstVisitAnalyticsView({
 
                   {/* 중앙: 핵심 수치 vs 권장 기준점 */}
                   <div className="flex items-baseline justify-between gap-2 mb-2.5">
-                    <span className="text-3xl font-black tracking-tight text-[#111111]">
+                    <span
+                      className={`text-3xl font-black tracking-tight ${
+                        isOpenYearMissing ? "text-[#B91C1C]" : "text-[#111111]"
+                      }`}
+                    >
                       {ind.valueDisplay}
                     </span>
                     <div className="text-right">
-                      <span className="text-[11px] font-bold text-[#666666] block">
+                      <span
+                        className={`text-[11px] font-bold block ${
+                          isOpenYearMissing ? "text-[#B91C1C]" : "text-[#666666]"
+                        }`}
+                      >
                         {ind.targetDisplay}
                       </span>
                       <span
                         className={`text-[11px] font-extrabold ${
-                          isHealthy
+                          isOpenYearMissing
+                            ? "text-[#DC2626]"
+                            : isHealthy
                             ? "text-[#0F5132]"
                             : isCritical
                             ? "text-[#111111]"
@@ -805,7 +993,9 @@ export default function FirstVisitAnalyticsView({
                   <div className="h-1.5 w-full bg-[#F0F0F0] rounded-full overflow-hidden mb-3">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isHealthy
+                        isOpenYearMissing
+                          ? "bg-[#EF4444]/40"
+                          : isHealthy
                           ? "bg-[#0F5132]"
                           : isWarning
                           ? "bg-[#C5A059]"
@@ -813,7 +1003,11 @@ export default function FirstVisitAnalyticsView({
                           ? "bg-[#111111]"
                           : "bg-[#D4D4D4]"
                       }`}
-                      style={{ width: `${Math.min(100, Math.max(4, ind.currentValue))}%` }}
+                      style={{
+                        width: isOpenYearMissing
+                          ? "0%"
+                          : `${Math.min(100, Math.max(4, ind.currentValue))}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -857,18 +1051,28 @@ export default function FirstVisitAnalyticsView({
                   </div>
                 )}
 
-                {/* 하단: 딱 1줄 핵심 결론 */}
-                <div
-                  className={`px-3 py-2 rounded-xl text-xs font-extrabold truncate ${
-                    isHealthy
-                      ? "bg-[#F4F8F5] text-[#0F5132]"
-                      : isCritical
-                      ? "bg-[#111111] text-[#D4AF37]"
-                      : "bg-[#FBF7EE] text-[#7A5B1F]"
-                  }`}
-                >
-                  → {ind.conclusion}
-                </div>
+                {/* 하단: 딱 1줄 핵심 결론 (연차 미입력 시 개원연도 입력 바로가기 버튼) */}
+                {isOpenYearMissing ? (
+                  <button
+                    type="button"
+                    onClick={openEditOpenYearModal}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FCA5A5] text-[#B91C1C] transition cursor-pointer truncate"
+                  >
+                    → 개원 연도 입력하고 통계 계산하기
+                  </button>
+                ) : (
+                  <div
+                    className={`px-3 py-2 rounded-xl text-xs font-extrabold truncate ${
+                      isHealthy
+                        ? "bg-[#F4F8F5] text-[#0F5132]"
+                        : isCritical
+                        ? "bg-[#111111] text-[#D4AF37]"
+                        : "bg-[#FBF7EE] text-[#7A5B1F]"
+                    }`}
+                  >
+                    → {ind.conclusion}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1693,6 +1897,191 @@ export default function FirstVisitAnalyticsView({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 개원 연도 필수 입력 경고창 (미입력 시 계산불가 안내 · 무조건 입력 유도) */}
+      {/* ===================================================================== */}
+      {showOpenYearModal && (
+        <div
+          className="fixed inset-0 z-[140] bg-black/65 backdrop-blur-[3px] flex items-center justify-center p-4"
+          onClick={() => {
+            if (isMandatoryOpenYearLock) {
+              setOpenYearModalError(
+                "개원 연도 4자리를 입력해야 초진·재초진 비율과 순수초진 소개율이 계산됩니다."
+              );
+              toast.error("한의원 개원 연도를 먼저 입력해 주세요.");
+            } else {
+              setOpenYearModalForceOpen(false);
+            }
+          }}
+        >
+          <div
+            className="bg-white text-[#111111] w-full max-w-md rounded-3xl border border-[#E5E5E5] shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 경고창 헤더 */}
+            <div
+              className={`px-6 py-4 flex items-center justify-between ${
+                isMandatoryOpenYearLock
+                  ? "bg-[#111111] text-white border-b-2 border-[#DC2626]"
+                  : "bg-[#111111] text-white"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    isMandatoryOpenYearLock
+                      ? "bg-[#DC2626]/20 text-[#FCA5A5]"
+                      : "bg-[#D4AF37]/20 text-[#D4AF37]"
+                  }`}
+                >
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <span
+                    className={`text-[10px] font-extrabold tracking-wider uppercase block ${
+                      isMandatoryOpenYearLock ? "text-[#FCA5A5]" : "text-[#D4AF37]"
+                    }`}
+                  >
+                    {isMandatoryOpenYearLock
+                      ? "필수 입력 경고 · 미입력 시 계산불가"
+                      : "한의원 개원 연도 설정"}
+                  </span>
+                  <h3 className="text-base font-black mt-0.5">
+                    {isMandatoryOpenYearLock
+                      ? "개원 연도를 반드시 입력해 주세요"
+                      : "한의원 개원 연도 수정"}
+                  </h3>
+                </div>
+              </div>
+
+              {!isMandatoryOpenYearLock && (
+                <button
+                  type="button"
+                  onClick={() => setOpenYearModalForceOpen(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* 경고창 본문 */}
+            <form onSubmit={handleOpenYearModalSubmit} className="p-6 space-y-4 text-xs">
+              {isMandatoryOpenYearLock && (
+                <div className="p-3.5 rounded-xl bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] leading-relaxed">
+                  <strong className="font-extrabold block mb-1">
+                    연차 미입력 상태 — 일부 핵심 지표 &apos;계산불가&apos;
+                  </strong>
+                  개원 연도가 입력되지 않아{" "}
+                  <strong>[초진 · 재초진 비율]</strong>과 <strong>[순수초진 소개율]</strong>이
+                  현재 계산불가 상태입니다. 정확한 연차별 경영 기준 적용을 위해 한의원 개원
+                  연도 4자리를 입력해 주세요.
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block font-extrabold text-[#111111]">
+                  한의원 개원 연도 (4자리 숫자)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    autoFocus
+                    value={openYearModalInput}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+                      setOpenYearModalInput(digits);
+                      if (openYearModalError) setOpenYearModalError("");
+                    }}
+                    placeholder={`예: ${currentCalendarYear - 4}`}
+                    className={`flex-1 px-4 py-3 rounded-xl border text-lg font-black tracking-wider text-center bg-[#FAFAFA] focus:bg-white focus:outline-none ${
+                      openYearModalError
+                        ? "border-[#DC2626] focus:border-[#DC2626]"
+                        : "border-[#D4D4D4] focus:border-[#0F5132]"
+                    }`}
+                  />
+                  <span className="text-sm font-black text-[#555555] shrink-0">년 개원</span>
+                </div>
+
+                {openYearModalError ? (
+                  <p className="text-[11px] font-bold text-[#DC2626]">{openYearModalError}</p>
+                ) : modalPreviewYears !== null && modalPreviewStage ? (
+                  <div className="p-3 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE] text-[#0F5132] space-y-0.5">
+                    <div className="font-black text-xs">
+                      ▶ 현재 {modalPreviewYears}년 차 · {modalPreviewStage.stageLabel}
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#1F2937]">
+                      · 초진·재초진 정상구간: 재초진{" "}
+                      <strong>
+                        {modalPreviewStage.reFirstMin}~{modalPreviewStage.reFirstMax}%
+                      </strong>{" "}
+                      (초진 {modalPreviewStage.pureFirstMin}~{modalPreviewStage.pureFirstMax}%)
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#1F2937]">
+                      · 순수초진 소개율: 목표 <strong>70% 고정</strong> (
+                      {modalPreviewStage.referralSoftened
+                        ? "1~2년 차 미달→주의 완화 적용"
+                        : "3년 차↑ 엄격 판정 적용"}
+                      )
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-[#737373]">
+                    입력 가능 범위: {MIN_CLINIC_OPEN_YEAR}년 ~ {currentCalendarYear}년 (예:{" "}
+                    {currentCalendarYear}년 개원 = 1년 차)
+                  </p>
+                )}
+              </div>
+
+              {/* 연차별 기준 요약표 */}
+              <div className="border border-[#EAEAEA] rounded-xl overflow-hidden text-[11px]">
+                <div className="bg-[#FAFAFA] px-3 py-1.5 font-extrabold text-[#111111] border-b border-[#EAEAEA]">
+                  연차별 자동 적용 기준표 (초진·재초진 양방향 가드)
+                </div>
+                <div className="divide-y divide-[#F2F2F2]">
+                  <div className="px-3 py-1.5 flex items-center justify-between">
+                    <span className="font-bold text-[#111111]">1년 차 (초기)</span>
+                    <span className="text-[#555555]">재초진 10~35% · 소개율 70%(완화)</span>
+                  </div>
+                  <div className="px-3 py-1.5 flex items-center justify-between">
+                    <span className="font-bold text-[#111111]">2~3년 차 (성장)</span>
+                    <span className="text-[#555555]">재초진 30~50% · 2년차 완화 / 3년차↑ 엄격</span>
+                  </div>
+                  <div className="px-3 py-1.5 flex items-center justify-between">
+                    <span className="font-bold text-[#111111]">4년 차↑ (안정)</span>
+                    <span className="text-[#555555]">재초진 45~70% (70%↑ 신규고갈 경고)</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-[#0F5132] hover:bg-[#0B3D26] text-white text-sm font-black shadow-sm transition cursor-pointer"
+              >
+                개원 연도 저장 및 통계 계산하기
+              </button>
+
+              {isMandatoryOpenYearLock && (
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenYearModalForceOpen(false);
+                      setTrack("non_covered");
+                    }}
+                    className="text-[11px] font-bold text-[#737373] hover:text-[#111111] underline cursor-pointer"
+                  >
+                    비급여 (실장) 통계 먼저 보기
+                  </button>
+                </div>
+              )}
+            </form>
           </div>
         </div>
       )}

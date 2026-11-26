@@ -78,6 +78,83 @@ export interface BodyPartRetentionItem {
 
 export const DEFAULT_INSURANCE_AVG_FEE_MANWON = 3.8; // 비급여 제외 · 보험(본부금+공단청구) 1회 평균 기본값
 export const MIN_BODYPART_SAMPLE = 5; // 부위별 삼진율 통계 판정 최소 표본수
+export const MIN_CLINIC_OPEN_YEAR = 1950; // 개원 연도 유효 하한선
+
+export type ClinicYearStage = "YEAR_1" | "YEAR_2_3" | "YEAR_4_PLUS";
+
+export interface ClinicStageBenchmark {
+  stage: ClinicYearStage;
+  stageLabel: string;
+  shortStageLabel: string;
+  reFirstMin: number;
+  reFirstMax: number;
+  reFirstCriticalLow: number | null; // 1년차는 구환 축적기이므로 하한 미달 시 WARNING 완화
+  pureFirstMin: number;
+  pureFirstMax: number;
+  targetChartMid: number;
+  referralSoftened: boolean;         // 1~2년차는 소개율 70% 미달 시 CRITICAL 대신 WARNING 완화
+}
+
+export function computeClinicYearsActive(
+  openYear?: number | null,
+  referenceYear: number = new Date().getFullYear()
+): number | null {
+  if (
+    typeof openYear !== "number" ||
+    !Number.isInteger(openYear) ||
+    openYear < MIN_CLINIC_OPEN_YEAR ||
+    openYear > referenceYear
+  ) {
+    return null;
+  }
+  return Math.max(1, referenceYear - openYear + 1);
+}
+
+export function getClinicStageBenchmark(
+  clinicYearsActive: number | null
+): ClinicStageBenchmark | null {
+  if (clinicYearsActive === null || clinicYearsActive < 1) return null;
+  if (clinicYearsActive === 1) {
+    return {
+      stage: "YEAR_1",
+      stageLabel: "1년 차 (개원 초기 · 신규 유입 집중기)",
+      shortStageLabel: "초기 정착기",
+      reFirstMin: 10,
+      reFirstMax: 35,
+      reFirstCriticalLow: null,
+      pureFirstMin: 65,
+      pureFirstMax: 90,
+      targetChartMid: 23,
+      referralSoftened: true,
+    };
+  }
+  if (clinicYearsActive <= 3) {
+    return {
+      stage: "YEAR_2_3",
+      stageLabel: "2~3년 차 (성장기 · 구환 축적 전환기)",
+      shortStageLabel: "성장기",
+      reFirstMin: 30,
+      reFirstMax: 50,
+      reFirstCriticalLow: 18,
+      pureFirstMin: 50,
+      pureFirstMax: 70,
+      targetChartMid: 40,
+      referralSoftened: clinicYearsActive <= 2,
+    };
+  }
+  return {
+    stage: "YEAR_4_PLUS",
+    stageLabel: "4년 차 이상 (안정·성숙기 · 구환+신규 균형기)",
+    shortStageLabel: "안정기",
+    reFirstMin: 45,
+    reFirstMax: 70,
+    reFirstCriticalLow: 30,
+    pureFirstMin: 30,
+    pureFirstMax: 55,
+    targetChartMid: 58,
+    referralSoftened: false,
+  };
+}
 
 export type ChunaType = "complex" | "simple";
 export type ChunaTargetPct = 10 | 30 | 50;
@@ -164,6 +241,7 @@ export interface DualTrackIndicator {
   status: RiskLevel;
   conclusion: string;            // 핵심 1줄 결론 (글자 최소화!)
   isGenderCard?: boolean;        // 보험(원장) 성별 입력란 노출 카드 여부
+  requiresOpenYear?: boolean;    // 개원 연도 미입력으로 계산불가 상태인 연차 연동 지표 여부
   modal: IndicatorModalDetail;   // ⓘ 아이콘 클릭 시 상세 안내
 }
 
@@ -186,6 +264,9 @@ export interface TrackSummary {
 
 export interface DualTrackEvaluation {
   evaluatedAt: string;
+  clinicOpenYear: number | null;
+  clinicYearsActive: number | null;
+  clinicStageLabel: string | null;
   districtType: string;          // 상권 유형 (예: "고령 밀착형 상권")
   districtTip: string;           // 상권 1줄 특성
   mpi: number;                   // 인구 1,000명당 신환 침투율
@@ -509,9 +590,14 @@ export function evaluateDualTrackStats(
   demographic: DemographicData,
   genderOverride?: { male?: number | null; female?: number | null },
   customInsuranceFeeManwon?: number | null,
-  simSettingsOverride?: Partial<InsuranceSimulationSettings>
+  simSettingsOverride?: Partial<InsuranceSimulationSettings>,
+  openYear?: number | null
 ): DualTrackEvaluation {
   const district = classifyDistrict(demographic);
+  const currentCalendarYear = new Date().getFullYear();
+  const clinicYearsActive = computeClinicYearsActive(openYear, currentCalendarYear);
+  const clinicOpenYear = clinicYearsActive !== null ? (openYear as number) : null;
+  const clinicStage = getClinicStageBenchmark(clinicYearsActive);
   const totalPatients = rows.length;
   const safeTotal = Math.max(1, totalPatients);
 
@@ -867,12 +953,67 @@ export function evaluateDualTrackStats(
   const resvLiftYes = pct(resvYes2nd, resvYes);
   const resvLiftNo = pct(resvNo2nd, resvNo);
 
-  const reFirstRate = pct(reFirst, safeTotal);
-  const targetReFirst = 30;
-  const needReFirst = totalPatients === 0 ? 0 : neededCount(reFirst, totalPatients, targetReFirst);
+  const pureFirstRate = totalPatients > 0 ? pct(pureFirst, safeTotal) : 0;
+  const reFirstRate = totalPatients > 0 ? pct(reFirst, safeTotal) : 0;
+  const needReFirst =
+    totalPatients === 0 || !clinicStage
+      ? 0
+      : neededCount(reFirst, totalPatients, clinicStage.reFirstMin);
+  const reFirstOverPct =
+    clinicStage && reFirstRate > clinicStage.reFirstMax
+      ? Number((reFirstRate - clinicStage.reFirstMax).toFixed(1))
+      : 0;
   // 재초진·65세 비율은 시점 예측 불가 / 대체 가정 오류 방지를 위해 확정 기대매출 합산에서 제외 (0원)
   const gainReFirstManwon = 0;
   const gainAge65Manwon = 0;
+
+  let reFirstStatus: RiskLevel = "EMPTY";
+  let reFirstGapDisplay = "연차 미입력";
+  let reFirstConclusion = "개원 연도를 입력해야 연차별 비율이 계산됩니다";
+  if (clinicStage) {
+    if (totalPatients === 0) {
+      reFirstStatus = "EMPTY";
+      reFirstGapDisplay = "데이터 대기";
+      reFirstConclusion = "초진/재초진 구분을 확인하세요";
+    } else if (reFirstRate >= clinicStage.reFirstMin && reFirstRate <= clinicStage.reFirstMax) {
+      reFirstStatus = "HEALTHY";
+      reFirstGapDisplay = `균형 달성 (초진 ${pureFirstRate}%)`;
+      reFirstConclusion =
+        clinicStage.stage === "YEAR_1"
+          ? "1년차 초기 신규·구환 균형 양호"
+          : clinicStage.stage === "YEAR_2_3"
+          ? "성장기 초진·재초진 황금 균형"
+          : "안정기 구환 복귀·신규 유입 균형 우수";
+    } else if (reFirstRate < clinicStage.reFirstMin) {
+      const isCriticalLow =
+        clinicStage.reFirstCriticalLow !== null && reFirstRate < clinicStage.reFirstCriticalLow;
+      reFirstStatus = isCriticalLow ? "CRITICAL" : "WARNING";
+      reFirstGapDisplay =
+        clinicStage.stage === "YEAR_1"
+          ? `재초진 ${needReFirst}명 보강`
+          : `재초진 ${needReFirst}명 부족`;
+      reFirstConclusion =
+        clinicStage.stage === "YEAR_1"
+          ? "초기 구환 축적 중 · 3회 정착 집중"
+          : clinicStage.stage === "YEAR_2_3"
+          ? isCriticalLow
+            ? "구환 이탈 주의 · 계절·안부 리콜 시급"
+            : `구환 리콜 필요 (+${needReFirst}명)`
+          : isCriticalLow
+          ? "구환 이탈 점검 시급 · 진료·리콜 재정비"
+          : `구환 이탈 점검 (+${needReFirst}명 목표)`;
+    } else {
+      // 상한선 초과: 신규 유입 고갈(고인 물) 양방향 경고
+      reFirstStatus = "WARNING";
+      reFirstGapDisplay = `상한 +${reFirstOverPct}%p 초과 (초진 ${pureFirstRate}%)`;
+      reFirstConclusion =
+        clinicStage.stage === "YEAR_1"
+          ? "신규 홍보 부족 주의 · 초진 유입 확대"
+          : clinicStage.stage === "YEAR_2_3"
+          ? "신규 유입 보강 주의 · 외부 홍보 점검"
+          : "신규 유입 고갈 주의! 초진 30%↑ 방어";
+    }
+  }
 
   const genderSum = effectiveMale + effectiveFemale;
   const femaleRate = genderSum > 0 ? pct(effectiveFemale, genderSum) : 0;
@@ -904,6 +1045,47 @@ export function evaluateDualTrackStats(
     demographic.totalPopulation > 0
       ? Number(((monthlyPureFirst / demographic.totalPopulation) * 1000).toFixed(2))
       : 0;
+
+  let referralStatus: RiskLevel = "EMPTY";
+  let referralGapDisplay = "연차 미입력";
+  let referralConclusion = "개원 연도를 입력해야 연차별 소개율이 판정됩니다";
+
+  if (clinicStage && clinicYearsActive !== null) {
+    if (totalPatients === 0) {
+      referralStatus = "EMPTY";
+      referralGapDisplay = "데이터 대기";
+      referralConclusion = "접수 시 내원경로 단축키 필수 체크";
+    } else if (pureFirstRouteRecorded === 0) {
+      referralStatus = "WARNING";
+      referralGapDisplay = "경로 체크 필요";
+      referralConclusion = "접수 시 내원경로 단축키 필수 체크";
+    } else if (referralRate > 85 && mpi < district.mpiMin) {
+      referralStatus = "WARNING";
+      referralGapDisplay = "외부 신규창출 보강";
+      referralConclusion = "광고·검색 투자로 30% 신규환자 창출";
+    } else if (referralRate >= targetReferral) {
+      referralStatus = "HEALTHY";
+      referralGapDisplay = clinicStage.referralSoftened
+        ? `7:3 조기 달성 (+${(referralRate - targetReferral).toFixed(1)}%p)`
+        : `7:3 달성 (+${(referralRate - targetReferral).toFixed(1)}%p)`;
+      referralConclusion = clinicStage.referralSoftened
+        ? "개원 초기부터 소개 70%↑ 최상위 진료력"
+        : "소개 70% : 신규창출 30% 황금구조";
+    } else if (clinicStage.referralSoftened) {
+      // 1~2년차: 목표는 70% 고정이되 초기 단골 축적기이므로 미달 대신 주의로 완화
+      referralStatus = "WARNING";
+      referralGapDisplay = `소개 ${needReferral}명 부족 (${clinicYearsActive}년차 완화)`;
+      referralConclusion = "초기 단골 축적 중 (목표 70%)";
+    } else if (referralRate >= 40) {
+      referralStatus = "WARNING";
+      referralGapDisplay = `소개 ${needReferral}명 부족`;
+      referralConclusion = `만족·소개 축적 중 (+${needReferral}명 목표)`;
+    } else {
+      referralStatus = "CRITICAL";
+      referralGapDisplay = `소개 ${needReferral}명 부족`;
+      referralConclusion = "소개율 40% 미만 · 진료 만족·신뢰 점검 시급";
+    }
+  }
 
   const insIndicators: DualTrackIndicator[] = [
     {
@@ -1094,45 +1276,44 @@ export function evaluateDualTrackStats(
       id: "ins_refirst",
       track: "insurance",
       order: 6,
-      title: "재초진 복귀율",
-      subMetric: `재초진 ${reFirst}명`,
-      currentValue: reFirstRate,
-      valueDisplay: totalPatients === 0 ? "-" : `${reFirstRate}%`,
-      targetValue: targetReFirst,
-      targetDisplay: `목표 ${targetReFirst}%↑`,
-      gapDisplay:
-        totalPatients === 0
-          ? "데이터 대기"
-          : needReFirst === 0
-          ? `달성 +${(reFirstRate - targetReFirst).toFixed(1)}%p`
-          : `${needReFirst}명 부족`,
-      status:
-        totalPatients === 0
-          ? "EMPTY"
-          : reFirstRate >= targetReFirst
-          ? "HEALTHY"
-          : reFirstRate >= 18
-          ? "WARNING"
-          : "CRITICAL",
-      conclusion:
-        totalPatients === 0
-          ? "초진/재초진 구분을 확인하세요"
-          : needReFirst === 0
-          ? "구환 재방문 브랜드 자산 우수"
-          : "기존 환자 계절·안부 리콜 가동",
+      title: "초진 · 재초진 비율",
+      subMetric:
+        !clinicStage || clinicYearsActive === null
+          ? "개원연도 미입력"
+          : totalPatients === 0
+          ? `${clinicYearsActive}년차`
+          : `${clinicYearsActive}년차 · 초진 ${pureFirstRate}%`,
+      currentValue: !clinicStage ? 0 : reFirstRate,
+      valueDisplay: !clinicStage ? "계산불가" : totalPatients === 0 ? "-" : `재초진 ${reFirstRate}%`,
+      targetValue: !clinicStage ? 0 : clinicStage.targetChartMid,
+      targetDisplay: !clinicStage
+        ? "개원연도 입력 필수"
+        : `목표 재초진 ${clinicStage.reFirstMin}~${clinicStage.reFirstMax}%`,
+      gapDisplay: reFirstGapDisplay,
+      status: reFirstStatus,
+      conclusion: reFirstConclusion,
+      requiresOpenYear: !clinicStage,
       modal: {
-        exactCounts: `전체 신환 ${totalPatients}명 중 순수초진 ${pureFirst}명 · 재초진 ${reFirst}명 (${reFirstRate}%)`,
-        benchmarkReason:
-          "과거 치료에 만족했던 구환이 새로운 증상이나 환절기에 다시 찾는 비율(30%↑)은 마케팅 비용 0원의 순수 브랜드 자산입니다.",
+        exactCounts: !clinicStage
+          ? `개원 연도 미입력으로 계산 불가 (현재 데이터: 전체 ${totalPatients}명 = 순수초진 ${pureFirst}명 + 재초진 ${reFirst}명)`
+          : `${clinicOpenYear}년 개원 (${clinicYearsActive}년 차 · ${clinicStage.stageLabel}) | 전체 ${totalPatients}명 중 재초진 ${reFirst}명(${reFirstRate}%) : 순수초진 ${pureFirst}명(${pureFirstRate}%)`,
+        benchmarkReason: !clinicStage
+          ? "개원 연차에 따라 건강한 초진:재초진 황금 비율이 완전히 다릅니다. 상단에서 개원 연도(예: 2020)를 입력하면 연차가 자동 계산되어 [1년 차 재초진 10~35% / 2~3년 차 30~50% / 4년 차↑ 45~70%] 양방향 기준이 즉시 적용됩니다."
+          : `연차별 경영 건강도 기준 — [1년 차] 재초진 10~35%(초진 65~90%) · [2~3년 차] 재초진 30~50%(초진 50~70%) · [4년 차 이상] 재초진 45~70%(초진 30~55%). 현재 ${clinicYearsActive}년 차 기준 정상 구간은 재초진 ${clinicStage.reFirstMin}~${clinicStage.reFirstMax}% (초진 ${clinicStage.pureFirstMin}~${clinicStage.pureFirstMax}%)입니다.`,
         riskWarning:
-          "재초진 비중이 18% 미만이면 과거 환자들이 우리 한의원을 잊었거나 타 한의원으로 이동하고 있다는 신호입니다.",
-        actionInstruction:
-          "최근 6개월~1년 내 내원 중단 구환에게 환절기 건강 관리 문자나 카카오톡 채널 소식을 월 1회 발송하세요.",
+          "재초진이 연차별 하한보다 낮으면 과거 환자가 다시 찾지 않는(구환 이탈) 신호이며, 반대로 상한(1년차 35% / 2~3년차 50% / 4년차↑ 70%)을 넘기면 구환에만 의존해 신규 유입이 고갈되는 '고인 물 현상'이 발생해 향후 1~2년 뒤 매출이 꺾입니다.",
+        actionInstruction: !clinicStage
+          ? "상단 개원 연도 입력란에 한의원 개원 연도 4자리를 입력해 연차별 맞춤 진단을 활성화하세요."
+          : reFirstOverPct > 0
+          ? `현재 재초진 비중(${reFirstRate}%)이 ${clinicYearsActive}년 차 상한(${clinicStage.reFirstMax}%)을 넘어 신규 초진(${pureFirstRate}%)이 부족합니다. 블로그·플레이스·지역 타깃 홍보를 즉시 보강해 신규 초진 비중을 ${clinicStage.pureFirstMin}% 이상으로 방어하세요.`
+          : "최근 6개월~1년 내 내원 중단 구환에게 환절기 건강 관리 문자나 카카오톡 채널 안부 소식을 월 1회 발송하고, 3회 정착을 통해 구환 자산을 꾸준히 축적하세요.",
         scriptExample:
-          "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
+          reFirstOverPct > 0
+            ? "\"치료에 만족하신 구환분들께 가족·지인 소개를 자연스럽게 안내하고, 네이버 플레이스 최신 진료 후기·키워드 노출을 주 2회 보강하세요.\""
+            : "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
         revenueImpactManwon: gainReFirstManwon,
         formulaNote:
-          "※ 재초진은 재방문 시점을 예측·통제하기 어려운 장기 브랜드 지표이므로 월 확정 기대매출 합산에서 제외",
+          "※ 초진·재초진 비율은 연차별 신환 유입과 구환 유지의 균형을 진단하는 지표로 월 확정 기대매출 합산에서 제외",
       },
     },
     {
@@ -1222,45 +1403,37 @@ export function evaluateDualTrackStats(
       track: "insurance",
       order: 9,
       title: "순수초진 소개율 (7:3)",
-      subMetric: pureFirstRouteRecorded > 0 ? `신규창출 ${externalSeedRate}%` : `MPI ${mpi}‰`,
-      currentValue: referralRate,
-      valueDisplay: pureFirstRouteRecorded === 0 ? "경로 미기입" : `소개 ${referralRate}%`,
-      targetValue: targetReferral,
-      targetDisplay: "목표 소개 70% · 신규 30%",
-      gapDisplay:
-        pureFirstRouteRecorded === 0
-          ? "경로 체크 필요"
-          : referralRate > 85 && mpi < district.mpiMin
-          ? "외부 신규창출 보강"
-          : needReferral === 0
-          ? `7:3 달성 (+${(referralRate - targetReferral).toFixed(1)}%p)`
-          : `소개 ${needReferral}명 부족`,
-      status:
-        pureFirstRouteRecorded === 0
-          ? "WARNING"
-          : referralRate > 85 && mpi < district.mpiMin
-          ? "WARNING"
-          : referralRate >= targetReferral
-          ? "HEALTHY"
-          : referralRate >= 40
-          ? "WARNING"
-          : "CRITICAL",
-      conclusion:
-        pureFirstRouteRecorded === 0
-          ? "접수 시 내원경로 단축키 필수 체크"
-          : referralRate > 85 && mpi < district.mpiMin
-          ? "광고·검색 투자로 30% 신규환자 창출"
-          : needReferral === 0
-          ? "소개 70% : 신규창출 30% 황금구조"
-          : `만족·소개 축적 중 (+${needReferral}명 목표)`,
+      subMetric:
+        !clinicStage || clinicYearsActive === null
+          ? "개원연도 미입력"
+          : pureFirstRouteRecorded > 0
+          ? `${clinicYearsActive}년차 · 신규창출 ${externalSeedRate}%`
+          : `${clinicYearsActive}년차 · MPI ${mpi}‰`,
+      currentValue: !clinicStage ? 0 : referralRate,
+      valueDisplay: !clinicStage
+        ? "계산불가"
+        : totalPatients === 0
+        ? "-"
+        : pureFirstRouteRecorded === 0
+        ? "경로 미기입"
+        : `소개 ${referralRate}%`,
+      targetValue: !clinicStage ? 0 : targetReferral,
+      targetDisplay: !clinicStage ? "개원연도 입력 필수" : "목표 소개 70% · 신규 30%",
+      gapDisplay: referralGapDisplay,
+      status: referralStatus,
+      conclusion: referralConclusion,
+      requiresOpenYear: !clinicStage,
       modal: {
-        exactCounts: `순수초진(경로확인) ${pureFirstRouteRecorded}명 중 [지인·가족 소개 ${pureFirstReferral}명(${referralRate}%) : 외부 신규창출 ${externalSeedCount}명(${externalSeedRate}% — 간판·도보 ${pureFirstWalkIn}명 + 광고·검색·블로그 ${pureFirstDigital}명)] ※ 재초진 ${reFirst}명은 분모 왜곡 방지를 위해 별도 분리 | 동네 인구 대비 침투율 MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`,
+        exactCounts: !clinicStage
+          ? `개원 연도 미입력으로 연차별 판정 불가 (경로 확인 순수초진 ${pureFirstRouteRecorded}명 중 소개 ${pureFirstReferral}명)`
+          : `${clinicOpenYear}년 개원 (${clinicYearsActive}년 차${clinicStage.referralSoftened ? " · 초기 완화 판정" : " · 3년차↑ 엄격 판정"}) | 순수초진(경로확인) ${pureFirstRouteRecorded}명 중 [지인·가족 소개 ${pureFirstReferral}명(${referralRate}%) : 외부 신규창출 ${externalSeedCount}명(${externalSeedRate}% — 간판·도보 ${pureFirstWalkIn}명 + 광고·검색·블로그 ${pureFirstDigital}명)] ※ 재초진 ${reFirst}명 별도 분리 | MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`,
         benchmarkReason:
-          "Bass 확산 모델(누적 단골 복리 이론)에 따라, 개원 초기·광고 확장기(1~3년)에는 외부 유입 투자로 일시적으로 30~50% 구간이 나타나지만, 3차 정착(70%)과 재초진 단골 자산(Stock)이 5~10년 축적되면 생애 첫 방문자(순수초진)의 70%가 소개로 유입되고 나머지 30%는 광고·블로그·플레이스·간판 투자로 신규 씨앗 환자를 창출하는 '7:3 황금 균형점'에 수렴합니다.",
+          "소개율은 진료의 질을 증명하는 핵심 지표이므로 전 연차 공통 목표는 '소개 70% : 외부 신규창출 30%'로 고정합니다. 단, 개원 1~2년 차는 소개해 줄 누적 단골 풀이 아직 쌓이는 시기이므로 70% 미만이어도 '미달' 대신 '주의(초기 단골 축적 중)'로 완화해 안내하며, 3년 차 이상부터 엄격하게 판정합니다.",
         riskWarning:
-          "40% 미만이면 진료 만족도가 구전으로 이어지지 않는 상태이며, 반대로 신환 총수(MPI)가 낮은데 소개만 85%를 넘으면 외부 신규 씨앗(30% 광고·검색 창출) 투자가 멈춰 환자층이 고립·노후화됩니다.",
-        actionInstruction:
-          "소개 환자에게는 원장님 직접 감사 인사로 만족도 복리를 가속하고, 동시에 전체 순수초진의 20~30%는 블로그·플레이스·홈페이지·간판을 통해 새로운 씨앗 환자가 꾸준히 유입되도록 마케팅을 유지하세요.",
+          "3년 차 이상에서 소개율이 40% 미만이면 진료 만족도가 구전으로 이어지지 않는 위험 신호이며, 반대로 신환 총수(MPI)가 낮은데 소개만 85%를 넘으면 외부 신규 씨앗(30% 광고·검색 창출) 투자가 멈춰 환자층이 고립·노후화됩니다.",
+        actionInstruction: !clinicStage
+          ? "상단 개원 연도 입력란에 한의원 개원 연도 4자리를 입력해 연차별 소개율 판정을 활성화하세요."
+          : "소개 환자에게는 원장님 직접 감사 인사로 만족도 복리를 가속하고, 동시에 전체 순수초진의 20~30%는 블로그·플레이스·홈페이지·간판을 통해 새로운 씨앗 환자가 꾸준히 유입되도록 마케팅을 유지하세요.",
         scriptExample:
           "\"OOO님 소개로 오셨군요! 믿고 찾아주신 만큼 3회 치료 원칙으로 확실히 호전시켜 드리겠습니다.\"",
         revenueImpactManwon: 0,
@@ -1770,6 +1943,9 @@ export function evaluateDualTrackStats(
 
   return {
     evaluatedAt: new Date().toISOString(),
+    clinicOpenYear,
+    clinicYearsActive,
+    clinicStageLabel: clinicStage ? clinicStage.stageLabel : null,
     districtType: district.type,
     districtTip: district.tip,
     mpi,
