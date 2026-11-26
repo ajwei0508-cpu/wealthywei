@@ -1438,13 +1438,48 @@ export default function FirstVisitAnalyticsView({
                     <p className="text-[#404040]">{activeModal.item.modal.benchmarkReason}</p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#FBF7EE] border border-[#E6D5B3]">
-                    <h4 className="font-extrabold text-[#7A5B1F] mb-1">2. 기준 미달 시 경영 리스크</h4>
-                    <p className="text-[#404040]">{activeModal.item.modal.riskWarning}</p>
+                  <div
+                    className={`p-3.5 rounded-xl border ${
+                      activeModal.item.modal.riskLossTone === "loss"
+                        ? "bg-[#FEF2F2] border-[#FECACA]"
+                        : activeModal.item.modal.riskLossTone === "safe"
+                        ? "bg-[#ECFDF5] border-[#C6DFCE]"
+                        : "bg-[#FBF7EE] border-[#E6D5B3]"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                      <h4
+                        className={`font-extrabold ${
+                          activeModal.item.modal.riskLossTone === "loss"
+                            ? "text-[#B91C1C]"
+                            : activeModal.item.modal.riskLossTone === "safe"
+                            ? "text-[#0F5132]"
+                            : "text-[#7A5B1F]"
+                        }`}
+                      >
+                        {activeModal.item.modal.riskTitle || "2. 기준 미달 시 경영 리스크"}
+                      </h4>
+                      {activeModal.item.modal.riskLossBadge && (
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
+                            activeModal.item.modal.riskLossTone === "loss"
+                              ? "bg-[#DC2626] text-white"
+                              : activeModal.item.modal.riskLossTone === "safe"
+                              ? "bg-[#0F5132] text-white"
+                              : "bg-[#111111] text-[#D4AF37]"
+                          }`}
+                        >
+                          {activeModal.item.modal.riskLossBadge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[#374151]">{activeModal.item.modal.riskWarning}</p>
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
-                    <h4 className="font-extrabold text-[#0F5132] mb-1">3. 목표 도달 실행 지시</h4>
+                    <h4 className="font-extrabold text-[#0F5132] mb-1">
+                      {activeModal.item.modal.actionTitle || "3. 목표 도달 실행 지시"}
+                    </h4>
                     <p className="text-[#1F2937] mb-2">{activeModal.item.modal.actionInstruction}</p>
                     <div className="p-2.5 rounded-lg bg-white border border-[#D4E7DA] text-[#0F5132] font-bold">
                       💬 실전 멘트: {activeModal.item.modal.scriptExample}
