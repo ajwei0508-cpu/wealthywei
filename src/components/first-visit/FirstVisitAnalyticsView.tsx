@@ -1439,7 +1439,7 @@ export default function FirstVisitAnalyticsView({
                   </div>
 
                   <div
-                    className={`p-3.5 rounded-xl border ${
+                    className={`p-4 rounded-xl border ${
                       activeModal.item.modal.riskLossTone === "loss"
                         ? "bg-[#FEF2F2] border-[#FECACA]"
                         : activeModal.item.modal.riskLossTone === "safe"
@@ -1447,56 +1447,58 @@ export default function FirstVisitAnalyticsView({
                         : "bg-[#FBF7EE] border-[#E6D5B3]"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                      <h4
-                        className={`font-extrabold ${
-                          activeModal.item.modal.riskLossTone === "loss"
-                            ? "text-[#B91C1C]"
-                            : activeModal.item.modal.riskLossTone === "safe"
-                            ? "text-[#0F5132]"
-                            : "text-[#7A5B1F]"
-                        }`}
-                      >
-                        {activeModal.item.modal.riskTitle || "2. 기준 미달 시 경영 리스크"}
-                      </h4>
-                      {activeModal.item.modal.riskLossBadge && (
+                    <h4
+                      className={`text-[11px] font-extrabold mb-1.5 ${
+                        activeModal.item.modal.riskLossTone === "loss"
+                          ? "text-[#B91C1C]"
+                          : activeModal.item.modal.riskLossTone === "safe"
+                          ? "text-[#0F5132]"
+                          : "text-[#7A5B1F]"
+                      }`}
+                    >
+                      {activeModal.item.modal.riskTitle || "2. 기준 미달 시 경영 리스크"}
+                    </h4>
+                    {activeModal.item.modal.riskLossBadge && (
+                      <div className="flex flex-wrap items-baseline gap-2 mb-1.5">
                         <span
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-black ${
+                          className={`text-xl md:text-2xl font-black tracking-tight ${
                             activeModal.item.modal.riskLossTone === "loss"
-                              ? "bg-[#DC2626] text-white"
+                              ? "text-[#DC2626]"
                               : activeModal.item.modal.riskLossTone === "safe"
-                              ? "bg-[#0F5132] text-white"
-                              : "bg-[#111111] text-[#D4AF37]"
+                              ? "text-[#0F5132]"
+                              : "text-[#111111]"
                           }`}
                         >
                           {activeModal.item.modal.riskLossBadge}
                         </span>
-                      )}
-                    </div>
-                    <p className="text-[#374151]">{activeModal.item.modal.riskWarning}</p>
+                        {activeModal.item.modal.riskLossSub && (
+                          <span
+                            className={`text-xs font-extrabold ${
+                              activeModal.item.modal.riskLossTone === "loss"
+                                ? "text-[#991B1B]"
+                                : activeModal.item.modal.riskLossTone === "safe"
+                                ? "text-[#0F5132]/80"
+                                : "text-[#7A5B1F]"
+                            }`}
+                          >
+                            {activeModal.item.modal.riskLossSub}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-xs text-[#374151] leading-relaxed">
+                      {activeModal.item.modal.riskWarning}
+                    </p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
-                    <h4 className="font-extrabold text-[#0F5132] mb-1">
-                      {activeModal.item.modal.actionTitle || "3. 목표 도달 실행 지시"}
+                  <div className="p-4 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
+                    <h4 className="text-[11px] font-extrabold text-[#0F5132] mb-2">
+                      {activeModal.item.modal.actionTitle || "3. 실전 멘트"}
                     </h4>
-                    <p className="text-[#1F2937] mb-2">{activeModal.item.modal.actionInstruction}</p>
-                    <div className="p-2.5 rounded-lg bg-white border border-[#D4E7DA] text-[#0F5132] font-bold">
-                      💬 실전 멘트: {activeModal.item.modal.scriptExample}
+                    <div className="p-3 rounded-lg bg-white border border-[#D4E7DA] text-[13px] leading-relaxed text-[#0F5132] font-bold">
+                      💬 {activeModal.item.modal.scriptExample}
                     </div>
                   </div>
-
-                  {activeModal.item.modal.formulaNote && (
-                    <div className="px-3 py-2 rounded-lg bg-[#FAFAFA] border border-[#EAEAEA] text-[11px] text-[#666666]">
-                      <strong className="text-[#111111]">기대효과 산출식:</strong>{" "}
-                      {activeModal.item.modal.formulaNote}
-                      {activeModal.item.modal.revenueImpactManwon > 0 && (
-                        <span className="text-[#0F5132] font-extrabold ml-1">
-                          (= +월 {activeModal.item.modal.revenueImpactManwon.toLocaleString()}만 원)
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </>
               )}
 
@@ -1532,13 +1534,12 @@ export default function FirstVisitAnalyticsView({
                     <p className="text-[#404040]">{activeModal.part.dropoutReason}</p>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
-                    <h4 className="font-extrabold text-[#0F5132] mb-1">
-                      2. 원장님 맞춤 3회 완주 처방 &amp; 티업 멘트
+                  <div className="p-4 rounded-xl bg-[#F4F8F5] border border-[#C6DFCE]">
+                    <h4 className="text-[11px] font-extrabold text-[#0F5132] mb-2">
+                      2. {activeModal.part.label} 실전 멘트
                     </h4>
-                    <p className="text-[#1F2937] mb-2">{activeModal.part.prescriptionGuide}</p>
-                    <div className="p-2.5 rounded-lg bg-white border border-[#D4E7DA] text-[#0F5132] font-bold">
-                      💬 실전 멘트: {activeModal.part.scriptExample}
+                    <div className="p-3 rounded-lg bg-white border border-[#D4E7DA] text-[13px] leading-relaxed text-[#0F5132] font-bold">
+                      💬 {activeModal.part.scriptExample}
                     </div>
                   </div>
                 </>

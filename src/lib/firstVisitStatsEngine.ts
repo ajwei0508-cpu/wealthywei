@@ -51,14 +51,15 @@ export interface IndicatorModalDetail {
   exactCounts: string;           // 실제 분자/분모 집계 내역
   benchmarkReason: string;       // 1. 왜 이 기준점인가? (고정 설명 안내문)
   riskTitle?: string;            // 2. 상황 맞춤 리스크/강점 섹션 제목
-  riskLossBadge?: string;        // 2. 실시간 마이너스 매출 또는 체감 리스크 배지
+  riskLossBadge?: string;        // 2. 크게 표시할 핵심 마이너스 매출 또는 체감 위험 수치
+  riskLossSub?: string;          // 2. 큰 수치 옆 보조 표기 (예: "(연 -360만 원)")
   riskLossTone?: "loss" | "cause" | "warn" | "safe"; // 2. 시각 강조 톤
-  riskWarning: string;           // 2. 실시간 측정 기반 리스크 / 강점 진단
-  actionTitle?: string;          // 3. 상황 맞춤 실행 지시 제목
-  actionInstruction: string;     // 3. 교차 원인 진단 기반 맞춤 행동 지시
+  riskWarning: string;           // 2. 한 문장 핵심 리스크 / 강점 요약
+  actionTitle?: string;          // 3. 상황 맞춤 실전 멘트 제목
+  actionInstruction: string;     // 최우선 미션 모달 연동용 실행 지시 (지표 팝업 3번에서는 실전 멘트만 표시)
   scriptExample: string;         // 3. 현재 상황 맞춤 현장 실전 스크립트
-  revenueImpactManwon: number;   // 목표 도달 시 월 예상 추가 매출(만원) — 중복제외 순수분
-  formulaNote?: string;          // 1회 진료비 기반 정확한 산출 공식 설명
+  revenueImpactManwon: number;   // 상단 목표 도달 기대효과 집계용 (팝업 하단 산출식은 미표시)
+  formulaNote?: string;          // 상단 기대효과 모달 산출식 연동용
 }
 
 export interface BodyPartRetentionItem {
@@ -1092,20 +1093,16 @@ export function evaluateDualTrackStats(
   }
 
   // --- 실시간 마이너스 매출(직접 누수) & 교차 원인 진단 헬퍼 ---
-  const formatCashLossBadge = (manwon: number): string => {
-    if (manwon <= 0) return "누수 0원 · 기준 방어 완료";
-    if (activeMonthSpan <= 1) {
-      return `현재 -월 ${manwon.toLocaleString()}만 원 · 연 -${(manwon * 12).toLocaleString()}만 원`;
-    }
-    const monthlyAvg = Math.round(manwon / activeMonthSpan);
-    return `기간 누수 -${manwon.toLocaleString()}만 원 (월평균 -${monthlyAvg.toLocaleString()}만 원)`;
+  const formatCashLossMain = (manwon: number): string => {
+    if (manwon <= 0) return "누수 0원";
+    if (activeMonthSpan <= 1) return `-월 ${manwon.toLocaleString()}만 원`;
+    return `누적 -${manwon.toLocaleString()}만 원`;
   };
-  const formatCashLossPhrase = (manwon: number): string => {
-    if (activeMonthSpan <= 1) {
-      return `월 -${manwon.toLocaleString()}만 원(연 환산 -${(manwon * 12).toLocaleString()}만 원)`;
-    }
+  const formatCashLossSub = (manwon: number, safeLabel: string): string => {
+    if (manwon <= 0) return `(${safeLabel})`;
+    if (activeMonthSpan <= 1) return `(연 -${(manwon * 12).toLocaleString()}만 원)`;
     const monthlyAvg = Math.round(manwon / activeMonthSpan);
-    return `누적 -${manwon.toLocaleString()}만 원(월평균 -${monthlyAvg.toLocaleString()}만 원)`;
+    return `(월평균 -${monthlyAvg.toLocaleString()}만 원)`;
   };
   const totalRetentionLossManwon = gain2ndManwon + gain3rdManwon;
   const drop2to3Count = Math.max(0, secondCount - thirdCount);
@@ -1114,7 +1111,7 @@ export function evaluateDualTrackStats(
   const estSeniorBedShare = Math.min(85, Math.round(seniorRate * 2));
   const maleRate = genderSum > 0 ? Number((100 - femaleRate).toFixed(1)) : 0;
 
-  // [지표 1] 2차 재내원율 — 실시간 마이너스 매출 & 교차 원인(예약·골든타임·노쇼) 맞춤 처방
+  // [지표 1] 2차 재내원율 — 큰 마이너스 금액 + 1문장 리스크 + 상황별 실전 멘트
   const secondModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "초진 10명 중 타지역 방문·단순 1회성 경증(약 2명, 20%)을 제외한 유효 치료 대상군 8명(80%↑)은 반드시 2회차 반응 확인으로 연결되어야 3차 정착률 70% 달성이 수학적으로 성립합니다 (Musculoskeletal Science & Practice 외래 미재방문 연구 근거).";
@@ -1122,17 +1119,17 @@ export function evaluateDualTrackStats(
     const formulaNote =
       need2nd > 0
         ? `${need2nd}명 부족 × 1회(2회차 방문비) × 보험 객단가 ${avgFeeStr}만 원`
-        : "목표 달성 완료 (2회차 이탈 손실 0원)";
+        : "목표 달성 완료";
 
     if (totalPatients === 0) {
       return {
         exactCounts,
         benchmarkReason,
-        riskTitle: "2. 데이터 연동 대기",
-        riskLossBadge: "시트 업로드 대기",
+        riskTitle: "2. 기준 미달 시 경영 리스크",
+        riskLossBadge: "데이터 대기",
         riskLossTone: "warn",
-        riskWarning: "환자 시트가 업로드되면 1회 이탈로 증발하는 실시간 마이너스 매출을 자동 산출합니다.",
-        actionTitle: "3. 목표 도달 실행 지시",
+        riskWarning: "환자 시트를 업로드하면 1회 이탈로 발생하는 실시간 마이너스 매출을 자동 산출합니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "초진 시트를 업로드한 뒤 초진 당일 2회차 예약 확정 현황을 점검하세요.",
         scriptExample:
           "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 합니다.\"",
@@ -1146,16 +1143,17 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 손실 방어 현황",
-        riskLossBadge: "누수 0원 · 기준 방어 완료",
+        riskLossBadge: "누수 0원",
+        riskLossSub: "(목표 80% 방어 완료)",
         riskLossTone: "safe",
-        riskWarning: `현재 2차 재내원율 ${rate2nd}%로 목표(80%)를 안정적으로 넘어섰습니다. 초진 1회 이탈로 인한 2회차 진료비 손실이 0원으로 완벽히 방어되고 있습니다.`,
-        actionTitle: "3. 강점 유지 · 3차 및 객단가 확장 실행 지시",
+        riskWarning: `현재 2차 재내원율 ${rate2nd}%로 목표(80%)를 넘어 초진 1회 이탈 손실을 완벽히 방어하고 있습니다.`,
+        actionTitle: "3. 실전 멘트 — 강점 유지 · 3차 연결",
         actionInstruction:
           rate3rd < target3rd
-            ? `2차 안착(${rate2nd}%)은 매우 우수합니다. 이제 2회차까지 온 환자가 3회 완주(현재 ${rate3rd}%)로 이어지도록 2회차 진료 시 '속근육 안정화' 설명을 강화하세요.`
-            : `2차(${rate2nd}%)와 3차(${rate3rd}%) 모두 최상위 수준입니다. 현재 초진 설명 루틴을 유지하면서 근골격 환자의 추나·급여첩약 연계로 객단가를 키울 단계입니다.`,
+            ? `2차 안착(${rate2nd}%)은 매우 우수하므로 이제 2회차 환자가 3회 완주(현재 ${rate3rd}%)로 이어지도록 안정화 설명을 강화하세요.`
+            : `2차(${rate2nd}%)와 3차(${rate3rd}%) 모두 최상위 수준이므로 근골격 환자의 추나·급여첩약 연계로 객단가를 확장하세요.`,
         scriptExample:
-          "\"지난번 치료 반응이 아주 좋습니다. 오늘 2단계 교정까지 잘 잡혔으니, 다음 3회차에 재발 방지 마무리까지 하고 생활 관리법을 잡아드리겠습니다.\"",
+          "\"지난번 치료 반응이 아주 좋습니다. 오늘 2단계 교정까지 잘 잡혔으니, 다음 3회차에 재발 방지 마무리까지 확실히 잡아드리겠습니다.\"",
         revenueImpactManwon: gain2ndManwon,
         formulaNote,
       };
@@ -1165,26 +1163,17 @@ export function evaluateDualTrackStats(
     const isIntervalCause = intervals.length > 0 && medianInterval > 4.5;
     const isNoShowCause = resvYes > 0 && resvRate >= targetResv;
 
-    const riskWarning = `현재 2차 재내원율이 ${rate2nd}%로 목표 대비 ${need2nd}명이 1회 시술 후 이탈해, 2회차 진료비만 ${formatCashLossPhrase(gain2ndManwon)}이 실시간으로 증발하고 있습니다.${
-      isDeskResvCause
-        ? ` 특히 다음 예약을 안 잡고 귀가한 ${resvNo}명의 2차 내원율이 ${resvLiftNo}%에 머물러 데스크 예약 누락이 핵심 손실 원인입니다.`
-        : isIntervalCause
-        ? ` 특히 초진→2차 간격 중간값이 ${medianInterval}일로 골든타임(4.5일)을 넘어 치료 동기가 식으며 이탈하고 있습니다.`
-        : isNoShowCause
-        ? ` 예약 확정률(${resvRate}%)은 양호하나 실제 내원으로 이어지지 않아 예약 후 노쇼·취소 또는 초진 설득 부족이 원인입니다.`
-        : " 65% 미만으로 떨어지면 초기 치료 대상군마저 1회 시술로 이탈하는 '밑 빠진 독(Leaky Bucket)' 구조가 고착화됩니다."
-    }`;
-
     if (isDeskResvCause) {
       return {
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 기준 미달 시 경영 리스크 (실시간 누수 매출)",
-        riskLossBadge: formatCashLossBadge(gain2ndManwon),
+        riskLossBadge: formatCashLossMain(gain2ndManwon),
+        riskLossSub: formatCashLossSub(gain2ndManwon, "방어 완료"),
         riskLossTone: "loss",
-        riskWarning,
-        actionTitle: "3. 맞춤 실행 지시 — 데스크 예약 누락 즉시 차단",
-        actionInstruction: `현재 예약 확정률이 ${resvRate}%로 낮아 미예약자 ${resvNo}명(2차율 ${resvLiftNo}%)에서 이탈이 집중되고 있습니다. 진료실 마지막 30초에 원장님이 2차 내원일을 먼저 지정하고, 데스크는 '예약하시겠어요?' 대신 양자택일로 즉시 예약표를 잡으세요.`,
+        riskWarning: `목표 대비 ${need2nd}명이 1회 후 이탈했으며, 특히 미예약자 ${resvNo}명의 2차율이 ${resvLiftNo}%에 그쳐 데스크 예약 누락이 핵심 원인입니다.`,
+        actionTitle: "3. 실전 멘트 — 데스크 예약 누락 차단",
+        actionInstruction: `예약 확정률(${resvRate}%)을 높이기 위해 원장님이 재내원일을 지정하고 데스크는 양자택일로 즉시 예약표를 잡으세요.`,
         scriptExample:
           "\"오늘 급성 염증을 풀었고 3일 뒤 반응 확인이 꼭 필요합니다. 데스크에서 목요일 오전 11시와 오후 3시 중 편한 시간으로 바로 잡아드리고 가세요.\"",
         revenueImpactManwon: gain2ndManwon,
@@ -1197,11 +1186,12 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 기준 미달 시 경영 리스크 (실시간 누수 매출)",
-        riskLossBadge: formatCashLossBadge(gain2ndManwon),
+        riskLossBadge: formatCashLossMain(gain2ndManwon),
+        riskLossSub: formatCashLossSub(gain2ndManwon, "방어 완료"),
         riskLossTone: "loss",
-        riskWarning,
-        actionTitle: "3. 맞춤 실행 지시 — 2차 내원 간격 3일 이내 단축",
-        actionInstruction: `현재 초진→2차 간격이 중간값 ${medianInterval}일로 너무 벌어져 환자가 통증을 잊거나 타 병원으로 이탈하고 있습니다. 초진 직후 무조건 2~4일 이내 날짜를 1차 선택지로 제시해 부족한 ${need2nd}명의 골든타임을 사수하세요.`,
+        riskWarning: `목표 대비 ${need2nd}명이 1회 후 이탈했으며, 초진→2차 간격이 중간값 ${medianInterval}일로 벌어져 치료 동기가 식은 상태입니다.`,
+        actionTitle: "3. 실전 멘트 — 2차 간격 3일 이내 단축",
+        actionInstruction: `초진→2차 간격(현재 ${medianInterval}일)을 4.5일 이내로 당겨 부족한 ${need2nd}명의 이탈을 차단하세요.`,
         scriptExample:
           "\"첫 치료 후 3일이 넘어가면 뭉친 근육이 다시 원점으로 돌아갑니다. 이번 주 수요일이나 목요일 중에 꼭 한 번 더 오셔서 2단계 치료를 받으셔야 합니다.\"",
         revenueImpactManwon: gain2ndManwon,
@@ -1213,15 +1203,18 @@ export function evaluateDualTrackStats(
       exactCounts,
       benchmarkReason,
       riskTitle: "2. 기준 미달 시 경영 리스크 (실시간 누수 매출)",
-      riskLossBadge: formatCashLossBadge(gain2ndManwon),
+      riskLossBadge: formatCashLossMain(gain2ndManwon),
+      riskLossSub: formatCashLossSub(gain2ndManwon, "방어 완료"),
       riskLossTone: "loss",
-      riskWarning,
+      riskWarning: isNoShowCause
+        ? `예약 확정률(${resvRate}%)은 양호하나 목표 대비 ${need2nd}명이 실제 내원하지 않아 예약 후 노쇼·취소가 핵심 손실 원인입니다.`
+        : `현재 2차 재내원율 ${rate2nd}%로 목표 대비 ${need2nd}명이 1회 시술 후 이탈하며 '밑 빠진 독' 누수가 발생하고 있습니다.`,
       actionTitle: isNoShowCause
-        ? "3. 맞춤 실행 지시 — 예약 후 노쇼 방어 & 진료실 명분 강화"
-        : "3. 맞춤 실행 지시 — 진료실 3회 원칙 선언 및 2차 고정",
+        ? "3. 실전 멘트 — 예약 후 노쇼 방어"
+        : "3. 실전 멘트 — 진료실 3회 원칙 선언",
       actionInstruction: isNoShowCause
-        ? `예약 확정률은 ${resvRate}%로 양호하지만 실제 2차 내원은 ${rate2nd}%에 그쳐 예약 후 취소·노쇼가 발생 중입니다. 초진 마지막 30초에 '왜 2회차에 꼭 와야 하는지' 의학적 명분을 못 박고, 예약 전날 알림톡·안부 문자를 가동하세요.`
-        : `초진 진료 마지막 30초에 원장님이 직접 '3회 집중 치료 원칙'을 선언하고 2~4일 내 2차 내원일을 확정해 부족한 ${need2nd}명을 안착시키세요.`,
+        ? `예약 확정률(${resvRate}%) 대비 실제 내원이 낮으므로 초진 마지막 30초 의학적 명분 고지와 예약 전날 알림톡 리마인드를 가동하세요.`
+        : `초진 마지막 30초에 원장님이 '3회 집중 치료 원칙'을 선언하고 2~4일 내 2차 내원일을 확정해 부족한 ${need2nd}명을 안착시키세요.`,
       scriptExample:
         "\"오늘 첫 침·약침으로 급성 긴장을 풀었습니다. 3일 뒤 목요일에 오셔서 반응 확인 및 2단계 교정이 꼭 들어가야 재발을 막을 수 있습니다.\"",
       revenueImpactManwon: gain2ndManwon,
@@ -1229,7 +1222,7 @@ export function evaluateDualTrackStats(
     };
   })();
 
-  // [지표 2] 3차 정착률 — 실시간 마이너스 매출 & 교차 원인(2차 부족 vs 2→3회 조기중단 + 취약질환 자동삽입)
+  // [지표 2] 3차 정착률 — 큰 마이너스 금액 + 1문장 리스크 + 상황별(취약질환 연동) 실전 멘트
   const thirdModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "① 외래 재활·근골격 연구(Musculoskeletal Science & Practice)상 타지역·물리적 제약 및 단발성 자가호전 등 구조적 비대상군이 약 25~30%(10명 중 3명)이며, ② 보건복지부 한방의료이용실태조사상 내원객의 74% 이상인 근골격·만성질환군은 침 진통 반감기(24~72시간, Vickers et al. IPD 메타분석)와 치료동맹 형성(Horvath & Symonds)을 위해 나머지 7명(70%↑) 전원이 최소 3회 치료를 완주해야 합니다.";
@@ -1240,17 +1233,17 @@ export function evaluateDualTrackStats(
     const formulaNote =
       need3rd > 0
         ? `${need3rd}명 부족 × 1회(3회차 방문비, 2차와 중복 0%) × 보험 객단가 ${avgFeeStr}만 원`
-        : "목표 달성 완료 (3회차 이탈 손실 0원)";
+        : "목표 달성 완료";
 
     if (totalPatients === 0) {
       return {
         exactCounts,
         benchmarkReason,
-        riskTitle: "2. 데이터 연동 대기",
-        riskLossBadge: "시트 업로드 대기",
+        riskTitle: "2. 기준 미달 시 경영 리스크",
+        riskLossBadge: "데이터 대기",
         riskLossTone: "warn",
-        riskWarning: "환자 시트가 업로드되면 3회 전 조기 중단으로 증발하는 실시간 마이너스 매출을 자동 산출합니다.",
-        actionTitle: "3. 목표 도달 실행 지시",
+        riskWarning: "환자 시트를 업로드하면 3회 전 조기 중단으로 발생하는 실시간 마이너스 매출을 자동 산출합니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "초진 시트 업로드 후 2→3회차 이탈 구간과 취약 질환을 확인하세요.",
         scriptExample:
           "\"통증이 절반 줄었을 때 멈추면 금방 재발합니다. 최소 3회차까지는 속근육을 잡아드려야 안전하게 마무리됩니다.\"",
@@ -1264,12 +1257,13 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 손실 방어 현황",
-        riskLossBadge: "누수 0원 · 3회 완주 달성",
+        riskLossBadge: "누수 0원",
+        riskLossSub: "(3회 완주 70% 방어 완료)",
         riskLossTone: "safe",
-        riskWarning: `현재 3차 정착률 ${rate3rd}%로 10명 중 7명 이상이 3회 치료를 완주하고 있습니다. 조기 이탈로 인한 3회차 매출 손실 0원이며, 소개와 재초진이 자연 복리로 쌓이는 최상위 구조입니다.`,
-        actionTitle: "3. 강점 유지 · 소개 및 비급여 브릿지 실행 지시",
+        riskWarning: `현재 3차 정착률 ${rate3rd}%로 10명 중 7명 이상이 3회 완주해 소개와 재초진이 쌓이는 최상위 구조입니다.`,
+        actionTitle: "3. 실전 멘트 — 강점 유지 · 소개 확장",
         actionInstruction:
-          "3회 완주율이 매우 탄탄합니다. 3회차 마무리 진료 시 호전 경과를 함께 확인하며 지인 소개 안내 및 만성·재발 방어용 추나·첩약 연계로 확장하세요.",
+          "3회차 마무리 진료 시 호전 경과를 함께 확인하며 지인 소개 안내 및 추나·첩약 연계로 확장하세요.",
         scriptExample:
           "\"3회 집중 치료를 잘 따라와 주셔서 속근육까지 안정됐습니다. 앞으로 무리하실 때나 가족분들 불편하실 때도 언제든 편하게 찾아주세요.\"",
         revenueImpactManwon: gain3rdManwon,
@@ -1279,26 +1273,18 @@ export function evaluateDualTrackStats(
 
     const hasWeakPart = Boolean(weakestBodyPart && weakestBodyPart.thirdRate < 70);
     const isSecondBlocked = rate2nd < 70;
-    const riskWarning = `현재 3차 정착률이 ${rate3rd}%로 목표 대비 ${need3rd}명이 3회 전에 이탈해, 3회차 진료비만 ${formatCashLossPhrase(gain3rdManwon)}이 실시간으로 새고 있습니다.${
-      isSecondBlocked
-        ? ` 2차 재내원율(${rate2nd}%) 단계부터 누수가 시작되어 3회 완주 인원 자체가 줄어든 상태입니다.`
-        : ` 특히 2회차까지 온 ${secondCount}명 중 ${drop2to3Count}명이 3회차에 오지 않아 '통증 절반 감소 후 조기 자가중단(Self-Discharge)'이 뚜렷합니다.`
-    }${
-      hasWeakPart && weakestBodyPart
-        ? ` 질환별로는 '${weakestBodyPart.label}' 삼진율이 ${weakestBodyPart.thirdRate}%로 가장 취약합니다.`
-        : ""
-    }`;
 
     if (isSecondBlocked) {
       return {
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 기준 미달 시 경영 리스크 (실시간 누수 매출)",
-        riskLossBadge: formatCashLossBadge(gain3rdManwon),
+        riskLossBadge: formatCashLossMain(gain3rdManwon),
+        riskLossSub: formatCashLossSub(gain3rdManwon, "방어 완료"),
         riskLossTone: "loss",
-        riskWarning,
-        actionTitle: "3. 맞춤 실행 지시 — 2차 이탈 차단 우선 + 3회 로드맵 고지",
-        actionInstruction: `현재 2차 재내원율(${rate2nd}%)부터 낮아 3차까지 도달하는 모수가 부족합니다. 3차 독려보다 '초진 당일 2차 예약 확정(+${need2nd}명)'을 1순위로 교정하고, 초진 첫날부터 '1회 급성완화 → 2회 원인교정 → 3회 안정화' 3회 로드맵을 미리 선언하세요.`,
+        riskWarning: `2차 재내원율(${rate2nd}%) 단계부터 누수가 시작돼 목표 대비 ${need3rd}명이 3회 완주에 도달하지 못하고 있습니다.`,
+        actionTitle: "3. 실전 멘트 — 초진 3회 로드맵 선언",
+        actionInstruction: `현재 2차 재내원율(${rate2nd}%) 교정이 1순위이므로 초진 첫날 3회 로드맵 고지와 2차 예약 확정을 먼저 고정하세요.`,
         scriptExample:
           "\"오늘 1회차는 급한 통증을 끄는 단계고, 2회차 교정과 3회차 안정화까지 세 번은 보셔야 재발 없이 끝납니다. 먼저 3일 뒤 2회차 예약부터 잡아드릴게요.\"",
         revenueImpactManwon: gain3rdManwon,
@@ -1310,18 +1296,19 @@ export function evaluateDualTrackStats(
       exactCounts,
       benchmarkReason,
       riskTitle: "2. 기준 미달 시 경영 리스크 (실시간 누수 매출)",
-      riskLossBadge: formatCashLossBadge(gain3rdManwon),
+      riskLossBadge: formatCashLossMain(gain3rdManwon),
+      riskLossSub: formatCashLossSub(gain3rdManwon, "방어 완료"),
       riskLossTone: "loss",
-      riskWarning,
+      riskWarning: `2회차까지 온 ${secondCount}명 중 ${drop2to3Count}명이 통증 호전 후 조기 중단${
+        hasWeakPart && weakestBodyPart
+          ? `(특히 '${weakestBodyPart.label}' 삼진율 ${weakestBodyPart.thirdRate}%)`
+          : ""
+      }하며 3회차 매출이 새고 있습니다.`,
       actionTitle:
         hasWeakPart && weakestBodyPart
-          ? `3. 맞춤 실행 지시 — 2회차 조기 중단 방어 (${weakestBodyPart.label} 집중)`
-          : "3. 맞춤 실행 지시 — 2회차 통증 호전 후 조기 중단 방어",
-      actionInstruction: `2차 재내원율(${rate2nd}%)은 양호하지만 2회차 내원자 ${secondCount}명 중 ${drop2to3Count}명이 3회차 전에 스스로 치료를 멈추고 있습니다.${
-        hasWeakPart && weakestBodyPart
-          ? ` 특히 '${weakestBodyPart.label}(삼진율 ${weakestBodyPart.thirdRate}%)' 환자군에서 이탈이 집중되므로,`
-          : ""
-      } 2회차 진료 시작 시 '지금 덜 아플 때가 재발을 막는 진짜 골든타임'임을 먼저 못 박아 부족한 ${need3rd}명을 완주시키세요.`,
+          ? `3. 실전 멘트 — 2회차 조기 중단 방어 (${weakestBodyPart.label})`
+          : "3. 실전 멘트 — 2회차 조기 중단 방어",
+      actionInstruction: `2회차 진료 시작 시 '지금 덜 아플 때가 재발을 막는 골든타임'임을 먼저 못 박아 부족한 ${need3rd}명을 3회 완주시키세요.`,
       scriptExample:
         hasWeakPart && weakestBodyPart
           ? weakestBodyPart.scriptExample
@@ -1331,7 +1318,7 @@ export function evaluateDualTrackStats(
     };
   })();
 
-  // [지표 3] 재내원 골든타임 — 원인 연동 손실(중복 제외) & 간격별 맞춤 처방
+  // [지표 3] 재내원 골든타임 — 원인 연동 핵심 수치 크게 + 1문장 + 실전 멘트
   const intervalModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "유난히 늦게 재방문한 1~2명 때문에 평균이 왜곡되지 않도록 '중간값(Median)'을 적용했습니다. 초진 후 3~4.5일 이내가 침·약침 자극 반응과 치료 동기가 살아있는 골든타임입니다.";
@@ -1339,7 +1326,6 @@ export function evaluateDualTrackStats(
       intervals.length > 0
         ? `2회 내원자 ${intervals.length}명의 1→2회 방문 간격 중간값 ${medianInterval}일 (산술평균 ${avgInterval}일)`
         : "아직 1회·2회 날짜가 모두 기입된 환자가 없습니다.";
-    const formulaNote = "※ 내원 주기 단축 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)";
 
     if (intervals.length === 0) {
       return {
@@ -1348,13 +1334,12 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 2회 방문일 집계 대기",
         riskLossBadge: "간격 데이터 대기",
         riskLossTone: "warn",
-        riskWarning: "1회차와 2회차 방문 날짜가 누적되면 간격 지연에 따른 이탈 위험을 자동 진단합니다.",
-        actionTitle: "3. 목표 도달 실행 지시",
+        riskWarning: "1회·2회 방문 날짜가 누적되면 간격 지연에 따른 이탈 위험을 자동 진단합니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "초진 환자에게 무조건 2~4일 내 다음 내원 날짜를 먼저 제시하세요.",
         scriptExample:
           "\"초기 염증기에는 간격이 벌어지면 다시 원점으로 돌아갑니다. 이틀 뒤 수요일이나 목요일 중 언제가 괜찮으세요?\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1363,15 +1348,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 이탈 방어 현황",
-        riskLossBadge: `중간값 ${medianInterval}일 · 지연 손실 0원`,
+        riskLossBadge: "지연 손실 0원",
+        riskLossSub: `(중간값 ${medianInterval}일 합격)`,
         riskLossTone: "safe",
-        riskWarning: `현재 초진→2차 간격 중간값이 ${medianInterval}일로 이상적인 집중 치료 주기(4.5일 이내)를 완벽히 지키고 있습니다. 간격 지연으로 인한 노쇼·이탈 리스크가 없습니다.`,
-        actionTitle: "3. 강점 유지 · 2→3차 연속 주기 유지 지시",
-        actionInstruction: `초진→2차 간격(${medianInterval}일)이 아주 이상적입니다. 이 리듬을 2→3차(3~4일 간격)에도 동일하게 유지하면 3차 정착률이 자연스럽게 70% 이상으로 굳어집니다.`,
+        riskWarning: `초진→2차 간격 중간값이 ${medianInterval}일로 4.5일 골든타임 안에 완벽히 안착해 간격 이탈 위험이 없습니다.`,
+        actionTitle: "3. 실전 멘트 — 2→3차 연속 주기 유지",
+        actionInstruction: `초진→2차 간격(${medianInterval}일) 리듬을 2→3차에도 동일하게 유지해 3차 정착률을 70% 이상으로 고정하세요.`,
         scriptExample:
           "\"3일 만에 바로 잘 오셔서 염증 반응이 확 가라앉았습니다. 이 흐름 놓치지 않게 3일 뒤 한 번 더 보고 안정화 마무리하겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1383,34 +1368,32 @@ export function evaluateDualTrackStats(
       riskTitle: "2. 기준 미달 시 경영 리스크 (2·3차 누수 원인)",
       riskLossBadge:
         totalRetentionLossManwon > 0
-          ? `2·3차 누수(-${activeMonthSpan <= 1 ? "월 " : ""}${totalRetentionLossManwon.toLocaleString()}만 원) 직접 원인`
-          : `이탈 위험 2.4배 상승 (+${delayDays}일 지연)`,
-      riskLossTone: "cause",
-      riskWarning: `현재 초진 후 2차 방문까지 중간값 ${medianInterval}일(평균 ${avgInterval}일)이 걸려 골든타임(4.5일)보다 ${delayDays}일 지연되고 있습니다. 간격이 벌어지면 환자의 치료 의지가 식어 노쇼·이탈 확률이 2.4배 높아지며${
+          ? "2·3차 누수 직접 원인"
+          : `+${delayDays}일 지연 (이탈위험 2.4배)`,
+      riskLossSub:
         totalRetentionLossManwon > 0
-          ? `, 현재 발생한 2·3차 누수(${formatCashLossPhrase(totalRetentionLossManwon)}, 중복 합산 제외)의 핵심 원인입니다.`
-          : ", 향후 2·3차 정착률 하락으로 직결됩니다."
-      }`,
+          ? `(+${delayDays}일 지연 · 2·3차 -${totalRetentionLossManwon.toLocaleString()}만 원에 포함)`
+          : `(중간값 ${medianInterval}일)`,
+      riskLossTone: "cause",
+      riskWarning: `초진→2차 간격이 중간값 ${medianInterval}일로 골든타임보다 ${delayDays}일 지연돼 환자의 치료 의지가 식으며 노쇼·이탈 위험이 2.4배 높아졌습니다.`,
       actionTitle: isSevereDelay
-        ? "3. 맞춤 실행 지시 — '1주일 뒤' 관행 즉시 폐기"
-        : "3. 맞춤 실행 지시 — 2차 예약일 1~2일 앞당기기",
+        ? "3. 실전 멘트 — '1주일 뒤' 관행 폐기"
+        : "3. 실전 멘트 — 2차 예약일 1~2일 단축",
       actionInstruction: isSevereDelay
-        ? `현재 재방문 간격이 ${medianInterval}일로 사실상 '일주일 뒤 재방문' 패턴이 굳어져 있습니다. 오늘부터 급성·근골격 초진은 진료실과 데스크 모두 '2~3일 뒤 날짜'만 먼저 제시하도록 규칙을 즉시 바꾸세요.`
-        : `현재 중간값 ${medianInterval}일로 목표(4.5일)보다 ${delayDays}일만 당기면 합격입니다. 수납 시 '다음 주' 대신 '이번 주 내(3~4일 뒤)' 두 개 시간대를 먼저 제안하세요.`,
+        ? `현재 재방문 간격(${medianInterval}일)이 '1주일 뒤' 패턴으로 굳어졌으므로 진료실과 데스크 모두 2~3일 뒤 날짜만 먼저 제시하세요.`
+        : `목표(4.5일)보다 ${delayDays}일만 당기면 합격이므로 수납 시 이번 주 내(3~4일 뒤) 두 시간대를 먼저 제안하세요.`,
       scriptExample: isSevereDelay
         ? "\"일주일 뒤에 오시면 침 효과가 다 빠져 처음부터 다시 시작해야 합니다. 효과를 이어가려면 모레나 글피 중 꼭 한 번 들르셔야 합니다.\""
         : "\"초기 염증기에는 3~4일 안에 한 번 더 자극이 들어가야 회복이 두 배 빠릅니다. 이번 주 목요일 오후나 금요일 오전 중 언제가 편하세요?\"",
       revenueImpactManwon: 0,
-      formulaNote,
     };
   })();
 
-  // [지표 4] 다음 예약 확정률 — 원인 연동 손실(중복 제외) & 교차 진단(예약 부족 vs 예약 후 노쇼)
+  // [지표 4] 다음 예약 확정률 — 원인 연동 핵심 수치 크게 + 1문장 + 실전 멘트
   const reservationModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "행동경제학 디폴트 효과(Default Effect)에 따라, 수납 시 다음 예약 시간을 확정하는 것만으로 2차 내원율이 평균 2~3배 상승합니다.";
     const exactCounts = `예약 '유' ${resvYes}명 (2차 내원율 ${resvLiftYes}%) vs 예약 '무' ${resvNo}명 (2차 내원율 ${resvLiftNo}%)`;
-    const formulaNote = "※ 예약 확정에 따른 추가 내원 효과는 '2차·3차 정착률'에 통합 반영 (중복 합산 제외)";
 
     if (totalPatients === 0) {
       return {
@@ -1420,12 +1403,11 @@ export function evaluateDualTrackStats(
         riskLossBadge: "예약 유/무 대기",
         riskLossTone: "warn",
         riskWarning: "시트에 다음 예약 유/무가 기록되면 미예약 이탈 격차를 자동 분석합니다.",
-        actionTitle: "3. 목표 도달 실행 지시",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "수납 시 다음 예약 유/무를 빠짐없이 기록하고 양자택일 예약을 적용하세요.",
         scriptExample:
           "\"원장님께서 금요일쯤 경과 체크 말씀하셨는데, 오전 11시와 오후 3시 중 어느 시간이 편하실까요?\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1435,26 +1417,22 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: isNoShowIssue ? "2. 예약은 양호하나 노쇼 주의" : "2. 현재 강점 및 예약 방어 현황",
-        riskLossBadge: isNoShowIssue
-          ? `예약 ${resvRate}% 합격 · 단 2차율 ${rate2nd}% 노쇼 주의`
-          : `예약 ${resvRate}% 합격 · 미예약 손실 0원`,
+        riskLossBadge: isNoShowIssue ? `2차율 ${rate2nd}% 노쇼 주의` : "미예약 손실 0원",
+        riskLossSub: isNoShowIssue ? `(예약 ${resvRate}% 합격)` : `(예약 ${resvRate}% 합격)`,
         riskLossTone: isNoShowIssue ? "warn" : "safe",
         riskWarning: isNoShowIssue
-          ? `데스크 예약 확정률은 ${resvRate}%로 목표를 넘겼지만 실제 2차 내원율이 ${rate2nd}%에 머물러 예약 후 취소·노쇼가 발생 중입니다.`
-          : `현재 다음 예약 확정률 ${resvRate}%로 데스크 예약 클로징이 목표(85%)를 달성했습니다.${
-              resvLiftGap > 0 ? ` (우리 병원 실측 예약 '유' 2차율 ${resvLiftYes}% vs '무' ${resvLiftNo}%)` : ""
-            }`,
+          ? `데스크 예약률(${resvRate}%)은 합격이나 실제 2차 내원율이 ${rate2nd}%에 그쳐 예약 후 노쇼·취소가 발생하고 있습니다.`
+          : `다음 예약 확정률 ${resvRate}%로 데스크 예약 클로징이 목표(85%)를 안정적으로 방어하고 있습니다.`,
         actionTitle: isNoShowIssue
-          ? "3. 맞춤 실행 지시 — 예약 후 노쇼(No-Show) 방어 집중"
-          : "3. 강점 유지 · 2→3회차 연속 예약 표준화",
+          ? "3. 실전 멘트 — 예약 후 노쇼 방어"
+          : "3. 실전 멘트 — 2→3회차 연속 예약",
         actionInstruction: isNoShowIssue
-          ? `예약 잡는 단계는 이미 잘 되고 있습니다. 이제 예약 전날 알림톡 리마인드 발송과 진료실에서의 '2회차 필수 이유' 설명을 보강해 예약 노쇼를 막으세요.`
-          : `예약 확정률(${resvRate}%)과 2차 내원율(${rate2nd}%) 모두 최상위입니다. 초진 데스크 양자택일 예약 루틴을 2회차 수납 시에도 동일하게 적용해 3회 완주까지 연결하세요.`,
+          ? "예약 전날 알림톡 리마인드 발송과 진료실에서의 '2회차 필수 이유' 설명을 보강해 예약 노쇼를 막으세요."
+          : "초진 데스크 양자택일 예약 루틴을 2회차 수납 시에도 동일하게 적용해 3회 완주까지 연결하세요.",
         scriptExample: isNoShowIssue
           ? "\"예약해 드린 목요일 오후 3시 전날에 확인 알림톡을 보내드립니다. 혹시 시간 변동 생기시면 미리 톡 주시면 바로 조정해 드릴게요.\""
           : "\"오늘 2회차 치료 잘 받으셨습니다. 마지막 3회차 안정화 예약도 월요일 오전과 화요일 오후 중 편한 시간으로 미리 잡아드릴까요?\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1463,32 +1441,27 @@ export function evaluateDualTrackStats(
       benchmarkReason,
       riskTitle: "2. 기준 미달 시 경영 리스크 (2·3차 누수 원인)",
       riskLossBadge:
+        totalRetentionLossManwon > 0 ? "2·3차 누수 직접 원인" : `미예약 ${needResv}명 이탈 위험`,
+      riskLossSub:
         totalRetentionLossManwon > 0
-          ? `2·3차 누수(-${activeMonthSpan <= 1 ? "월 " : ""}${totalRetentionLossManwon.toLocaleString()}만 원) 직접 원인`
-          : `미예약 ${needResv}명 이탈 위험`,
+          ? `(미예약 ${resvNo}명 · 2·3차 -${totalRetentionLossManwon.toLocaleString()}만 원에 포함)`
+          : `(예약 확정률 ${resvRate}%)`,
       riskLossTone: "cause",
-      riskWarning: `현재 ${resvNo}명이 다음 예약 없이 귀가해 예약 확정률이 ${resvRate}%에 머물러 있습니다.${
-        resvLiftGap > 0
-          ? ` 우리 한의원 실측상 예약 '유'의 2차 내원율(${resvLiftYes}%)이 '무'(${resvLiftNo}%)보다 ${resvLiftGap}%p나 높습니다.`
-          : ""
-      } 예약 없이 귀가한 환자는 일상 복귀 후 재방문을 미루다 이탈하며${
-        totalRetentionLossManwon > 0
-          ? `, 현재 발생한 2·3차 누수(${formatCashLossPhrase(totalRetentionLossManwon)}, 중복 합산 제외)를 가장 빠르게 줄일 수 있는 지점입니다.`
-          : ", 곧바로 2차 이탈로 이어집니다."
-      }`,
+      riskWarning: `미예약 귀가자 ${resvNo}명이 일상 복귀 후 재방문을 미루며 이탈${
+        resvLiftGap > 0 ? `(예약 '유' 2차율 ${resvLiftYes}% vs '무' ${resvLiftNo}%)` : ""
+      }해 2·3차 누수를 유발하고 있습니다.`,
       actionTitle:
         resvRate < 65
-          ? "3. 맞춤 실행 지시 — 수납 멘트 전면 교체 (긴급)"
-          : `3. 맞춤 실행 지시 — 미예약 ${needResv}명 양자택일 클로징`,
-      actionInstruction: `현재 미예약자 ${resvNo}명(목표까지 +${needResv}명)이 예약 없이 귀가하고 있습니다. 데스크에서 '예약하시겠어요?(Yes/No)' 질문을 금지하고, 원장님이 지정한 재내원일을 기준으로 '오전/오후 중 편한 시간대(양자택일)'를 바로 제안하세요.`,
+          ? "3. 실전 멘트 — 수납 양자택일 즉시 교체"
+          : `3. 실전 멘트 — 미예약 ${needResv}명 예약 클로징`,
+      actionInstruction: `미예약자 ${resvNo}명을 줄이기 위해 '예약하시겠어요?' 질문을 금지하고 오전/오후 양자택일로 즉시 예약하세요.`,
       scriptExample:
         "\"원장님께서 3일 뒤 목요일에 경과 꼭 보자고 하셨는데, 오전 11시와 오후 3시 중 어느 시간이 더 편하실까요?\"",
       revenueImpactManwon: 0,
-      formulaNote,
     };
   })();
 
-  // [지표 5] 초진 · 재초진 비율 — 연차별 체질 리스크 & 양방향 맞춤 처방
+  // [지표 5] 초진 · 재초진 비율 — 체감 위험 수치 크게 + 1문장 + 실전 멘트
   const reFirstModal: IndicatorModalDetail = (() => {
     const benchmarkReason = !clinicStage
       ? "개원 연차에 따라 건강한 초진:재초진 황금 비율이 완전히 다릅니다. 상단에서 개원 연도(예: 2020)를 입력하면 연차가 자동 계산되어 [1년 차 재초진 10~35% / 2~3년 차 30~50% / 4년 차↑ 45~70%] 양방향 기준이 즉시 적용됩니다."
@@ -1496,8 +1469,6 @@ export function evaluateDualTrackStats(
     const exactCounts = !clinicStage
       ? `개원 연도 미입력으로 계산 불가 (현재 데이터: 전체 ${totalPatients}명 = 순수초진 ${pureFirst}명 + 재초진 ${reFirst}명)`
       : `${clinicOpenYear}년 개원 (${clinicYearsActive}년 차 · ${clinicStage.stageLabel}) | 전체 ${totalPatients}명 중 재초진 ${reFirst}명(${reFirstRate}%) : 순수초진 ${pureFirst}명(${pureFirstRate}%)`;
-    const formulaNote =
-      "※ 초진·재초진 비율은 연차별 신환 유입과 구환 유지의 균형을 진단하는 체질 지표로 월 확정 기대매출 합산에서 제외";
 
     if (!clinicStage || clinicYearsActive === null) {
       return {
@@ -1506,12 +1477,11 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 개원 연도 미입력 — 리스크 진단 불가",
         riskLossBadge: "연차 미입력 · 계산불가",
         riskLossTone: "warn",
-        riskWarning: `개원 연도가 입력되지 않아 현재 비율(재초진 ${reFirstRate}% : 초진 ${pureFirstRate}%)이 건강한지 위험한지 판정할 수 없습니다.`,
-        actionTitle: "3. 개원 연도 입력 안내",
+        riskWarning: `개원 연도가 미입력 상태라 현재 비율(재초진 ${reFirstRate}% : 초진 ${pureFirstRate}%)의 정상·위험 여부를 판정할 수 없습니다.`,
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "상단 개원 연도 입력란에 한의원 개원 연도 4자리를 입력해 연차별 맞춤 진단을 활성화하세요.",
         scriptExample: "\"개원 연도를 입력하시면 연차별 맞춤 현장 멘트가 자동 제공됩니다.\"",
         revenueImpactManwon: gainReFirstManwon,
-        formulaNote,
       };
     }
 
@@ -1520,15 +1490,14 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 데이터 연동 대기",
-        riskLossBadge: `${clinicYearsActive}년차 기준 준비 완료`,
+        riskLossBadge: `${clinicYearsActive}년차 기준 대기`,
         riskLossTone: "warn",
-        riskWarning: "환자 시트가 업로드되면 연차별 구환 이탈 또는 신규 고갈 여부를 자동 진단합니다.",
-        actionTitle: "3. 목표 도달 실행 지시",
+        riskWarning: `환자 시트가 업로드되면 ${clinicYearsActive}년 차 기준 구환 이탈 및 신규 고갈 여부를 자동 진단합니다.`,
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "초진·재초진 구분이 포함된 시트를 업로드하세요.",
         scriptExample:
           "\"[OO한의원] 일교차가 큰 환절기입니다. 지난번 치료받으셨던 허리/어깨 컨디션은 어떠신지 안부 인사드립니다.\"",
         revenueImpactManwon: gainReFirstManwon,
-        formulaNote,
       };
     }
 
@@ -1537,15 +1506,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 환자 순환 현황",
-        riskLossBadge: `${clinicYearsActive}년차 황금 균형 달성`,
+        riskLossBadge: `${clinicYearsActive}년차 황금 균형`,
+        riskLossSub: `(재초진 ${reFirstRate}% · 초진 ${pureFirstRate}%)`,
         riskLossTone: "safe",
-        riskWarning: `현재 ${clinicYearsActive}년 차 기준 재초진 ${reFirstRate}% · 초진 ${pureFirstRate}%로 권장 구간(재초진 ${clinicStage.reFirstMin}~${clinicStage.reFirstMax}%) 안에 정확히 안착해 있습니다. 기존 구환 유지와 신규 유입이 이상적으로 순환 중입니다.`,
-        actionTitle: "3. 강점 유지 · 양방향 균형 관리 지시",
-        actionInstruction: `${clinicYearsActive}년 차 균형 구간(재초진 ${clinicStage.reFirstMin}~${clinicStage.reFirstMax}%)을 잘 지키고 있습니다. 월 1회 구환 안부 발송과 네이버 플레이스·블로그 신규 노출을 현 수준으로 꾸준히 병행하세요.`,
+        riskWarning: `${clinicYearsActive}년 차 기준 재초진 ${reFirstRate}%·초진 ${pureFirstRate}%로 구환 유지와 신규 유입이 황금 균형을 이루고 있습니다.`,
+        actionTitle: "3. 실전 멘트 — 구환 단골 환대",
+        actionInstruction: `${clinicYearsActive}년 차 균형 구간을 유지하도록 월 1회 구환 안부와 신규 플레이스·블로그 노출을 병행하세요.`,
         scriptExample:
           "\"다시 찾아주셔서 감사합니다. 지난번 치료 기록을 바탕으로 오늘 더 빠르게 회복하실 수 있게 봐드리겠습니다.\"",
         revenueImpactManwon: gainReFirstManwon,
-        formulaNote,
       };
     }
 
@@ -1553,16 +1522,16 @@ export function evaluateDualTrackStats(
       return {
         exactCounts,
         benchmarkReason,
-        riskTitle: "2. 상한 초과 리스크 — 신규 유입 고갈 경고",
-        riskLossBadge: `신규 초진 ${pureFirstRate}% (권장 ${clinicStage.pureFirstMin}%↑ 미달)`,
+        riskTitle: "2. 상한 초과 리스크 (신규 유입 고갈)",
+        riskLossBadge: `신규 초진 ${pureFirstRate}% 고갈 경고`,
+        riskLossSub: `(권장 ${clinicStage.pureFirstMin}%↑ 미달)`,
         riskLossTone: "warn",
-        riskWarning: `현재 재초진 비중이 ${reFirstRate}%로 ${clinicYearsActive}년 차 상한선(${clinicStage.reFirstMax}%)을 +${reFirstOverPct}%p 초과했습니다. 겉보기엔 구환이 많아 안정적여 보여도 신규 초진이 ${pureFirstRate}%로 말라가는 '고인 물 현상'이 진행 중이며, 6~12개월 지속 시 구환 자연 감소와 함께 매출이 급격히 꺾입니다.`,
-        actionTitle: `3. 맞춤 실행 지시 — 신규 초진 ${clinicStage.pureFirstMin}%↑ 회복 작전`,
-        actionInstruction: `지금은 구환 리콜보다 '새로운 얼굴(순수초진)'을 데려오는 것이 최우선입니다. 네이버 플레이스 대표 키워드·최신 후기 관리, 블로그 주 2회 발행, 지역 타깃(통증·추나·자보) 홍보를 즉시 가동해 초진 비중을 ${clinicStage.pureFirstMin}% 이상으로 방어하세요.`,
+        riskWarning: `재초진이 ${clinicYearsActive}년 차 상한(${clinicStage.reFirstMax}%)을 넘어 신규 초진이 ${pureFirstRate}%로 마르는 '고인 물 현상'이 진행 중입니다.`,
+        actionTitle: "3. 실전 멘트 — 단골 지인 소개 유도",
+        actionInstruction: `구환 리콜보다 네이버 플레이스·블로그·지역 타깃 홍보를 즉시 가동해 신규 초진 비중을 ${clinicStage.pureFirstMin}% 이상으로 회복하세요.`,
         scriptExample:
           "\"오래 믿고 찾아주시는 단골분들 덕분에 버티고 있습니다. 주변 가족·지인분들도 통증 생기실 때 편하게 소개해 주시면 정성껏 봐드리겠습니다.\"",
         revenueImpactManwon: gainReFirstManwon,
-        formulaNote,
       };
     }
 
@@ -1571,15 +1540,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 개원 1년 차 구환 축적 진단",
-        riskLossBadge: "1년차 초기 구환 축적 중",
+        riskLossBadge: "1년차 구환 축적 중",
+        riskLossSub: `(현재 재초진 ${reFirstRate}%)`,
         riskLossTone: "warn",
-        riskWarning: `개원 1년 차는 아직 과거 구환 풀이 작아 재초진이 ${reFirstRate}%로 낮게 나오는 것이 자연스럽습니다. 다만 지금 내원한 초진이 3회 완주 없이 이탈하면 2년 차에도 구환 자산이 쌓이지 않습니다.`,
-        actionTitle: "3. 맞춤 실행 지시 — 1년 차 구환 자산 씨앗 심기",
-        actionInstruction: `1년 차에 재초진을 늘리는 가장 빠른 길은 지금 오는 초진의 3차 정착률(현재 ${rate3rd}%)을 70% 이상으로 높이고, 카카오톡 채널 친구 추가를 받아 3~6개월 뒤 환절기 안부를 보내는 것입니다.`,
+        riskWarning: `개원 1년 차는 구환 풀이 작아 재초진 ${reFirstRate}%가 자연스럽지만, 지금 초진의 3회 완주를 높여야 2년 차 구환 자산이 쌓입니다.`,
+        actionTitle: "3. 실전 멘트 — 카톡 채널 단골 씨앗 심기",
+        actionInstruction: `현재 초진의 3차 정착률(${rate3rd}%)을 70% 이상으로 끌어올리고 카톡 채널 친구 추가로 향후 안부 접점을 확보하세요.`,
         scriptExample:
           "\"저희 한의원 카카오톡 채널 추가해 두시면 예약 변경도 편하고 계절별 건강 관리 팁도 보내드리고 있습니다.\"",
         revenueImpactManwon: gainReFirstManwon,
-        formulaNote,
       };
     }
 
@@ -1587,31 +1556,22 @@ export function evaluateDualTrackStats(
       exactCounts,
       benchmarkReason,
       riskTitle: "2. 기준 미달 시 경영 리스크 (구환 자산 유실)",
-      riskLossBadge: `구환 복귀 ${needReFirst}명 부족 (광고비 의존 심화)`,
+      riskLossBadge: `구환 복귀 ${needReFirst}명 부족`,
+      riskLossSub: `(광고비 의존 심화)`,
       riskLossTone: reFirstStatus === "CRITICAL" ? "loss" : "warn",
-      riskWarning: `현재 ${clinicYearsActive}년 차에 재초진이 ${reFirstRate}%로 권장 하한(${clinicStage.reFirstMin}%)보다 ${needReFirst}명 부족합니다. 과거 치료받은 구환이 재방문하지 않아 매달 비싼 신규 광고비로만 빈자리를 메워야 하는 고비용 구조가 고착화되고 있습니다.`,
-      actionTitle:
-        reFirstStatus === "CRITICAL"
-          ? "3. 맞춤 실행 지시 — 구환 이탈 원인 점검 및 리콜 가동 (긴급)"
-          : `3. 맞춤 실행 지시 — 휴면 구환 ${needReFirst}명 안부 리콜`,
-      actionInstruction: `최근 6개월~1년 내 내원이 끊긴 기존 환자 리스트를 차트에서 추출해 환절기·명절 전후 안부 문자 또는 알림톡을 월 1회 발송하세요.${
-        rate3rd < 60
-          ? ` 동시에 현재 3차 정착률(${rate3rd}%)이 낮아 완치 경험 없이 끝난 환자가 많으므로 3회 완주율 교정을 병행하세요.`
-          : ""
-      }`,
+      riskWarning: `${clinicYearsActive}년 차 권장 하한(${clinicStage.reFirstMin}%)보다 재초진이 ${needReFirst}명 부족해 매달 신규 광고비에 의존해야 하는 고비용 구조입니다.`,
+      actionTitle: "3. 실전 멘트 — 휴면 구환 안부 리콜",
+      actionInstruction: `최근 6개월~1년 내 내원이 끊긴 기존 환자에게 환절기 안부 문자·알림톡을 월 1회 발송해 구환 ${needReFirst}명을 복귀시키세요.`,
       scriptExample:
         "\"[OO한의원] 일교차가 커진 환절기입니다. 지난번 치료받으셨던 허리·어깨 컨디션은 괜찮으신지 안부 인사드립니다.\"",
       revenueImpactManwon: gainReFirstManwon,
-      formulaNote,
     };
   })();
 
-  // [지표 6] 65세 연령 비율 — 베드 점유율 체감 리스크 & 순수초진 vs 재초진 교차 처방
+  // [지표 6] 65세 연령 비율 — 베드 점유율 위험 수치 크게 + 1문장 + 실전 멘트
   const age65Modal: IndicatorModalDetail = (() => {
     const benchmarkReason = `어느 상권이든 경영 건강도 절대 기준은 '65세 미만 80%↑ : 65세 이상 20%↓'입니다. 노인 인구가 많은 상권(${demographic.regionName} 고령 ${regSenior}%)일수록 자연 방치 시 노인 편중이 빨라지므로, 반경 3~5km 청장년 유입으로 20% 이하를 지켜내는 것이 핵심입니다.`;
     const exactCounts = `연령 확인 ${knownAge}명 중 [65세 미만 ${under65Count}명(${under65Rate}%) : 65세 이상 ${senior65}명(${seniorRate}%)] | 세부: 순수초진 고령비율 ${pureFirstSeniorRate}% (${pureFirstSenior65}/${pureFirstKnownAge}명) · 재초진 고령비율 ${reFirstSeniorRate}% (${reFirstSenior65}/${reFirstKnownAge}명) | 참고: 동네 실제 65세↑ 인구비율 ${regSenior}% (GDI ${gdi || "-"}배)`;
-    const formulaNote =
-      "※ 65세 비율은 환자층 건강도·베드 활력 진단 지표로 월 확정 기대매출 합산에서 제외";
 
     if (knownAge === 0) {
       return {
@@ -1620,13 +1580,12 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 연령 데이터 미기입",
         riskLossBadge: "나이 입력 대기",
         riskLossTone: "warn",
-        riskWarning: "환자 연령(나이) 데이터가 입력되면 치료베드 고령 편중 리스크를 자동 계산합니다.",
-        actionTitle: "3. 차트 나이 데이터 연동 지시",
+        riskWarning: "EMR 연령(나이) 데이터가 입력되면 치료베드 고령 편중 위험을 자동 계산합니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "EMR 엑셀 업로드 시 나이(연령) 컬럼이 포함되도록 업로드하세요.",
         scriptExample:
           "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 피로회복 보약도 저녁 진료 시간에 편하게 예약해 주세요.\"",
         revenueImpactManwon: gainAge65Manwon,
-        formulaNote,
       };
     }
 
@@ -1635,15 +1594,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 베드 활력 현황",
-        riskLossBadge: `고령 ${seniorRate}% · 황금 연령대 방어 완료`,
+        riskLossBadge: `고령 ${seniorRate}% 방어 완료`,
+        riskLossSub: `(65세↓ ${under65Rate}% 황금비율)`,
         riskLossTone: "safe",
-        riskWarning: `현재 65세 이상 초진 비중이 ${seniorRate}%로 20% 이하 황금선 안에 완벽히 유지되고 있습니다. 젊은 청장년층(65세 미만 ${under65Rate}%) 중심의 활력 있는 대기실과 높은 객단가 확장성이 확보된 상태입니다.`,
-        actionTitle: "3. 강점 유지 · 2050 고단가 진료 확장 지시",
-        actionInstruction: `청장년 비중(${under65Rate}%)이 매우 우수합니다. 이 연령대는 추나·약침·첩약 수용도가 가장 높으므로 근골격·피로·여성 질환별 맞춤 치료계획 안내로 객단가를 극대화하세요.`,
+        riskWarning: `65세 이상 비중이 ${seniorRate}%로 20% 이하 황금선을 지켜 젊은 고단가 신환 활력이 유지되고 있습니다.`,
+        actionTitle: "3. 실전 멘트 — 2050 추나·객단가 확장",
+        actionInstruction: `청장년 비중(${under65Rate}%)이 매우 우수하므로 추나·약침·첩약 맞춤 안내로 객단가를 극대화하세요.`,
         scriptExample:
           "\"직장·육아로 뭉친 목·어깨는 침과 함께 추나 교정을 병행하시면 통증 회복과 자세 교정이 훨씬 빠릅니다.\"",
         revenueImpactManwon: gainAge65Manwon,
-        formulaNote,
       };
     }
 
@@ -1653,37 +1612,34 @@ export function evaluateDualTrackStats(
       exactCounts,
       benchmarkReason,
       riskTitle: isCriticalSenior
-        ? "2. 기준 미달 시 경영 리스크 (노인 베드 편중 위험)"
-        : "2. 주의 구간 진단 (청장년 유입 보강 필요)",
+        ? "2. 기준 미달 시 경영 리스크 (노인 베드 편중)"
+        : "2. 주의 구간 진단 (청장년 유입 보강)",
       riskLossBadge: isCriticalSenior
-        ? `실제 베드 약 ${estSeniorBedShare}% 고령 편중 위험`
-        : `65세↑ ${seniorRate}% (목표 20% 대비 +${(seniorRate - 20).toFixed(1)}%p)`,
+        ? `치료베드 약 ${estSeniorBedShare}% 고령 편중 위험`
+        : `65세↑ ${seniorRate}% 주의`,
+      riskLossSub: isCriticalSenior
+        ? `(초진 65세↑ ${seniorRate}%)`
+        : `(목표 20% 대비 +${(seniorRate - 20).toFixed(1)}%p)`,
       riskLossTone: isCriticalSenior ? "loss" : "warn",
-      riskWarning: `현재 초진 중 65세 이상이 ${seniorRate}%로 기준(20% 이하)을 초과했습니다. 고령 환자는 내원 빈도가 높아 실제 대기실·치료베드의 약 ${estSeniorBedShare}%를 점유하는 구축 효과가 생기며, 이로 인해 20~50대 고단가(추나·약침·한약) 신환이 이탈할 위험이 큽니다.${
-        pureFirstKnownAge > 0 && reFirstKnownAge > 0
-          ? ` (세부: 순수초진 고령 ${pureFirstSeniorRate}% · 재초진 고령 ${reFirstSeniorRate}%)`
-          : ""
-      }`,
+      riskWarning: `초진 65세 이상이 ${seniorRate}%로 기준(20%↓)을 넘어 실제 치료베드의 약 ${estSeniorBedShare}%가 고령 환자로 편중될 위험이 큽니다.`,
       actionTitle: isPureFirstSeniorHigh
-        ? "3. 맞춤 실행 지시 — 외부 유입 채널 2050 키워드 전환"
-        : "3. 맞춤 실행 지시 — 구환 가족(자녀 세대) 연쇄 소개 가동",
+        ? "3. 실전 멘트 — 2050 직장인·자녀 유입"
+        : "3. 실전 멘트 — 구환 자녀 세대 가족 소개",
       actionInstruction: isPureFirstSeniorHigh
-        ? `새로 들어오는 순수초진 자체의 65세 이상 비중이 ${pureFirstSeniorRate}%로 높습니다. 네이버 플레이스·블로그·간판 메시지를 '직장인 목·허리 추나, 야간진료, 교통사고, 다이어트·여성 보약' 중심으로 즉시 리뉴얼해 청장년 신환 ${needUnder65}명을 보강하세요.`
-        : `순수초진 고령률(${pureFirstSeniorRate}%)보다 기존 재초진 고령률(${reFirstSeniorRate}%)이 전체 비중을 끌어올리고 있습니다. 기존 어르신 단골은 소중히 지키되, 자녀·며느리 세대로 연결되는 가족 소개 멘트와 야간·점심 직장인 유입을 보강해 청장년 ${needUnder65}명을 늘리세요.`,
+        ? `순수초진 고령률(${pureFirstSeniorRate}%)이 높으므로 플레이스·블로그를 2050 직장인 추나·야간진료 중심으로 전환해 청장년 ${needUnder65}명을 보강하세요.`
+        : `재초진 고령률(${reFirstSeniorRate}%)이 높으므로 어르신 단골의 자녀·며느리 세대 소개와 야간 직장인 유입으로 청장년 ${needUnder65}명을 보강하세요.`,
       scriptExample: isPureFirstSeniorHigh
         ? "\"어머님 치료 오실 때 직장 다니는 자녀분들 목·어깨 추나나 야간 진료도 편하게 예약해 드리고 있으니 꼭 말씀해 주세요.\""
         : "\"어머님 컨디션이 많이 좋아지셨네요! 혹시 따님이나 아드님도 회사 일로 목·허리 뻐근하시면 저녁 진료 시간에 추나 한 번 받아보시라고 전해 주세요.\"",
       revenueImpactManwon: gainAge65Manwon,
-      formulaNote,
     };
   })();
 
-  // [지표 7] 성별 분포 균형 — 여성 부족 vs 남성 부족 방향별 정확 분기
+  // [지표 7] 성별 분포 균형 — 부족 성별 수치 크게 + 1문장 + 방향별 실전 멘트
   const genderModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "보건복지부 한방의료이용실태조사 및 가계 의료 의사결정 연구상, 여성 환자 비율이 54~66% 구간일 때 배우자·자녀·부모님으로 이어지는 가족 연쇄 소개율이 극대화됩니다.";
     const exactCounts = `성별 집계: 남성 ${effectiveMale}명(${maleRate}%) · 여성 ${effectiveFemale}명(${femaleRate}%) · 시트 미기입 ${unrecordedGender}명 | 동네 여성 인구비율 ${demographic.femaleRatio}%`;
-    const formulaNote = "※ 성별 균형은 소개·비급여 확장의 기반 지표로 직접 진료비 합산에서는 제외";
 
     if (genderSum === 0) {
       return {
@@ -1692,13 +1648,12 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 성별 데이터 미입력",
         riskLossBadge: "성별 입력 대기",
         riskLossTone: "warn",
-        riskWarning: "시트 또는 카드 하단 성별 입력란에 남/여 인원을 입력하면 성별 편중 리스크를 즉시 진단합니다.",
-        actionTitle: "3. 성별 데이터 입력 지시",
+        riskWarning: "시트 또는 카드 하단 성별 입력란에 남/여 인원을 입력하면 성별 편중 위험을 즉시 진단합니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "카드 하단 남/여 입력란에 인원을 입력하거나 성별 컬럼이 포함된 시트를 업로드하세요.",
         scriptExample:
           "\"환자분 체질에 맞춘 순환·통증 케어도 함께 도와드리고 있으니 불편하신 점 편하게 말씀해 주세요.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1707,15 +1662,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 가족 확장성 현황",
-        riskLossBadge: `남 ${maleRate}% · 여 ${femaleRate}% 황금 균형`,
+        riskLossBadge: "성별 황금 균형",
+        riskLossSub: `(여 ${femaleRate}% · 남 ${maleRate}%)`,
         riskLossTone: "safe",
-        riskWarning: `여성 비율 ${femaleRate}%로 가족 연쇄 소개와 비급여 확장성이 가장 높은 황금 균형 구간(52~70%) 안에 있습니다.`,
-        actionTitle: "3. 강점 유지 · 가족 동반 소개 확장 지시",
-        actionInstruction: `성별 균형(여 ${femaleRate}% : 남 ${maleRate}%)이 이상적입니다. 현재 내원 중인 환자가 배우자와 부모님까지 자연스럽게 데려오는 가족 주치의 포지션을 강화하세요.`,
+        riskWarning: `여성 ${femaleRate}%·남성 ${maleRate}%로 가족 연쇄 소개와 비급여 확장성이 가장 높은 황금 균형 구간입니다.`,
+        actionTitle: "3. 실전 멘트 — 가족 동반 소개 확장",
+        actionInstruction: "현재 성별 균형이 이상적이므로 배우자와 부모님까지 이어지는 가족 주치의 소개를 강화하세요.",
         scriptExample:
           "\"요즘 배우자분이나 부모님도 같은 생활 습관 때문에 허리·어깨가 같이 뭉치는 경우가 많습니다. 함께 오시면 체질에 맞춰 꼼꼼히 봐드리겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1724,42 +1679,41 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 기준 미달 시 경영 리스크 (여성·가족 확장성 저하)",
-        riskLossBadge: `여성 ${femaleRate}% (권장 52%↑ 미달)`,
+        riskLossBadge: `여성 ${femaleRate}% 부족`,
+        riskLossSub: "(권장 52%↑ 미달)",
         riskLossTone: femaleRate < 45 ? "loss" : "warn",
-        riskWarning: `현재 여성 비율이 ${femaleRate}%로 낮아 단발성 통증 침 치료 위주로 흐르기 쉽습니다. 가계 의료 결정권자인 여성 환자가 부족하면 배우자·자녀·부모님으로 이어지는 가족 소개와 보약·소아·여성 특화 비급여 확장성이 크게 떨어집니다.`,
-        actionTitle: "3. 맞춤 실행 지시 — 여성·가족 친화 접점 및 키워드 보강",
-        actionInstruction: `여성 비율(${femaleRate}%)을 54% 이상으로 끌어올려야 합니다. 대기실·파우더룸 청결, 프라이빗 치료 베드, 산후·수족냉증·순환·다이어트 등 여성 특화 진료 안내를 네이버 플레이스와 원내 POP에 전면 배치하세요.`,
+        riskWarning: `여성 비율이 ${femaleRate}%로 낮아 단발성 통증에 그치기 쉬우며 가족 소개와 보약·여성 비급여 확장성이 떨어집니다.`,
+        actionTitle: "3. 실전 멘트 — 여성·가족 친화 케어",
+        actionInstruction: `여성 비율(${femaleRate}%)을 54% 이상으로 높이기 위해 파우더룸·프라이빗 베드와 여성 특화 진료 안내를 강화하세요.`,
         scriptExample:
           "\"통증 치료뿐 아니라 여성분들 순환·수족냉증·피로 회복 케어도 프라이빗하게 봐드리고 있으니 불편하신 부분 편하게 말씀해 주세요.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
     return {
       exactCounts,
       benchmarkReason,
-      riskTitle: "2. 편중 주의 리스크 (남성 직장인 통증 수요 누락)",
-      riskLossBadge: `남성 ${maleRate}% (권장 30%↑ 미달)`,
+      riskTitle: "2. 편중 주의 리스크 (남성 직장인 수요 누락)",
+      riskLossBadge: `남성 ${maleRate}% 부족`,
+      riskLossSub: "(권장 30%↑ 미달)",
       riskLossTone: femaleRate > 78 ? "loss" : "warn",
-      riskWarning: `현재 여성 비율이 ${femaleRate}%로 과도하게 편중되어 남성 환자(${maleRate}%) 유입이 빠져 있습니다. 30~50대 남성 직장인의 근골격 통증·디스크 추나·교통사고 수요를 놓치고 있어 평일 저녁·주말 진료 슬롯 활용도가 떨어집니다.`,
-      actionTitle: "3. 맞춤 실행 지시 — 남성 직장인 통증·야간 추나 유입 보강",
-      actionInstruction: `현재 여성 비중(${femaleRate}%)이 높아 남성 환자(${maleRate}%)를 보강해야 합니다. 네이버 플레이스·블로그에 '직장인 허리디스크·거북목 추나, 야간/토요일 진료, 빠른 통증 집중 치료' 키워드를 강화하고, 여성 단골 환자의 남편·아버지 소개를 유도하세요.`,
+      riskWarning: `여성이 ${femaleRate}%로 편중돼 30~50대 남성 직장인 통증·추나·교통사고 수요(${maleRate}%)를 놓치고 있습니다.`,
+      actionTitle: "3. 실전 멘트 — 남성 직장인·남편 소개",
+      actionInstruction: `남성 비중(${maleRate}%) 보강을 위해 직장인 디스크·추나·야간진료 키워드와 여성 단골의 남편 소개를 유도하세요.`,
       scriptExample:
         "\"남편분도 장시간 운전이나 컴퓨터 업무로 목·허리 많이 뻐근하실 텐데, 퇴근 후 야간 진료 시간에 추나 교정 한 번 받아보시면 훨씬 가벼워지실 겁니다.\"",
       revenueImpactManwon: 0,
-      formulaNote,
     };
   })();
 
-  // [지표 8] 순수초진 소개율 (7:3) — 연차 × 방향(신규고갈 vs 초기완화 vs 3년차↑ 엄격) 맞춤 처방
+  // [지표 8] 순수초진 소개율 (7:3) — 핵심 수치 크게 + 1문장 + 실전 멘트
   const referralModal: IndicatorModalDetail = (() => {
     const benchmarkReason =
       "소개율은 진료의 질을 증명하는 핵심 지표이므로 전 연차 공통 목표는 '소개 70% : 외부 신규창출 30%'로 고정합니다. 단, 개원 1~2년 차는 소개해 줄 누적 단골 풀이 아직 쌓이는 시기이므로 70% 미만이어도 '미달' 대신 '주의(초기 단골 축적 중)'로 완화해 안내하며, 3년 차 이상부터 엄격하게 판정합니다.";
     const exactCounts = !clinicStage
       ? `개원 연도 미입력으로 연차별 판정 불가 (경로 확인 순수초진 ${pureFirstRouteRecorded}명 중 소개 ${pureFirstReferral}명)`
       : `${clinicOpenYear}년 개원 (${clinicYearsActive}년 차${clinicStage.referralSoftened ? " · 초기 완화 판정" : " · 3년차↑ 엄격 판정"}) | 순수초진(경로확인) ${pureFirstRouteRecorded}명 중 [지인·가족 소개 ${pureFirstReferral}명(${referralRate}%) : 외부 신규창출 ${externalSeedCount}명(${externalSeedRate}% — 간판·도보 ${pureFirstWalkIn}명 + 광고·검색·블로그 ${pureFirstDigital}명)] ※ 재초진 ${reFirst}명 별도 분리 | MPI ${mpi}‰ (권장 ${district.mpiMin}~${district.mpiMax}‰)`;
-    const formulaNote = "※ 내원경로 비중(7:3) 지표로 기존 정착·재초진 기대효과와 중복 합산하지 않음";
 
     if (!clinicStage || clinicYearsActive === null) {
       return {
@@ -1768,12 +1722,11 @@ export function evaluateDualTrackStats(
         riskTitle: "2. 개원 연도 미입력 — 소개율 판정 불가",
         riskLossBadge: "연차 미입력 · 계산불가",
         riskLossTone: "warn",
-        riskWarning: "개원 연도가 입력되어야 1~2년 차 완화 기준과 3년 차 이상 엄격 기준을 정확히 적용할 수 있습니다.",
-        actionTitle: "3. 개원 연도 입력 안내",
+        riskWarning: "개원 연도를 입력해야 1~2년 차 완화 기준과 3년 차 이상 엄격 기준을 정확히 판정할 수 있습니다.",
+        actionTitle: "3. 실전 멘트",
         actionInstruction: "상단 개원 연도 입력란에 한의원 개원 연도 4자리를 입력해 연차별 소개율 판정을 활성화하세요.",
         scriptExample: "\"개원 연도를 입력하시면 연차별 맞춤 현장 멘트가 자동 제공됩니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1782,15 +1735,14 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 내원경로 데이터 누락 리스크",
-        riskLossBadge: "경로 미기입 · 유입 분석 불가",
+        riskLossBadge: "내원경로 미기입",
         riskLossTone: "warn",
-        riskWarning: "접수 시 내원경로가 체크되지 않으면 우리 한의원이 소개로 성장 중인지 광고비에 의존 중인지 파악할 수 없습니다.",
-        actionTitle: "3. 맞춤 실행 지시 — 접수 시 내원경로 필수 체크",
-        actionInstruction: "초진 문진표와 데스크 접수 화면에서 '지인소개 / 네이버검색·블로그 / 간판·도보' 중 1가지를 누락 없이 기록하도록 규칙을 고정하세요.",
+        riskWarning: "접수 시 내원경로가 체크되지 않아 소개 성장인지 광고비 의존인지 판별할 수 없는 상태입니다.",
+        actionTitle: "3. 실전 멘트 — 접수 내원경로 확인",
+        actionInstruction: "초진 접수 시 '지인소개 / 네이버검색·블로그 / 간판·도보' 중 1가지를 누락 없이 기록하세요.",
         scriptExample:
           "\"저희 한의원은 어떻게 알고 찾아주셨나요? 혹시 지인분 소개시면 성함 알려주시면 감사 인사 꼭 전해드리겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1798,16 +1750,16 @@ export function evaluateDualTrackStats(
       return {
         exactCounts,
         benchmarkReason,
-        riskTitle: "2. 외부 신규 씨앗 고갈 리스크 (환자층 고립 경고)",
-        riskLossBadge: `외부 신규 ${externalSeedRate}% · MPI ${mpi}‰ 부족`,
+        riskTitle: "2. 외부 신규 씨앗 고갈 리스크",
+        riskLossBadge: `외부 신규 ${externalSeedRate}% 고갈 경고`,
+        riskLossSub: `(MPI ${mpi}‰ / 권장 ${district.mpiMin}‰↑)`,
         riskLossTone: "warn",
-        riskWarning: `소개 비중이 ${referralRate}%로 높지만 동네 인구 대비 신환 수(MPI ${mpi}‰, 권장 ${district.mpiMin}‰↑)가 부족하고 외부 신규 유입이 ${externalSeedRate}%에 불과합니다. 새로운 씨앗 환자(30%) 투자가 멈춰 환자 풀이 서서히 고립·노후화될 위험이 있습니다.`,
-        actionTitle: "3. 맞춤 실행 지시 — 외부 신규 씨앗 30% 창출 마케팅 가동",
-        actionInstruction: `진료 만족도는 이미 검증되었습니다. 이제 신환 총수(MPI ${mpi}‰ → ${district.mpiMin}‰↑)를 키우기 위해 네이버 플레이스 상위 노출·질환별 블로그·지역 타깃 광고로 외부 신규 환자를 20~30% 선까지 유입시키세요.`,
+        riskWarning: `소개는 ${referralRate}%로 높지만 신환 수(MPI ${mpi}‰)와 외부 신규(${externalSeedRate}%)가 부족해 환자층이 서서히 고립될 위험이 있습니다.`,
+        actionTitle: "3. 실전 멘트 — 외부 신규 리뷰·검색 씨앗 확보",
+        actionInstruction: `신환 총수(MPI ${mpi}‰ → ${district.mpiMin}‰↑) 확대를 위해 플레이스·블로그·지역 광고로 외부 신규 20~30%를 창출하세요.`,
         scriptExample:
           "\"치료에 만족해 주셔서 감사합니다! 네이버 영수증 리뷰에 한 줄 남겨주시면 처음 찾으시는 동네 분들께 큰 도움이 됩니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1816,15 +1768,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: "2. 현재 강점 및 마케팅 효율 현황",
-        riskLossBadge: `소개 ${referralRate}% : 신규 ${externalSeedRate}% 황금구조`,
+        riskLossBadge: `소개 ${referralRate}% 황금구조`,
+        riskLossSub: `(외부 신규 ${externalSeedRate}%)`,
         riskLossTone: "safe",
-        riskWarning: `순수초진 중 ${referralRate}%가 지인·가족 소개로 유입되는 최상위 진료 신뢰 구조입니다. 광고비 부담을 최소화하면서도 안정적으로 신환이 순환하고 있습니다.`,
-        actionTitle: "3. 강점 유지 · VIP 소개자 감사 루프 고정",
-        actionInstruction: `소개 70% 이상 황금 구조를 달성했습니다. 소개해 준 기존 환자에게 원장님이 직접 감사 인사를 전하는 '소개 감사 루프'를 유지하고, 외부 신규 유입(${externalSeedRate}%)이 20% 아래로 꺼지지 않게 플레이스 관리만 꾸준히 병행하세요.`,
+        riskWarning: `순수초진의 ${referralRate}%가 지인·가족 소개로 유입돼 광고비 부담을 최소화한 최상위 신뢰 구조입니다.`,
+        actionTitle: "3. 실전 멘트 — VIP 소개자 감사 루프",
+        actionInstruction: "소개해 준 기존 환자에게 원장님이 직접 감사 인사를 전하는 '소개 감사 루프'를 꾸준히 유지하세요.",
         scriptExample:
           "\"OOO님 소개로 오셨군요! 믿고 추천해 주신 만큼 3회 치료 원칙으로 확실히 호전시켜 드리고, OOO님께도 감사 인사 꼭 전하겠습니다.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1833,15 +1785,15 @@ export function evaluateDualTrackStats(
         exactCounts,
         benchmarkReason,
         riskTitle: `2. 개원 ${clinicYearsActive}년 차 초기 단골 축적 진단`,
-        riskLossBadge: `${clinicYearsActive}년차 완화 적용 · 소개 ${referralRate}%`,
+        riskLossBadge: `소개 ${needReferral}명 부족`,
+        riskLossSub: `(${clinicYearsActive}년차 완화 · 소개 ${referralRate}%)`,
         riskLossTone: "warn",
-        riskWarning: `현재 소개율 ${referralRate}%로 목표(70%)까지는 ${needReferral}명 부족하지만, 개원 ${clinicYearsActive}년 차는 소개해 줄 누적 단골이 막 쌓이는 시기이므로 미달이 아닌 '축적 중(주의)'으로 진단합니다. 다만 3년 차 진입 전까지 완치 경험 환자를 꾸준히 쌓아두어야 합니다.`,
-        actionTitle: `3. 맞춤 실행 지시 — ${clinicYearsActive}년 차 소개 씨앗(3회 완주 환자) 축적`,
-        actionInstruction: `개원 ${clinicYearsActive}년 차에 소개율을 가장 빠르게 끌어올리는 방법은 지금 내원한 초진의 3차 정착률(현재 ${rate3rd}%)을 70% 이상으로 높여 '확실히 나았다'는 경험자를 만드는 것입니다. 호전 확인 시점에 가족·지인 안부를 자연스럽게 물어보세요.`,
+        riskWarning: `소개율 ${referralRate}%로 목표(70%)까지 ${needReferral}명 부족하지만, 개원 ${clinicYearsActive}년 차 단골 축적기이므로 주의 단계로 관리합니다.`,
+        actionTitle: `3. 실전 멘트 — ${clinicYearsActive}년 차 소개 씨앗 심기`,
+        actionInstruction: `지금 내원한 초진의 3차 정착률(${rate3rd}%)을 70% 이상으로 높여 호전 확인 시점에 가족·지인 소개를 자연스럽게 안내하세요.`,
         scriptExample:
           "\"통증이 많이 잡히셔서 다행입니다! 주변에 비슷한 증상으로 고생하시는 가족이나 지인분 계시면 언제든 편하게 소개해 주세요.\"",
         revenueImpactManwon: 0,
-        formulaNote,
       };
     }
 
@@ -1852,23 +1804,19 @@ export function evaluateDualTrackStats(
       riskTitle: isCriticalRef
         ? "2. 기준 미달 시 경영 리스크 (마케팅비 과다 의존)"
         : "2. 주의 구간 진단 (소개 복리 가속 필요)",
-      riskLossBadge: `소개 ${needReferral}명 부족 (외부 유입 의존 ${externalSeedRate}%)`,
+      riskLossBadge: `소개 ${needReferral}명 부족`,
+      riskLossSub: `(소개 ${referralRate}% · 외부 의존 ${externalSeedRate}%)`,
       riskLossTone: isCriticalRef ? "loss" : "warn",
-      riskWarning: `개원 ${clinicYearsActive}년 차에 순수초진 소개율이 ${referralRate}%에 머물러 목표 대비 ${needReferral}명만큼을 외부 광고·검색 유입(${externalSeedRate}%)으로 억지 충당하고 있습니다.${
-        isCriticalRef
-          ? " 3년 차 이상에서 40% 미만이면 진료 만족도·설명 친절도·치료 결과 중 구전으로 이어지지 않는 병목이 있다는 강한 경고 신호입니다."
-          : ""
-      }`,
+      riskWarning: `개원 ${clinicYearsActive}년 차에 소개가 ${needReferral}명 부족해 외부 유입(${externalSeedRate}%)으로 신환을 충당하는 고비용 구조입니다.`,
       actionTitle: isCriticalRef
-        ? "3. 맞춤 실행 지시 — 진료 만족·구전 병목 전면 점검"
-        : `3. 맞춤 실행 지시 — 소개 +${needReferral}명 감사 루프 가동`,
+        ? "3. 실전 멘트 — 만족 확인 및 가족 소개 점검"
+        : `3. 실전 멘트 — 소개 +${needReferral}명 감사 루프`,
       actionInstruction: isCriticalRef
-        ? `개원 ${clinicYearsActive}년 차에 소개율이 ${referralRate}%로 매우 낮습니다. ① 초진 설명 친절도 ② 3회차 실제 통증 호전도(현재 3차율 ${rate3rd}%) ③ 데스크 응대 중 이탈 원인을 점검하고, 완치·호전 환자에게 소개 감사 카톡/인사를 시스템화하세요.`
-        : `목표 70%까지 소개 환자 ${needReferral}명만 더 늘리면 황금 구조에 도달합니다. 3회차 호전 환자에게 원장님이 직접 만족도를 확인하고, 소개로 온 환자의 소개자에게 감사 인사를 반드시 전해 구전 복리를 가속하세요.`,
+        ? `3년 차 이상에서 소개율 ${referralRate}%는 경고 신호이므로 초진 설명·3회차 호전도(${rate3rd}%)·데스크 응대 병목을 점검하세요.`
+        : `3회차 호전 환자에게 만족도를 확인하고 소개자에게 감사 인사를 전해 소개 환자 ${needReferral}명을 늘리세요.`,
       scriptExample:
         "\"오늘 통증이 절반 이상 줄으셔서 다행입니다. 치료받으시면서 불편한 점은 없으셨나요? 가족분들 중에도 어깨·허리 불편하신 분 계시면 편하게 들르시라고 전해 주세요.\"",
       revenueImpactManwon: 0,
-      formulaNote,
     };
   })();
 
